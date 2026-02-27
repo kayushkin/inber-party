@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Míl Party — Character Sheet (Mockup)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(to bottom, #1a1a2e 0%, #0f3460 100%);
+            color: #f0f0f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .back-btn {
+            background: #5c4033;
+            color: #ffd700;
+            border: 2px solid #d4af37;
+            padding: 10px 20px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .back-btn:hover {
+            background: #6d4c3d;
+        }
+
+        .sheet {
+            background: rgba(0, 0, 0, 0.6);
+            border: 5px solid #d4af37;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #5c4033;
+        }
+
+        .avatar-large {
+            font-size: 5rem;
+            background: rgba(212, 175, 55, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            border: 3px solid #d4af37;
+        }
+
+        .header-info {
+            flex: 1;
+        }
+
+        .agent-title {
+            font-size: 2rem;
+            color: #ffd700;
+            margin-bottom: 10px;
+        }
+
+        .agent-class {
+            font-size: 1.2rem;
+            color: #a0826d;
+            margin-bottom: 15px;
+        }
+
+        .xp-bar {
+            background: #333;
+            height: 25px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #5c4033;
+            margin-top: 10px;
+        }
+
+        .xp-fill {
+            background: linear-gradient(to right, #4a7c2e, #76a34d);
+            height: 100%;
+            width: 85%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .energy {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .energy-bar {
+            flex: 1;
+            background: #333;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #5c4033;
+        }
+
+        .energy-fill {
+            background: linear-gradient(to right, #2e5984, #4a90c4);
+            height: 100%;
+            width: 78%;
+        }
+
+        .section {
+            margin-top: 30px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            color: #ffd700;
+            border-bottom: 2px solid #5c4033;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .stat-item {
+            background: rgba(92, 64, 51, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #5c4033;
+        }
+
+        .stat-label {
+            color: #a0826d;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            color: #ffd700;
+            font-weight: bold;
+        }
+
+        .skill-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .skill-item {
+            background: rgba(92, 64, 51, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #d4af37;
+        }
+
+        .skill-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .skill-name {
+            font-size: 1.1rem;
+            color: #ffd700;
+        }
+
+        .skill-level {
+            background: #d4af37;
+            color: #1a1a2e;
+            padding: 3px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .skill-progress {
+            background: #333;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .skill-progress-fill {
+            background: linear-gradient(to right, #4a7c2e, #76a34d);
+            height: 100%;
+        }
+
+        .skill-desc {
+            margin-top: 8px;
+            color: #a0826d;
+            font-size: 0.85rem;
+        }
+
+        .quest-log {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .quest-entry {
+            background: rgba(92, 64, 51, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #76a34d;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .quest-entry.failed {
+            border-left-color: #dc143c;
+        }
+
+        .quest-icon {
+            font-size: 1.5rem;
+        }
+
+        .quest-details {
+            flex: 1;
+        }
+
+        .quest-name {
+            color: #ffd700;
+            margin-bottom: 5px;
+        }
+
+        .quest-meta {
+            color: #a0826d;
+            font-size: 0.85rem;
+        }
+
+        .achievements {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .achievement {
+            text-align: center;
+            background: rgba(92, 64, 51, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #d4af37;
+        }
+
+        .achievement-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .achievement-name {
+            color: #ffd700;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="back-btn" onclick="alert('In the real app, this would go back to camp view.')">← Back to Camp</button>
+
+        <div class="sheet">
+            <!-- Header -->
+            <div class="header">
+                <div class="avatar-large">🧙</div>
+                <div class="header-info">
+                    <div class="agent-title">Bran the Methodical</div>
+                    <div class="agent-class">Level 12 — Wizard (Coder)</div>
+                    <div style="color: #a0826d; font-style: italic;">"Methodical, thorough, never rushes."</div>
+                    
+                    <div style="margin-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>XP: 4,250 / 5,000</span>
+                            <span style="color: #76a34d;">85%</span>
+                        </div>
+                        <div class="xp-bar">
+                            <div class="xp-fill">750 XP to Level 13</div>
+                        </div>
+                    </div>
+
+                    <div class="energy">
+                        <span>⚡ Energy:</span>
+                        <div class="energy-bar">
+                            <div class="energy-fill"></div>
+                        </div>
+                        <span>78%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="section">
+                <div class="section-title">📊 Stats</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Tasks Completed</div>
+                        <div class="stat-value">127</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Success Rate</div>
+                        <div class="stat-value">94%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Avg Time</div>
+                        <div class="stat-value">2.3h</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Lines of Code</div>
+                        <div class="stat-value">8,432</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Tests Written</div>
+                        <div class="stat-value">234</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Bugs Fixed</div>
+                        <div class="stat-value">89</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skills -->
+            <div class="section">
+                <div class="section-title">⭐ Skills & Specializations</div>
+                <div class="skill-list">
+                    <div class="skill-item">
+                        <div class="skill-header">
+                            <span class="skill-name">TypeScript Specialist</span>
+                            <span class="skill-level">Level 3</span>
+                        </div>
+                        <div class="skill-progress">
+                            <div class="skill-progress-fill" style="width: 60%;"></div>
+                        </div>
+                        <div class="skill-desc">45/75 tasks • +15% speed on TypeScript files</div>
+                    </div>
+
+                    <div class="skill-item">
+                        <div class="skill-header">
+                            <span class="skill-name">Test Master</span>
+                            <span class="skill-level">Level 2</span>
+                        </div>
+                        <div class="skill-progress">
+                            <div class="skill-progress-fill" style="width: 80%;"></div>
+                        </div>
+                        <div class="skill-desc">40/50 tasks • Writes comprehensive test coverage</div>
+                    </div>
+
+                    <div class="skill-item">
+                        <div class="skill-header">
+                            <span class="skill-name">Git Wizard</span>
+                            <span class="skill-level">Level 1</span>
+                        </div>
+                        <div class="skill-progress">
+                            <div class="skill-progress-fill" style="width: 35%;"></div>
+                        </div>
+                        <div class="skill-desc">14/40 tasks • Handles merge conflicts smoothly</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quest Log -->
+            <div class="section">
+                <div class="section-title">📜 Quest Log (Recent)</div>
+                <div class="quest-log">
+                    <div class="quest-entry">
+                        <div class="quest-icon">✅</div>
+                        <div class="quest-details">
+                            <div class="quest-name">Fix login bug</div>
+                            <div class="quest-meta">2h 14m • +50 XP • 2 hours ago</div>
+                        </div>
+                    </div>
+
+                    <div class="quest-entry">
+                        <div class="quest-icon">✅</div>
+                        <div class="quest-details">
+                            <div class="quest-name">Add dark mode toggle</div>
+                            <div class="quest-meta">3h 45m • +80 XP • 5 hours ago</div>
+                        </div>
+                    </div>
+
+                    <div class="quest-entry failed">
+                        <div class="quest-icon">❌</div>
+                        <div class="quest-details">
+                            <div class="quest-name">Deploy to production</div>
+                            <div class="quest-meta">FAILED (timeout) • 1 day ago</div>
+                        </div>
+                    </div>
+
+                    <div class="quest-entry">
+                        <div class="quest-icon">✅</div>
+                        <div class="quest-details">
+                            <div class="quest-name">Write tests for auth module</div>
+                            <div class="quest-meta">1h 30m • +45 XP • 2 days ago</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Achievements -->
+            <div class="section">
+                <div class="section-title">🏆 Achievements</div>
+                <div class="achievements">
+                    <div class="achievement">
+                        <div class="achievement-icon">🏆</div>
+                        <div class="achievement-name">Century Club</div>
+                    </div>
+                    <div class="achievement">
+                        <div class="achievement-icon">🏆</div>
+                        <div class="achievement-name">Flawless Week</div>
+                    </div>
+                    <div class="achievement">
+                        <div class="achievement-icon">🏆</div>
+                        <div class="achievement-name">Speed Runner</div>
+                    </div>
+                    <div class="achievement">
+                        <div class="achievement-icon">🏆</div>
+                        <div class="achievement-name">Bug Slayer</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
