@@ -1,0 +1,261 @@
+.camp-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.camp-scene {
+  background: linear-gradient(135deg, #2d5016 0%, #4a7c2e 50%, #2d5016 100%);
+  border: 3px solid #d4af37;
+  border-radius: 16px;
+  padding: 4rem;
+  min-height: 600px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.3);
+}
+
+.camp-fire {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.fire-emoji {
+  font-size: 4rem;
+  animation: flicker 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px #ff6b00);
+}
+
+.fire-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(255, 107, 0, 0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: glow 2s ease-in-out infinite;
+}
+
+.agents-circle {
+  position: relative;
+  width: 100%;
+  height: 500px;
+  margin: 0 auto;
+}
+
+.agent-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 2px solid #d4af37;
+  border-radius: 12px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+.agent-card:hover {
+  transform: scale(1.05) !important;
+  border-color: #ffd700;
+  box-shadow: 0 8px 16px rgba(255, 215, 0, 0.3);
+}
+
+.agent-card.status-idle {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.agent-card.status-working {
+  animation: pulse-work 1.5s ease-in-out infinite;
+}
+
+.agent-card.status-stuck {
+  animation: wave 2s ease-in-out infinite;
+}
+
+.agent-avatar {
+  font-size: 3rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.agent-info {
+  text-align: center;
+}
+
+.agent-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #ffd700;
+  margin-bottom: 0.25rem;
+}
+
+.agent-title {
+  font-size: 0.9rem;
+  color: #d4af37;
+  margin-bottom: 0.5rem;
+  font-style: italic;
+}
+
+.agent-class {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-bottom: 0.5rem;
+}
+
+.class-icon {
+  font-size: 1.2rem;
+}
+
+.agent-status {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  margin: 0.5rem 0;
+  text-transform: uppercase;
+}
+
+.agent-status.status-idle {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+}
+
+.agent-status.status-working {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.agent-status.status-quest {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+}
+
+.agent-status.status-stuck {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.agent-status.status-resting {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.energy-bar {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #555;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.energy-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+  transition: width 0.3s;
+}
+
+.energy-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.camp-info {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid #d4af37;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.camp-info h2 {
+  color: #ffd700;
+  margin-top: 0;
+}
+
+.camp-info p {
+  color: #ccc;
+  margin: 0.5rem 0;
+}
+
+.camp-info .hint {
+  color: #888;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes pulse-work {
+  0%, 100% {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.6);
+  }
+}
+
+@keyframes wave {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes flicker {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(2deg);
+  }
+  50% {
+    transform: scale(0.95) rotate(-2deg);
+  }
+  75% {
+    transform: scale(1.05) rotate(1deg);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}

@@ -1,0 +1,296 @@
+.character-sheet {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.back-button {
+  background: rgba(212, 175, 55, 0.2);
+  border: 2px solid #d4af37;
+  color: #d4af37;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  transition: all 0.2s;
+  margin-bottom: 2rem;
+}
+
+.back-button:hover {
+  background: rgba(212, 175, 55, 0.3);
+  border-color: #ffd700;
+  color: #ffd700;
+}
+
+.character-header {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 3px solid #d4af37;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.character-avatar {
+  font-size: 6rem;
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.3));
+}
+
+.character-title-section {
+  flex: 1;
+}
+
+.character-name {
+  font-size: 2.5rem;
+  color: #ffd700;
+  margin: 0 0 0.5rem 0;
+}
+
+.character-title {
+  font-size: 1.5rem;
+  color: #d4af37;
+  margin: 0 0 1rem 0;
+  font-style: italic;
+}
+
+.character-class {
+  display: inline-block;
+  background: rgba(212, 175, 55, 0.2);
+  border: 2px solid #d4af37;
+  color: #d4af37;
+  padding: 0.5rem 1.5rem;
+  border-radius: 20px;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid #555;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #888;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  font-size: 2rem;
+  color: #ffd700;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value.status-idle {
+  color: #9ca3af;
+}
+
+.stat-value.status-working {
+  color: #60a5fa;
+}
+
+.stat-value.status-on_quest {
+  color: #c084fc;
+}
+
+.stat-value.status-stuck {
+  color: #f87171;
+}
+
+.stat-value.status-resting {
+  color: #4ade80;
+}
+
+.stat-progress {
+  margin-top: 0.5rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #555;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+}
+
+.progress-bar.energy .progress-fill {
+  background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #d4af37 0%, #ffd700 100%);
+  transition: width 0.3s;
+}
+
+.progress-text {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.section {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid #555;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.section h3 {
+  color: #ffd700;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #d4af37;
+  padding-bottom: 0.5rem;
+}
+
+.skills-list,
+.achievements-list,
+.quest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.skill-item {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.skill-name {
+  font-size: 1.1rem;
+  color: #d4af37;
+  margin-bottom: 0.5rem;
+}
+
+.skill-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.achievement-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.achievement-icon {
+  font-size: 2rem;
+}
+
+.achievement-name {
+  font-size: 1.1rem;
+  color: #d4af37;
+  margin-bottom: 0.25rem;
+}
+
+.achievement-date {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.quest-item {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid #444;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.quest-item.status-in_progress {
+  border-color: #3b82f6;
+}
+
+.quest-item.status-completed {
+  border-color: #22c55e;
+  opacity: 0.7;
+}
+
+.quest-item.status-failed {
+  border-color: #ef4444;
+  opacity: 0.7;
+}
+
+.quest-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.quest-name {
+  font-size: 1.1rem;
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.quest-status {
+  font-size: 0.85rem;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.quest-description {
+  color: #ccc;
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.quest-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+
+.quest-reward {
+  color: #4ade80;
+}
+
+.quest-progress {
+  margin-top: 0.75rem;
+}
+
+.empty-message {
+  color: #666;
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
+}
+
+.loading,
+.error {
+  text-align: center;
+  color: #888;
+  font-size: 1.2rem;
+  padding: 4rem;
+}

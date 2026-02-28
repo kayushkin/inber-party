@@ -1,98 +1,254 @@
-# Míl Party — Agent Party UI Concept
+# ⚔️ Míl Party
 
-> **Míl** (pl. Míls) — from Irish mythology: warriors, adventurers, the Milesians who conquered Ireland. Here: your AI coding agents, visualized as pixel-art RPG heroes.
+A pixel-art RPG interface for visualizing AI coding agents as adventurers on quests. Built with Go, PostgreSQL, and React.
 
-## Vision
+## 🎮 About
 
-What if managing AI coding agents felt less like watching logs scroll by and more like running a party of adventurers in a classic RPG?
+Míl Party transforms your AI coding agents into a party of adventurers gathered around a campfire. Watch them take on quests (tasks), gain experience, level up, and unlock achievements—all with a charming Celtic/Irish mythology-inspired RPG aesthetic.
 
-**Míl Party** is a concept exploration for visualizing the [inber](https://github.com/kayushkin/inber) multi-agent system as a pixel-art party management UI. Think:
+**Features:**
+- 🏕️ **Camp View** — Your agents rest by the fire, showing their current status and energy
+- 📜 **Quest Board** — Create tasks and assign them to agents
+- 📊 **Character Sheets** — Detailed view of each agent's stats, skills, achievements, and quest log
+- 📡 **Real-time Updates** — WebSocket connection for live state changes
+- 🎨 **Pixel-Art Aesthetic** — Dark backgrounds, gold accents, and monospace fonts
 
-- **Chrono Trigger** camp scenes where your party hangs out between quests
-- **Final Fantasy Tactics** job system where agents gain skills and level up
-- **Fire Emblem** character progression with relationships and synergies
-- **Stardew Valley** charm and personality in a technical tool
+## 🛠️ Stack
 
-## The Core Idea
+- **Backend**: Go 1.24+ with native `net/http`
+- **Database**: PostgreSQL
+- **Frontend**: React 19 + Vite + TypeScript
+- **State Management**: Zustand
+- **Real-time**: Native WebSocket (no Socket.io)
+- **Routing**: React Router
 
-Each AI agent is a **Míl** — a character with:
+## 🚀 Quick Start
 
-- **Pixel-art avatar** (64x64, Celtic/fantasy theme)
-- **Name & personality** (Bran the Methodical, Scáthach the Swift)
-- **Level & XP** (gained from completing tasks)
-- **Stats** (tasks completed, success rate, lines written, tests passed)
-- **Quest log** (active, completed, failed tasks)
-- **Skills & equipment** (tools they have access to, specializations they've unlocked)
-- **Mood & energy** (overworked agents need rest)
+### Prerequisites
 
-## Key UI Views
+- **Go 1.24+**
+- **Node.js 18+** and npm
+- **PostgreSQL** (running locally or remote)
 
-All detailed in the [concepts/](./concepts/) directory:
+### 1. Clone the Repository
 
-1. **[Camp View](./concepts/camp-view.md)** — The main hub. Pixel art camp scene where agents hang out around a fire. Idle agents rest, active ones are "out on quest," stuck ones wave for help.
+```bash
+git clone git@ghk:kayushkin/inber-party.git
+cd inber-party
+```
 
-2. **[Quest Board](./concepts/quest-board.md)** — Post tasks like quests on a bulletin board. Agents claim them or you assign them. Quest cards show difficulty, XP rewards, estimated time.
+### 2. Set Up the Database
 
-3. **[Character Sheets](./concepts/character-sheets.md)** — Detailed agent view with stats, quest history, skill trees (e.g., "TypeScript Specialist" unlocked after 50 TS tasks).
+Create a PostgreSQL database:
 
-4. **[Battle View](./concepts/battle-view.md)** — Active tasks shown as battles. "Bran casts Write File!" "Scáthach uses Test Suite — Critical Hit!" Errors are damage taken. Fun + informative.
+```bash
+createdb milparty
+```
 
-5. **[Notifications](./concepts/notifications.md)** — Agents get your attention via waving animations, speech bubbles, notification badges. Priority levels: casual wave → urgent flag → critical SOS.
+Or use your existing Postgres instance. The default connection string is:
 
-6. **[Party Management](./concepts/party-management.md)** — Compose teams for complex tasks. See synergies ("Bran + Scáthach: +15% test coverage"). Track which combos work best.
+```
+postgres://localhost:5432/milparty?sslmode=disable
+```
 
-7. **[Progression System](./concepts/progression.md)** — Agents level up, unlock new avatar elements, earn achievements, compete on leaderboards.
+To use a different database, set the `DATABASE_URL` environment variable:
 
-## Mockups
+```bash
+export DATABASE_URL="postgres://user:password@host:port/dbname?sslmode=disable"
+```
 
-See [mockups/](./mockups/) for static HTML/CSS prototypes:
+### 3. Install Dependencies
 
-- **camp-view.html** — A simple camp scene mockup
-- **character-sheet.html** — Agent stats and history
+```bash
+make install
+```
 
-These use CSS pixel art / emoji placeholders. They're visual sketches, not production code.
+This will:
+- Download Go modules
+- Install frontend npm packages
 
-## Art Pipeline
+### 4. Run in Development
 
-See [art/README.md](./art/README.md) for the pixel art generation approach:
+**Terminal 1** — Start the Go backend:
 
-- DALL-E for initial sprites
-- 64x64 pixel art style, Celtic/Irish fantasy theme
-- Each character needs: idle, walking, working, waving, celebrating
-- Color palette and style guide
+```bash
+make dev
+```
 
-## Why This Matters
+The backend will:
+- Run migrations automatically
+- Seed 3 default agents (Bran, Scáthach, Aoife) if the database is empty
+- Serve the API at `http://localhost:8080/api`
+- Open a WebSocket endpoint at `ws://localhost:8080/ws`
 
-Developer tools don't have to be boring. When you're managing a fleet of AI agents working on your codebase:
+**Terminal 2** — Start the Vite dev server:
 
-- **Awareness** — know at a glance who's doing what, who's stuck, who's idle
-- **Trust** — see agent history and success rates before assigning critical tasks
-- **Engagement** — progression systems make you care about your agents
-- **Fun** — debugging is more enjoyable when it's a battle scene
+```bash
+cd frontend
+npm run dev
+```
 
-## Tech Stack
+The frontend will be available at `http://localhost:5173`
 
-Proposed implementation (see [concepts/tech-stack.md](./concepts/tech-stack.md)):
+### 5. Build for Production
 
-- **React** for UI components
-- **PixiJS or Canvas** for pixel art rendering
-- **WebSocket** for real-time updates from inber sessions
-- **Data model** linking inber's session DB to UI state
+```bash
+make build
+```
 
-## Status
+This will:
+- Build the frontend into `frontend/dist/`
+- Build the backend binary to `bin/milparty`
 
-🎨 **This is a concept repo** — a game design document for a UI that doesn't exist yet.
+Run the production server:
 
-The goal: capture the vision, explore the ideas, inspire the build.
+```bash
+./bin/milparty
+```
 
-## Next Steps
+The server will serve both the API and the static frontend at `http://localhost:8080`.
 
-1. Refine the concepts based on feedback
-2. Create actual pixel art for a few example Míls
-3. Build a working prototype of the camp view
-4. Integrate with a real inber instance
-5. Playtest and iterate
+## 📁 Project Structure
+
+```
+inber-party/
+├── cmd/
+│   └── server/
+│       └── main.go          # Entry point
+├── internal/
+│   ├── api/
+│   │   └── api.go           # REST API handlers
+│   ├── db/
+│   │   ├── db.go            # Database connection & migrations
+│   │   └── models.go        # Data models
+│   └── ws/
+│       └── hub.go           # WebSocket hub
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Layout.tsx
+│   │   │   └── Layout.css
+│   │   ├── pages/
+│   │   │   ├── CampView.tsx
+│   │   │   ├── CharacterSheet.tsx
+│   │   │   └── QuestBoard.tsx
+│   │   ├── store.ts         # Zustand store + API helpers
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── package.json
+│   └── vite.config.ts
+├── go.mod
+├── go.sum
+├── Makefile
+└── README.md
+```
+
+## 🎯 API Endpoints
+
+### Agents
+- `GET /api/agents` — List all agents
+- `GET /api/agents/:id` — Get agent detail (with skills, achievements, tasks)
+- `POST /api/agents` — Create a new agent
+- `PATCH /api/agents/:id` — Update agent
+
+### Tasks
+- `GET /api/tasks` — List all tasks
+- `POST /api/tasks` — Create a new task
+- `PATCH /api/tasks/:id` — Update task (assign, progress, complete)
+
+### Stats
+- `GET /api/stats` — Overall party statistics
+
+### WebSocket
+- `ws://localhost:8080/ws` — Real-time updates
+
+**WebSocket message types:**
+- `agent_created`
+- `agent_updated`
+- `task_created`
+- `task_updated`
+
+## ⚙️ Configuration
+
+Environment variables:
+
+| Variable       | Default                                               | Description              |
+|----------------|-------------------------------------------------------|--------------------------|
+| `DATABASE_URL` | `postgres://localhost:5432/milparty?sslmode=disable` | PostgreSQL connection    |
+| `PORT`         | `8080`                                                | Server port              |
+
+Frontend environment variables (create `frontend/.env`):
+
+| Variable         | Default                   | Description        |
+|------------------|---------------------------|--------------------|
+| `VITE_API_URL`   | `http://localhost:8080`   | Backend API URL    |
+| `VITE_WS_URL`    | `ws://localhost:8080/ws`  | WebSocket URL      |
+
+## 🗄️ Database Schema
+
+### `agents`
+- `id` — Primary key
+- `name`, `title`, `class` — Character info
+- `level`, `xp`, `energy` — Stats
+- `status` — idle, working, on_quest, stuck, resting
+- `avatar_emoji` — Display emoji
+- `created_at`, `updated_at`
+
+### `tasks`
+- `id` — Primary key
+- `name`, `description` — Task info
+- `difficulty`, `xp_reward` — Quest details
+- `status` — available, in_progress, completed, failed
+- `assigned_agent_id` — Foreign key to agents
+- `progress` — 0-100
+- `created_at`, `started_at`, `completed_at`
+
+### `skills`
+- `id` — Primary key
+- `agent_id` — Foreign key to agents
+- `skill_name`, `level`, `task_count`
+
+### `achievements`
+- `id` — Primary key
+- `agent_id` — Foreign key to agents
+- `achievement_name`, `unlocked_at`
+
+## 🧪 Development
+
+```bash
+# Run backend only
+make dev
+
+# Build backend binary
+make build-backend
+
+# Build frontend
+make build-frontend
+
+# Clean build artifacts
+make clean
+
+# Run tests
+make test
+```
+
+## 🎨 Theme & Design
+
+Míl Party uses a pixel-art RPG aesthetic inspired by Celtic/Irish mythology:
+
+- **Colors**: Dark backgrounds (#0a0a0a), gold accents (#ffd700, #d4af37), green camp tones (#2d5016, #4a7c2e)
+- **Font**: Monospace (Courier New)
+- **Animations**: Breathing idle states, pulsing for working agents, waving for stuck agents
+- **Visual Style**: Pixelated rendering, border-based UI, glowing effects
+
+## 📜 License
+
+MIT
+
+## 🤝 Contributing
+
+Issues and pull requests are welcome!
 
 ---
 
-**Míls, assemble!** 🗡️✨
+**Built with ❤️ by the Míl Party crew**
