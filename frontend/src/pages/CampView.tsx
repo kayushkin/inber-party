@@ -1,16 +1,19 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useStore, api } from '../store';
+import { useStore } from '../store';
 import './CampView.css';
 
 export default function CampView() {
   const navigate = useNavigate();
   const agents = useStore((state) => state.agents);
-  const setAgents = useStore((state) => state.setAgents);
+
+  const startPolling = useStore((state) => state.startPolling);
+  const stopPolling = useStore((state) => state.stopPolling);
 
   useEffect(() => {
-    api.getAgents().then(setAgents);
-  }, [setAgents]);
+    startPolling(10000);
+    return () => stopPolling();
+  }, [startPolling, stopPolling]);
 
   const getStatusClass = (status: string) => {
     switch (status) {

@@ -144,6 +144,80 @@
   color: #aaa;
 }
 
+/* Inber-specific stats */
+.inber-stats .stat-value.tokens-color { color: #60a5fa; }
+.inber-stats .stat-value.cost-color { color: #4ade80; }
+.success-count { color: #4ade80; }
+.error-count { color: #f87171; font-size: 0.85em; }
+
+.character-live-badge {
+  background: rgba(0, 255, 136, 0.15);
+  border: 2px solid #00ff88;
+  color: #00ff88;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  letter-spacing: 2px;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 136, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(0, 255, 136, 0.5); }
+}
+
+.skill-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.skill-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #d4af37, #ffd700);
+  transition: width 0.3s;
+}
+
+/* Quest summary */
+.quest-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.summary-item {
+  text-align: center;
+}
+
+.summary-label {
+  display: block;
+  font-size: 0.7rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.summary-value { font-weight: bold; font-size: 1.1rem; color: #ccc; }
+.summary-value.success { color: #4ade80; }
+.summary-value.fail { color: #f87171; }
+.summary-value.tokens { color: #60a5fa; }
+.summary-value.cost { color: #4ade80; }
+
+.quest-count { font-size: 0.8em; color: #888; font-weight: normal; }
+
+.quest-tokens { color: #60a5fa; }
+.quest-turns { color: #c084fc; }
+.quest-children { color: #c084fc; }
+
 .content-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

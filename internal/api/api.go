@@ -58,6 +58,11 @@ func (s *Server) handleAgentDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listAgents(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
 	rows, err := s.DB.Query(`
 		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, created_at, updated_at
 		FROM agents
@@ -85,6 +90,10 @@ func (s *Server) listAgents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getAgentDetail(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
 	var agent db.Agent
 	err := s.DB.QueryRow(`
 		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, created_at, updated_at
@@ -141,6 +150,10 @@ func (s *Server) getAgentDetail(w http.ResponseWriter, r *http.Request, id int) 
 }
 
 func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
 	var agent db.Agent
 	if err := json.NewDecoder(r.Body).Decode(&agent); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -166,6 +179,10 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) updateAgent(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
 	var updates map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -245,6 +262,11 @@ func (s *Server) handleTaskDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listTasks(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
 	rows, err := s.DB.Query(`
 		SELECT id, name, description, difficulty, xp_reward, status, assigned_agent_id, progress, created_at, started_at, completed_at
 		FROM tasks
@@ -272,6 +294,10 @@ func (s *Server) listTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
 	var task db.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -300,6 +326,10 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) updateTask(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
 	var updates map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -349,6 +379,11 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request, id int) {
 }
 
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(db.Stats{})
+		return
+	}
 	var stats db.Stats
 
 	s.DB.QueryRow("SELECT COUNT(*) FROM agents").Scan(&stats.TotalAgents)
