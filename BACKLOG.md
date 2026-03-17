@@ -12,7 +12,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Animated XP bar fills when visiting an agent (CSS transition on load)
 - [x] Level-up animation — particle burst / glow effect when an agent levels up during a session
 - [x] Quest completion animation — scroll unfurling or chest opening effect
-- [ ] Idle animations on agent cards (subtle breathing/bobbing CSS keyframes)
+- [~] Idle animations on agent cards (subtle breathing/bobbing CSS keyframes)
 - [ ] Status-based visual effects — working agents have spinning gear, stuck agents have red pulse, idle agents have gentle glow
 - [ ] Mobile responsive polish — test all pages on 375px viewport, fix any overflow/stacking issues
 - [ ] Dark/light theme toggle with localStorage persistence
