@@ -29,6 +29,8 @@ func NewHTTPClient(baseURL string) *HTTPClient {
 type inberAPIAgent struct {
 	Name         string  `json:"name"`
 	Agent        string  `json:"agent"`
+	Orchestrator string  `json:"orchestrator"`
+	Enabled      bool    `json:"enabled"`
 	SessionCount int     `json:"session_count"`
 	TotalTokens  int     `json:"total_tokens"`
 	TotalCost    float64 `json:"total_cost"`
@@ -111,6 +113,7 @@ func (c *HTTPClient) GetAgents() ([]RPGAgent, error) {
 			Energy:       energyFromActivity(la),
 			MaxEnergy:    100,
 			Status:       status,
+			Orchestrator: a.Orchestrator,
 			AvatarEmoji:  emoji,
 			TotalTokens:  a.TotalTokens,
 			TotalCost:    a.TotalCost,

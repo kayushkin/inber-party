@@ -4,8 +4,10 @@ package inber
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,8 +29,9 @@ type RPGAgent struct {
 	XPToNext    int        `json:"xp_to_next"`
 	Energy      int        `json:"energy"`
 	MaxEnergy   int        `json:"max_energy"`
-	Status      string     `json:"status"` // idle, working, resting, stuck
-	AvatarEmoji string     `json:"avatar_emoji"`
+	Status       string     `json:"status"` // idle, working, resting, stuck
+	Orchestrator string     `json:"orchestrator"`
+	AvatarEmoji  string     `json:"avatar_emoji"`
 	TotalTokens int        `json:"total_tokens"`
 	TotalCost   float64    `json:"total_cost"`
 	SessionCount int       `json:"session_count"`
@@ -97,18 +100,33 @@ type QuestHistoryEntry struct {
 
 // Agent class assignments based on agent name patterns
 var agentClasses = map[string]struct{ class, emoji, title string }{
-	"claxon":    {"Overlord", "👁️", "the All-Seeing"},
-	"brigid":    {"Artificer", "✨", "the Radiant"},
+	// Inber agents
+	"claxon":    {"Overlord", "♚", "the All-Seeing"},
 	"fionn":     {"Engineer", "⚙️", "the Builder"},
+	"brigid":    {"Artificer", "🔨", "the Radiant"},
 	"oisin":     {"Bard", "🎵", "the Storyteller"},
 	"manannan":  {"Ranger", "🌊", "the Voyager"},
 	"ogma":      {"Scribe", "📜", "the Chronicler"},
 	"scathach":  {"Shadow", "🗡️", "the Unseen"},
-	"goibniu":   {"Smith", "🔨", "the Forgemaster"},
+	"goibniu":   {"Smith", "⚒️", "the Forgemaster"},
 	"bench":     {"Gladiator", "🏛️", "the Proven"},
-	"main":      {"Sovereign", "👑", "the Wise"},
-	"run":       {"Ranger", "🏹", "the Swift"},
-	"inber-party": {"Bard", "🎭", "the Entertainer"},
+	"bran":      {"Scout", "🐕", "the Loyal"},
+	// OpenClaw agents
+	"main":           {"Sovereign", "👑", "the Wise"},
+	"kayushkin":      {"Artificer", "🔨", "the Maker"},
+	"si":             {"Bard", "🎵", "the Melodic"},
+	"downloadstack":  {"Ranger", "🌊", "the Fetcher"},
+	"claxon-android": {"Shadow", "📱", "the Mobile"},
+	"inber":          {"Engineer", "⚙️", "the Orchestrator"},
+	"forge":          {"Smith", "⚒️", "the Forgemaster"},
+	"logstack":       {"Scribe", "📜", "the Recorder"},
+	"healthcheck":    {"Cleric", "🏥", "the Healer"},
+	"inber-party":    {"Jester", "🃏", "the Entertainer"},
+	"agent-bench":    {"Gladiator", "🏛️", "the Tested"},
+	"argraphments":   {"Sage", "📚", "the Learned"},
+	"keyboard":       {"Tinker", "🎹", "the Melodic"},
+	"claxon-watch":   {"Sentinel", "⌚", "the Watchful"},
+	"run":            {"Ranger", "🏹", "the Swift"},
 }
 
 func classFor(agent string) (string, string, string) {
@@ -120,10 +138,18 @@ func classFor(agent string) (string, string, string) {
 	return "Adventurer", "⚔️", "the Unknown"
 }
 
+// inberRegistryAgent is the shape returned by inber's GET /api/agents registry endpoint.
+type inberRegistryAgent struct {
+	Name         string `json:"name"`
+	Orchestrator string `json:"orchestrator"`
+	Enabled      bool   `json:"enabled"`
+}
+
 // Store provides read-only access to inber's databases.
 type Store struct {
 	sessionsDB *sql.DB // ~/.inber/sessions.db
 	gatewayDB  *sql.DB // ~/.inber/gateway/gateway.db
+	inberURL   string  // base URL for inber HTTP API (for registry)
 }
 
 // DefaultDBPaths returns the default paths for inber databases.
@@ -134,8 +160,8 @@ func DefaultDBPaths() (sessionsDB, gatewayDB string) {
 }
 
 // NewStore opens read-only connections to inber's databases.
-func NewStore(sessionsDBPath, gatewayDBPath string) (*Store, error) {
-	s := &Store{}
+func NewStore(sessionsDBPath, gatewayDBPath, inberURL string) (*Store, error) {
+	s := &Store{inberURL: inberURL}
 	var err error
 
 	if sessionsDBPath != "" {
@@ -214,9 +240,39 @@ func energyFromActivity(lastActive *time.Time) int {
 	return energy
 }
 
+// fetchRegistry fetches the full agent list from inber's HTTP API.
+func (s *Store) fetchRegistry() []inberRegistryAgent {
+	if s.inberURL == "" {
+		return nil
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(s.inberURL + "/api/agents")
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil
+	}
+	var agents []inberRegistryAgent
+	if err := json.NewDecoder(resp.Body).Decode(&agents); err != nil {
+		return nil
+	}
+	return agents
+}
+
 // GetAgents returns all known agents mapped to RPG characters.
 func (s *Store) GetAgents() ([]RPGAgent, error) {
 	agentMap := make(map[string]*RPGAgent)
+
+	// Build orchestrator map from registry
+	orchestratorMap := make(map[string]string)
+	registry := s.fetchRegistry()
+	for _, ra := range registry {
+		if ra.Name != "" {
+			orchestratorMap[ra.Name] = ra.Orchestrator
+		}
+	}
 
 	// Pull from gateway DB (has richer request-level data)
 	if s.gatewayDB != nil {
@@ -285,6 +341,7 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 				Energy:       energyFromActivity(la),
 				MaxEnergy:    100,
 				Status:       status,
+				Orchestrator: orchestratorMap[agentName],
 				AvatarEmoji:  emoji,
 				TotalTokens:  totalTokens,
 				TotalCost:    totalCost,
@@ -372,6 +429,7 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 						Energy:       energyFromActivity(la),
 						MaxEnergy:    100,
 						Status:       "idle",
+						Orchestrator: orchestratorMap[agentName],
 						AvatarEmoji:  emoji,
 						TotalTokens:  tokens,
 						TotalCost:    cost,
@@ -413,6 +471,33 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 		default:
 			a.Skills = append(a.Skills, RPGSkill{Name: "Brute Force", Level: a.Level / 2, TaskCount: a.QuestCount})
 		}
+	}
+
+	// Add registry agents that have no DB data
+	for _, ra := range registry {
+		if ra.Name == "" {
+			continue
+		}
+		if _, exists := agentMap[ra.Name]; exists {
+			continue
+		}
+		class, emoji, title := classFor(ra.Name)
+		a := &RPGAgent{
+			ID:           ra.Name,
+			Name:         titleCase(ra.Name),
+			Title:        title,
+			Class:        class,
+			Level:        1,
+			XP:           0,
+			XPToNext:     100,
+			Energy:       100,
+			MaxEnergy:    100,
+			Status:       "idle",
+			Orchestrator: ra.Orchestrator,
+			AvatarEmoji:  emoji,
+			Skills:       []RPGSkill{{Name: "Brute Force", Level: 0, TaskCount: 0}},
+		}
+		agentMap[ra.Name] = a
 	}
 
 	result := make([]RPGAgent, 0, len(agentMap))

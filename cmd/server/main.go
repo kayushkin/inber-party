@@ -70,7 +70,7 @@ func main() {
 		gwDBPath = envPath
 	}
 
-	inberStore, err := inber.NewStore(sessDBPath, gwDBPath)
+	inberStore, err := inber.NewStore(sessDBPath, gwDBPath, inberURL)
 	if err != nil {
 		log.Printf("⚠ Inber SQLite unavailable: %v", err)
 	} else if inberStore.HasData() {

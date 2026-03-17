@@ -47,6 +47,21 @@
   letter-spacing: 1px;
 }
 
+/* ── Guild Sections ── */
+.guild-section {
+  margin-bottom: 1.5rem;
+}
+
+.guild-header {
+  font-size: 1.1rem;
+  color: #d4af37;
+  font-family: 'Courier New', monospace;
+  margin: 0 0 0.75rem 0;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #333;
+  letter-spacing: 1px;
+}
+
 /* ── Agent Grid ── */
 .agents-grid {
   display: grid;
@@ -150,6 +165,23 @@
 }
 
 .ac-tokens { color: #60a5fa; }
+
+.ac-chat-hint {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  color: #666;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.agent-card:hover .ac-chat-hint {
+  opacity: 1;
+}
 
 .ac-detail-btn {
   position: absolute;

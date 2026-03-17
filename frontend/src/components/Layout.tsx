@@ -14,9 +14,6 @@ export default function Layout() {
 
   return (
     <div className="layout">
-      <div className="live-banner">
-        🔮 LIVE — Real agent activity from inber 🔮
-      </div>
       <header className="header">
         <div className="header-content">
           <Link to="/" className="camp-name">⚔️ Míl Party</Link>

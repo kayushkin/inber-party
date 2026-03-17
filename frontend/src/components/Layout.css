@@ -4,16 +4,6 @@
   flex-direction: column;
 }
 
-.live-banner {
-  background: linear-gradient(90deg, #002a00, #005500, #002a00);
-  color: #00ff88;
-  text-align: center;
-  padding: 4px 0;
-  font-size: 12px;
-  font-family: monospace;
-  letter-spacing: 2px;
-}
-
 .header {
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
   border-bottom: 2px solid #d4af37;

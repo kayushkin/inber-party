@@ -13,6 +13,7 @@ export interface RPGAgent {
   energy: number;
   max_energy: number;
   status: string;
+  orchestrator: string;
   avatar_emoji: string;
   total_tokens: number;
   total_cost: number;
@@ -324,6 +325,12 @@ export const CLASS_COLORS: Record<string, string> = {
   Wizard: '#a78bfa',
   Healer: '#4ade80',
   Warrior: '#f87171',
+  Scout: '#8b5cf6',
+  Cleric: '#4ade80',
+  Jester: '#f472b6',
+  Sage: '#818cf8',
+  Tinker: '#a78bfa',
+  Sentinel: '#38bdf8',
 };
 
 export function classColor(cls: string) {
