@@ -1,0 +1,100 @@
+/* Skeleton Loader Styles */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-bg, #f0f0f0) 25%,
+    var(--skeleton-shimmer, #e0e0e0) 37%,
+    var(--skeleton-bg, #f0f0f0) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  display: block;
+}
+
+/* Dark theme skeleton colors */
+[data-theme="dark"] .skeleton {
+  --skeleton-bg: #2a2a2a;
+  --skeleton-shimmer: #3a3a3a;
+}
+
+/* Light theme skeleton colors */
+[data-theme="light"] .skeleton {
+  --skeleton-bg: #f0f0f0;
+  --skeleton-shimmer: #e0e0e0;
+}
+
+@keyframes skeleton-pulse {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Skeleton Agent Card */
+.skeleton-card {
+  pointer-events: none;
+  position: relative;
+}
+
+.skeleton-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary, #1a1a1a);
+  opacity: 0.1;
+  border-radius: inherit;
+  z-index: -1;
+}
+
+.skeleton-card .skeleton-name {
+  margin-bottom: 4px;
+}
+
+.skeleton-card .skeleton-class {
+  margin-top: 2px;
+}
+
+.skeleton-card .skeleton-status-dot {
+  margin-left: auto;
+}
+
+.skeleton-card .skeleton-quest-name {
+  margin-bottom: 8px;
+}
+
+.skeleton-card .skeleton-quest-desc {
+  margin-bottom: 4px;
+}
+
+.skeleton-card .skeleton-quest-desc-2 {
+  margin-bottom: 8px;
+}
+
+/* Skeleton Stats Bar */
+.skeleton-stats-bar .skeleton-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.skeleton-stat .skeleton-stat-val {
+  margin-bottom: 2px;
+}
+
+/* Responsive skeleton adjustments */
+@media (max-width: 768px) {
+  .skeleton-card {
+    margin-bottom: 8px;
+  }
+  
+  .skeleton-stats-bar .skeleton-stat {
+    gap: 2px;
+  }
+}

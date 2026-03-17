@@ -3,6 +3,7 @@ import { useStore, classColor, formatTokens, timeAgo } from '../store';
 import type { RPGAgent } from '../store';
 import ChatPanel from '../components/ChatPanel';
 import LevelUpAnimation from '../components/LevelUpAnimation';
+import { SkeletonAgentCard, SkeletonStatsBar } from '../components/SkeletonLoader';
 import './CampView.css';
 
 const GUILD_NAMES: Record<string, string> = {
@@ -21,6 +22,9 @@ export default function CampView() {
   const selectedAgent = useStore((s) => s.selectedAgent);
   const setSelectedAgent = useStore((s) => s.setSelectedAgent);
   const levelUpTriggers = useStore((s) => s.levelUpTriggers);
+  const isLoadingAgents = useStore((s) => s.isLoadingAgents);
+  const isLoadingStats = useStore((s) => s.isLoadingStats);
+  const hasInitialLoad = useStore((s) => s.hasInitialLoad);
 
   const handleAgentClick = (agent: RPGAgent) => {
     setSelectedAgent(agent.id);
@@ -52,7 +56,9 @@ export default function CampView() {
     <div className={`camp-layout ${selectedAgent ? 'chat-open' : ''}`}>
       <div className="camp-main">
         {/* Guild Stats Bar */}
-        {stats && (
+        {isLoadingStats ? (
+          <SkeletonStatsBar />
+        ) : stats && (
           <div className="guild-bar">
             <div className="guild-stat"><span className="gs-val">{stats.total_agents}</span><span className="gs-lbl">Agents</span></div>
             <div className="guild-stat"><span className="gs-val">{stats.active_quests}</span><span className="gs-lbl">Active</span></div>
@@ -63,11 +69,32 @@ export default function CampView() {
         )}
 
         {/* Grouped Agent Grids */}
-        {sortedKeys.map((key) => (
-          <div key={key} className="guild-section">
-            <h2 className="guild-header">{guildLabel(key)}</h2>
-            <div className="agents-grid">
-              {groups.get(key)!.map((agent) => {
+        {isLoadingAgents ? (
+          // Show skeleton loaders while agents are loading
+          <>
+            <div className="guild-section">
+              <h2 className="guild-header">{guildLabel('inber')}</h2>
+              <div className="agents-grid">
+                {[...Array(6)].map((_, i) => (
+                  <SkeletonAgentCard key={`skeleton-inber-${i}`} />
+                ))}
+              </div>
+            </div>
+            <div className="guild-section">
+              <h2 className="guild-header">{guildLabel('openclaw')}</h2>
+              <div className="agents-grid">
+                {[...Array(4)].map((_, i) => (
+                  <SkeletonAgentCard key={`skeleton-openclaw-${i}`} />
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          sortedKeys.map((key) => (
+            <div key={key} className="guild-section">
+              <h2 className="guild-header">{guildLabel(key)}</h2>
+              <div className="agents-grid">
+                {groups.get(key)!.map((agent) => {
                 const cc = classColor(agent.class);
                 const xpPct = agent.xp_to_next > 0
                   ? (agent.xp / (agent.xp + agent.xp_to_next)) * 100
@@ -116,12 +143,13 @@ export default function CampView() {
                     </button>
                   </div>
                 );
-              })}
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
 
-        {agents.length === 0 && (
+        {!isLoadingAgents && agents.length === 0 && hasInitialLoad && (
           <div className="empty-state">
             <p>No agents found. Make sure inber is running at the configured INBER_URL.</p>
           </div>

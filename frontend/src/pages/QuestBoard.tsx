@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useStore, formatTokens, formatCost, timeAgo } from '../store';
 import QuestCompletionAnimation from '../components/QuestCompletionAnimation';
+import { SkeletonQuestCard } from '../components/SkeletonLoader';
 import './QuestBoard.css';
 
 export default function QuestBoard() {
   const quests = useStore((s) => s.quests);
   const questCompletionTriggers = useStore((s) => s.questCompletionTriggers);
+  const isLoadingQuests = useStore((s) => s.isLoadingQuests);
+  const hasInitialLoad = useStore((s) => s.hasInitialLoad);
   const [filter, setFilter] = useState<string>('all');
 
   const filtered = filter === 'all' ? quests : quests.filter((q) => q.status === filter);
@@ -36,7 +39,13 @@ export default function QuestBoard() {
       </div>
 
       <div className="quests-grid">
-        {filtered.map((q) => (
+        {isLoadingQuests ? (
+          // Show skeleton loaders while quests are loading
+          [...Array(8)].map((_, i) => (
+            <SkeletonQuestCard key={`skeleton-quest-${i}`} />
+          ))
+        ) : (
+          filtered.map((q) => (
           <div key={q.id} className={`quest-card status-${q.status}`}>
             <div className="quest-card-header">
               <h3 className="quest-card-name">{q.name}</h3>
@@ -60,9 +69,10 @@ export default function QuestBoard() {
                 <div className="quest-progress-fill" style={{ width: `${q.progress}%` }} />
               </div>
             )}
-          </div>
-        ))}
-        {filtered.length === 0 && (
+            </div>
+          ))
+        )}
+        {!isLoadingQuests && filtered.length === 0 && hasInitialLoad && (
           <div className="no-quests">No quests match this filter.</div>
         )}
       </div>

@@ -90,6 +90,12 @@ interface StoreState {
   connected: boolean;
   ws: WebSocket | null;
   pollTimer: ReturnType<typeof setInterval> | null;
+  
+  // Loading states
+  isLoadingAgents: boolean;
+  isLoadingQuests: boolean;
+  isLoadingStats: boolean;
+  hasInitialLoad: boolean;
 
   // Chat state per agent
   chatMessages: Record<string, ChatMessage[]>;
@@ -141,6 +147,12 @@ export const useStore = create<StoreState>((set, get) => ({
   levelUpTriggers: {},
   previousQuestStatuses: {},
   questCompletionTriggers: {},
+  
+  // Loading state defaults
+  isLoadingAgents: false,
+  isLoadingQuests: false,
+  isLoadingStats: false,
+  hasInitialLoad: false,
 
   // Initialize theme from localStorage or default to dark
   theme: (localStorage.getItem('theme') as 'light' | 'dark') || 'dark',
@@ -171,6 +183,17 @@ export const useStore = create<StoreState>((set, get) => ({
   })),
 
   fetchAll: async () => {
+    const { hasInitialLoad } = get();
+    
+    // Only show loading states on initial load, not on subsequent polls
+    if (!hasInitialLoad) {
+      set({ 
+        isLoadingAgents: true, 
+        isLoadingQuests: true, 
+        isLoadingStats: true 
+      });
+    }
+
     try {
       const [agentsRes, questsRes, statsRes] = await Promise.all([
         fetch(`${API_URL}/api/inber/agents`),
@@ -199,8 +222,11 @@ export const useStore = create<StoreState>((set, get) => ({
         
         set({ 
           agents: newAgents,
-          previousAgentLevels: newLevels
+          previousAgentLevels: newLevels,
+          isLoadingAgents: false
         });
+      } else {
+        set({ isLoadingAgents: false });
       }
       
       if (questsRes.ok) {
@@ -224,12 +250,31 @@ export const useStore = create<StoreState>((set, get) => ({
         
         set({ 
           quests: newQuests,
-          previousQuestStatuses: newStatuses
+          previousQuestStatuses: newStatuses,
+          isLoadingQuests: false
         });
+      } else {
+        set({ isLoadingQuests: false });
       }
-      if (statsRes.ok) set({ stats: await statsRes.json() });
+      
+      if (statsRes.ok) {
+        set({ stats: await statsRes.json(), isLoadingStats: false });
+      } else {
+        set({ isLoadingStats: false });
+      }
+      
+      // Mark initial load as complete
+      if (!hasInitialLoad) {
+        set({ hasInitialLoad: true });
+      }
     } catch {
       console.warn('Failed to fetch data');
+      set({ 
+        isLoadingAgents: false, 
+        isLoadingQuests: false, 
+        isLoadingStats: false,
+        hasInitialLoad: true 
+      });
     }
   },
 
