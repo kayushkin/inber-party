@@ -17,7 +17,12 @@ export default function CharacterSheet() {
   const selectedAgent = useStore((s) => s.selectedAgent);
   const setSelectedAgent = useStore((s) => s.setSelectedAgent);
 
+  const fetchAll = useStore((s) => s.fetchAll);
   const agent: RPGAgent | undefined = agents.find((a) => a.id === id);
+
+  useEffect(() => {
+    if (agents.length === 0) fetchAll();
+  }, [agents.length, fetchAll]);
 
   useEffect(() => {
     if (!id) return;
@@ -30,7 +35,16 @@ export default function CharacterSheet() {
   }, [id]);
 
   if (!agent) {
-    return <div className="loading">Agent not found. <button onClick={() => navigate('/')}>Back</button></div>;
+    return (
+      <div className="loading" style={{ color: '#d4af37', fontSize: '1.2rem', padding: '4rem', textAlign: 'center' }}>
+        {agents.length === 0 ? '⏳ Loading adventurer...' : (
+          <>
+            <p>🗡️ Adventurer "{id}" not found in the guild roster.</p>
+            <button onClick={() => navigate('/')} style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: 'rgba(212,175,55,0.2)', border: '2px solid #d4af37', color: '#d4af37', borderRadius: '6px', cursor: 'pointer', fontFamily: 'Courier New, monospace' }}>← Back to Tavern</button>
+          </>
+        )}
+      </div>
+    );
   }
 
   const cc = classColor(agent.class);
