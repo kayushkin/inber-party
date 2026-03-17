@@ -22,7 +22,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Agent comparison view — side-by-side stat cards for 2-3 agents
 - [x] Tooltip system — hover over stats/skills for explanations
 - [x] Quest difficulty badges (★ to ★★★★★) based on token cost
-- [ ] Animated background — subtle parallax starfield or torch flicker
+- [~] Animated background — subtle parallax starfield or torch flicker
 
 ## 💬 Chat & Interaction
 

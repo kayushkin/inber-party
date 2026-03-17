@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import ThemeToggle from './ThemeToggle';
 import SoundToggle from './SoundToggle';
 import SoundEffects from './SoundEffects';
+import AnimatedBackground from './AnimatedBackground';
 import './Layout.css';
 
 export default function Layout() {
@@ -18,6 +19,7 @@ export default function Layout() {
 
   return (
     <div className="layout">
+      <AnimatedBackground />
       <header className="header">
         <div className="header-content">
           <Link to="/" className="camp-name">⚔️ Míl Party</Link>

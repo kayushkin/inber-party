@@ -1,0 +1,122 @@
+.animated-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.stars {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  background-image: 
+    radial-gradient(2px 2px at 20px 30px, var(--star-color), transparent),
+    radial-gradient(2px 2px at 40px 70px, var(--star-color), transparent),
+    radial-gradient(1px 1px at 90px 40px, var(--star-color), transparent),
+    radial-gradient(1px 1px at 130px 80px, var(--star-color), transparent),
+    radial-gradient(2px 2px at 160px 30px, var(--star-color), transparent);
+  background-repeat: repeat;
+  background-size: 200px 100px;
+  animation: move-stars linear infinite;
+}
+
+/* Layer 1: Largest, slowest stars (far background) */
+.stars-layer-1 {
+  --star-color: rgba(255, 215, 0, 0.3);
+  background-size: 300px 150px;
+  animation-duration: 120s;
+}
+
+/* Layer 2: Medium stars (middle) */
+.stars-layer-2 {
+  --star-color: rgba(255, 215, 0, 0.5);
+  background-size: 200px 100px;
+  animation-duration: 80s;
+}
+
+/* Layer 3: Smallest, fastest stars (near foreground) */
+.stars-layer-3 {
+  --star-color: rgba(255, 215, 0, 0.7);
+  background-size: 100px 50px;
+  animation-duration: 40s;
+  background-image: 
+    radial-gradient(1px 1px at 10px 15px, var(--star-color), transparent),
+    radial-gradient(1px 1px at 20px 35px, var(--star-color), transparent),
+    radial-gradient(1px 1px at 45px 20px, var(--star-color), transparent),
+    radial-gradient(1px 1px at 65px 40px, var(--star-color), transparent),
+    radial-gradient(1px 1px at 80px 15px, var(--star-color), transparent);
+}
+
+@keyframes move-stars {
+  from {
+    transform: translateY(0px);
+  }
+  to {
+    transform: translateY(-100px);
+  }
+}
+
+/* Theme-specific star colors */
+:root, [data-theme="dark"] {
+  /* Dark theme: golden stars */
+  .stars-layer-1 { --star-color: rgba(255, 215, 0, 0.25); }
+  .stars-layer-2 { --star-color: rgba(255, 215, 0, 0.4); }
+  .stars-layer-3 { --star-color: rgba(255, 215, 0, 0.6); }
+}
+
+[data-theme="light"] {
+  /* Light theme: more subtle, darker stars */
+  .stars-layer-1 { --star-color: rgba(212, 175, 55, 0.15); }
+  .stars-layer-2 { --star-color: rgba(212, 175, 55, 0.25); }
+  .stars-layer-3 { --star-color: rgba(212, 175, 55, 0.35); }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .stars {
+    animation-duration: 300s;
+  }
+  
+  .stars-layer-1 { animation-duration: 600s; }
+  .stars-layer-2 { animation-duration: 400s; }
+  .stars-layer-3 { animation-duration: 200s; }
+}
+
+/* Performance optimization for mobile */
+@media (max-width: 768px) {
+  .stars {
+    /* Reduce complexity on mobile */
+    background-image: 
+      radial-gradient(1px 1px at 20px 30px, var(--star-color), transparent),
+      radial-gradient(1px 1px at 40px 70px, var(--star-color), transparent),
+      radial-gradient(1px 1px at 90px 40px, var(--star-color), transparent);
+    transform: translateZ(0); /* Force hardware acceleration */
+  }
+  
+  .stars-layer-1 { animation-duration: 180s; }
+  .stars-layer-2 { animation-duration: 120s; }
+  .stars-layer-3 { animation-duration: 60s; }
+}
+
+/* Very minimal animation for low-end devices */
+@media (max-width: 375px) {
+  .animated-background {
+    /* Only show one layer on very small screens */
+  }
+  
+  .stars-layer-1,
+  .stars-layer-3 {
+    display: none;
+  }
+  
+  .stars-layer-2 {
+    animation-duration: 150s;
+    background-image: 
+      radial-gradient(1px 1px at 25px 25px, var(--star-color), transparent),
+      radial-gradient(1px 1px at 75px 75px, var(--star-color), transparent);
+  }
+}
