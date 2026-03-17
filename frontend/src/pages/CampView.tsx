@@ -78,7 +78,19 @@ export default function CampView() {
                     onClick={() => handleAgentClick(agent)}
                   >
                     <div className="ac-top">
-                      <div className="ac-avatar">{agent.avatar_emoji}</div>
+                      <div className="ac-avatar">
+                      <img
+                        src={`/avatars/${agent.name.toLowerCase().replace(/\s+/g, '-')}.png`}
+                        alt={agent.name}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          const sibling = e.currentTarget.nextElementSibling as HTMLElement;
+                          if (sibling) sibling.style.display = 'block';
+                        }}
+                        style={{ width: '40px', height: '40px', borderRadius: '50%' }}
+                      />
+                      <span style={{ display: 'none' }}>{agent.avatar_emoji}</span>
+                    </div>
                       <div className="ac-info">
                         <div className="ac-name" style={{ color: cc }}>{agent.name}</div>
                         <div className="ac-class">{agent.class} · Lv {agent.level}</div>

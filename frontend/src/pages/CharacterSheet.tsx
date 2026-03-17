@@ -57,7 +57,19 @@ export default function CharacterSheet() {
 
         {/* Header */}
         <div className="character-header" style={{ borderColor: cc }}>
-          <div className="character-avatar">{agent.avatar_emoji}</div>
+          <div className="character-avatar">
+            <img
+              src={`/avatars/${agent.name.toLowerCase().replace(/\s+/g, '-')}.png`}
+              alt={agent.name}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const sibling = e.currentTarget.nextElementSibling as HTMLElement;
+                if (sibling) sibling.style.display = 'block';
+              }}
+              style={{ width: '60px', height: '60px', borderRadius: '50%' }}
+            />
+            <span style={{ display: 'none' }}>{agent.avatar_emoji}</span>
+          </div>
           <div className="character-title-section">
             <h1 className="character-name" style={{ color: cc }}>{agent.name}</h1>
             <h2 className="character-title">{agent.title}</h2>
