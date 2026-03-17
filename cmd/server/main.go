@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/kayushkin/inber-party/internal/api"
 	"github.com/kayushkin/inber-party/internal/db"
@@ -12,15 +14,13 @@ import (
 )
 
 func main() {
-	// Get config from environment
 	databaseURL := getEnv("DATABASE_URL", "")
 	port := getEnv("PORT", "8080")
 
-	// Create WebSocket hub
 	hub := ws.NewHub()
 	go hub.Run()
 
-	// Connect to PostgreSQL (optional — server works without it via inber integration)
+	// Connect to PostgreSQL (optional)
 	var database *db.DB
 	if databaseURL != "" {
 		var err error
@@ -40,15 +40,25 @@ func main() {
 		log.Println("⚠ No DATABASE_URL set — running in inber-only mode")
 	}
 
-	// Create API server (may have nil DB if PostgreSQL unavailable)
 	apiServer := api.NewServer(database, hub)
 
-	// Set up routes
 	mux := http.NewServeMux()
 	apiServer.RegisterRoutes(mux)
 	mux.HandleFunc("/ws", hub.ServeWS)
 
-	// Mount inber integration (read-only, reads from inber's SQLite databases)
+	// Health check endpoint
+	startTime := time.Now()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "ok",
+			"uptime": time.Since(startTime).String(),
+		})
+	})
+
+	// Mount inber integration — try SQLite first, fall back to HTTP API
+	var inberSource inber.DataSource
+
 	sessDBPath, gwDBPath := inber.DefaultDBPaths()
 	if envPath := os.Getenv("INBER_SESSIONS_DB"); envPath != "" {
 		sessDBPath = envPath
@@ -56,17 +66,61 @@ func main() {
 	if envPath := os.Getenv("INBER_GATEWAY_DB"); envPath != "" {
 		gwDBPath = envPath
 	}
+
 	inberStore, err := inber.NewStore(sessDBPath, gwDBPath)
 	if err != nil {
-		log.Printf("⚠ Inber integration unavailable: %v", err)
-	} else {
+		log.Printf("⚠ Inber SQLite unavailable: %v", err)
+	} else if inberStore.HasData() {
 		defer inberStore.Close()
-		inberHandler := inber.NewHandler(inberStore)
-		inberHandler.RegisterRoutes(mux)
-		log.Println("✓ Inber integration active (read-only)")
+		inberSource = inberStore
+		log.Println("✓ Inber integration active (SQLite, read-only)")
+	} else {
+		inberStore.Close()
 	}
 
-	// Serve frontend static files (production)
+	// Fall back to HTTP API if no SQLite data
+	if inberSource == nil {
+		inberURL := getEnv("INBER_URL", "http://127.0.0.1:8200")
+		httpClient := inber.NewHTTPClient(inberURL)
+		// Quick check if the API is reachable
+		if _, err := httpClient.GetAgents(); err != nil {
+			log.Printf("⚠ Inber HTTP API at %s also unavailable: %v", inberURL, err)
+			log.Println("⚠ Inber integration disabled — no data source available")
+		} else {
+			inberSource = httpClient
+			log.Printf("✓ Inber integration active (HTTP API at %s)", inberURL)
+		}
+	}
+
+	if inberSource != nil {
+		inberHandler := inber.NewHandler(inberSource)
+		inberHandler.RegisterRoutes(mux)
+
+		// Auto-refresh: poll inber data every 10s and broadcast changes via WebSocket
+		go func() {
+			ticker := time.NewTicker(10 * time.Second)
+			defer ticker.Stop()
+			for range ticker.C {
+				agents, err := inberSource.GetAgents()
+				if err != nil {
+					continue
+				}
+				stats, err := inberSource.GetStats()
+				if err != nil {
+					continue
+				}
+				hub.Broadcast(ws.Message{
+					Type: "inber_update",
+					Data: map[string]interface{}{
+						"agents": agents,
+						"stats":  stats,
+					},
+				})
+			}
+		}()
+	}
+
+	// Serve frontend static files
 	if _, err := os.Stat("frontend/dist"); err == nil {
 		fs := http.FileServer(http.Dir("frontend/dist"))
 		mux.Handle("/", fs)
@@ -75,7 +129,6 @@ func main() {
 		log.Println("⚠ Frontend build not found (frontend/dist/), serving API only")
 	}
 
-	// Start server
 	addr := ":" + port
 	log.Printf("🚀 Míl Party server listening on %s", addr)
 	log.Printf("📡 WebSocket endpoint: ws://localhost%s/ws", addr)

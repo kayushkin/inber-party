@@ -4,6 +4,51 @@
   gap: 2rem;
 }
 
+/* Guild Hall Stats */
+.guild-hall {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 3px solid #d4af37;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+}
+
+.guild-title {
+  color: #ffd700;
+  text-align: center;
+  margin: 0 0 1rem 0;
+  font-size: 1.4rem;
+  letter-spacing: 2px;
+}
+
+.guild-stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1rem;
+}
+
+.guild-stat {
+  text-align: center;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.guild-stat-value {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.guild-stat-label {
+  font-size: 0.7rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 0.25rem;
+}
+
+/* Camp Scene */
 .camp-scene {
   background: linear-gradient(135deg, #2d5016 0%, #4a7c2e 50%, #2d5016 100%);
   border: 3px solid #d4af37;
@@ -54,7 +99,7 @@
   left: 50%;
   width: 200px;
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  border: 2px solid #d4af37;
+  border: 2px solid var(--class-color, #d4af37);
   border-radius: 12px;
   padding: 1rem;
   cursor: pointer;
@@ -65,8 +110,7 @@
 
 .agent-card:hover {
   transform: scale(1.05) !important;
-  border-color: #ffd700;
-  box-shadow: 0 8px 16px rgba(255, 215, 0, 0.3);
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--class-color, #d4af37) 40%, transparent);
 }
 
 .agent-card.status-idle {
@@ -94,7 +138,6 @@
 .agent-name {
   font-size: 1.2rem;
   font-weight: bold;
-  color: #ffd700;
   margin-bottom: 0.25rem;
 }
 
@@ -110,8 +153,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-size: 0.9rem;
-  color: #aaa;
+  font-size: 0.85rem;
   margin-bottom: 0.5rem;
 }
 
@@ -129,30 +171,19 @@
   text-transform: uppercase;
 }
 
-.agent-status.status-idle {
-  background: rgba(156, 163, 175, 0.2);
+.agent-status.idle-flavor {
+  text-transform: none;
+  font-style: italic;
+  font-weight: normal;
+  font-size: 0.7rem;
   color: #9ca3af;
 }
 
-.agent-status.status-working {
-  background: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
-}
-
-.agent-status.status-quest {
-  background: rgba(168, 85, 247, 0.2);
-  color: #c084fc;
-}
-
-.agent-status.status-stuck {
-  background: rgba(239, 68, 68, 0.2);
-  color: #f87171;
-}
-
-.agent-status.status-resting {
-  background: rgba(34, 197, 94, 0.2);
-  color: #4ade80;
-}
+.agent-status.status-idle { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
+.agent-status.status-working { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.agent-status.status-quest { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+.agent-status.status-stuck { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.agent-status.status-resting { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
 
 .energy-bar {
   position: relative;
@@ -190,72 +221,88 @@
   text-align: center;
 }
 
-.camp-info h2 {
-  color: #ffd700;
-  margin-top: 0;
-}
+.camp-info h2 { color: #ffd700; margin-top: 0; }
+.camp-info p { color: #ccc; margin: 0.5rem 0; }
+.camp-info .hint { color: #888; font-style: italic; font-size: 0.9rem; }
 
-.camp-info p {
-  color: #ccc;
-  margin: 0.5rem 0;
-}
-
-.camp-info .hint {
-  color: #888;
-  font-style: italic;
-  font-size: 0.9rem;
-}
-
+/* Animations */
 @keyframes breathe {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.02);
-  }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
 }
 
 @keyframes pulse-work {
-  0%, 100% {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-  }
-  50% {
-    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.6);
-  }
+  0%, 100% { box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); }
+  50% { box-shadow: 0 4px 20px rgba(59, 130, 246, 0.6); }
 }
 
 @keyframes wave {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-5px);
-  }
-  75% {
-    transform: translateX(5px);
-  }
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
 }
 
 @keyframes flicker {
-  0%, 100% {
-    transform: scale(1) rotate(0deg);
-  }
-  25% {
-    transform: scale(1.1) rotate(2deg);
-  }
-  50% {
-    transform: scale(0.95) rotate(-2deg);
-  }
-  75% {
-    transform: scale(1.05) rotate(1deg);
-  }
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.1) rotate(2deg); }
+  50% { transform: scale(0.95) rotate(-2deg); }
+  75% { transform: scale(1.05) rotate(1deg); }
 }
 
 @keyframes glow {
-  0%, 100% {
-    opacity: 0.6;
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.9; }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .guild-stats {
+    grid-template-columns: repeat(3, 1fr);
   }
-  50% {
-    opacity: 0.9;
+
+  .camp-scene {
+    padding: 2rem 1rem;
+    min-height: 400px;
+  }
+
+  .agents-circle {
+    position: static;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .agent-card {
+    position: static !important;
+    transform: none !important;
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .agent-card:hover {
+    transform: scale(1.02) !important;
+  }
+
+  .camp-fire {
+    position: static;
+    transform: none;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .fire-glow {
+    display: none;
+  }
+
+  .guild-stat-value {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .guild-stats {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

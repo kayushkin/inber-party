@@ -63,6 +63,7 @@ interface StoreState {
   inberQuests: InberQuest[];
   inberAgents: InberAgent[];
   stats: Stats | null;
+  inberStats: InberStats | null;
   ws: WebSocket | null;
   connected: boolean;
   pollTimer: ReturnType<typeof setInterval> | null;
@@ -72,6 +73,7 @@ interface StoreState {
   setInberQuests: (quests: InberQuest[]) => void;
   setInberAgents: (agents: InberAgent[]) => void;
   setStats: (stats: Stats) => void;
+  setInberStats: (stats: InberStats) => void;
   updateAgent: (id: number, updates: Partial<Agent>) => void;
   updateTask: (id: number, updates: Partial<Task>) => void;
   addAgent: (agent: Agent) => void;
@@ -116,6 +118,7 @@ export const useStore = create<StoreState>((set, get) => ({
   inberQuests: [],
   inberAgents: [],
   stats: null,
+  inberStats: null,
   ws: null,
   connected: false,
   pollTimer: null,
@@ -125,6 +128,7 @@ export const useStore = create<StoreState>((set, get) => ({
   setInberQuests: (quests) => set({ inberQuests: quests }),
   setInberAgents: (agents) => set({ inberAgents: agents }),
   setStats: (stats) => set({ stats }),
+  setInberStats: (stats) => set({ inberStats: stats }),
   
   updateAgent: (id, updates) => set((state) => ({
     agents: state.agents.map((a) => (a.id === id ? { ...a, ...updates } : a)),
@@ -184,6 +188,27 @@ export const useStore = create<StoreState>((set, get) => ({
           case 'task_updated':
             get().updateTask(message.data.id, message.data.updates);
             break;
+          case 'inber_update': {
+            // Server-pushed inber data refresh
+            const { agents: wsAgents, stats: wsStats } = message.data;
+            if (wsAgents) {
+              inberAgents = wsAgents;
+              inberMode = true;
+              get().setInberAgents(wsAgents);
+              get().setAgents(wsAgents.map(inberAgentToAgent));
+            }
+            if (wsStats) {
+              get().setInberStats(wsStats);
+              get().setStats({
+                total_agents: wsStats.total_agents,
+                active_tasks: wsStats.active_quests,
+                completed_tasks: wsStats.completed_quests,
+                total_xp: wsStats.total_xp,
+                average_agent_level: wsStats.average_agent_level,
+              });
+            }
+            break;
+          }
         }
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error);
@@ -301,6 +326,25 @@ export interface InberStats {
   total_tokens: number;
   total_cost: number;
   average_agent_level: number;
+  total_sessions: number;
+  uptime: string;
+}
+
+export interface InberAchievement {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  unlocked_at: string;
+}
+
+export interface QuestHistoryEntry {
+  id: number;
+  tokens: number;
+  cost: number;
+  status: string;
+  started_at: string;
+  completed_at?: string;
 }
 
 // Convert inber agent to our Agent type
@@ -438,6 +482,7 @@ export const api = {
         if (res.ok) {
           const s: InberStats = await res.json();
           inberMode = true;
+          useStore.getState().setInberStats(s);
           return {
             total_agents: s.total_agents,
             active_tasks: s.active_quests,
@@ -449,6 +494,26 @@ export const api = {
       } catch { /* fall through */ }
     }
     return fetchOrDemo(`${API_URL}/api/stats`, MOCK_STATS);
+  },
+
+  async getAchievements(agentId: string): Promise<InberAchievement[]> {
+    if (!demoMode) {
+      try {
+        const res = await fetch(`${API_URL}/api/inber/achievements?agent=${encodeURIComponent(agentId)}`);
+        if (res.ok) return res.json();
+      } catch { /* fall through */ }
+    }
+    return [];
+  },
+
+  async getQuestHistory(agentId: string, limit = 20): Promise<QuestHistoryEntry[]> {
+    if (!demoMode) {
+      try {
+        const res = await fetch(`${API_URL}/api/inber/quest-history?agent=${encodeURIComponent(agentId)}&limit=${limit}`);
+        if (res.ok) return res.json();
+      } catch { /* fall through */ }
+    }
+    return [];
   },
 
   async getAgentQuests(agentId: string): Promise<InberQuest[]> {

@@ -1,8 +1,71 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, useStore } from '../store';
-import type { AgentDetail, InberAgent, InberQuest } from '../store';
+import type { AgentDetail, InberAgent, InberQuest, InberAchievement, QuestHistoryEntry } from '../store';
 import './CharacterSheet.css';
+
+const CLASS_COLORS: Record<string, string> = {
+  Wizard: '#a78bfa',
+  Healer: '#4ade80',
+  Ranger: '#60a5fa',
+  Warrior: '#f87171',
+};
+
+// SVG Sparkline component
+function Sparkline({ data, color, height = 40, width = '100%' }: {
+  data: number[];
+  color: string;
+  height?: number;
+  width?: string | number;
+}) {
+  if (data.length < 2) return null;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const w = 200;
+  const h = height;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 4) - 2;
+    return `${x},${y}`;
+  }).join(' ');
+  const areaPoints = `0,${h} ${points} ${w},${h}`;
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width={width} height={height} preserveAspectRatio="none" style={{ display: 'block' }}>
+      <polygon points={areaPoints} fill={color} opacity="0.15" />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="2" />
+    </svg>
+  );
+}
+
+// Bar chart
+function BarChart({ data, color, height = 50, width = '100%' }: {
+  data: { value: number; label?: string; status?: string }[];
+  color: string;
+  height?: number;
+  width?: string | number;
+}) {
+  if (data.length === 0) return null;
+  const max = Math.max(...data.map(d => d.value), 1);
+  const w = 200;
+  const h = height;
+  const barW = Math.max(2, (w / data.length) - 1);
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width={width} height={height} preserveAspectRatio="none" style={{ display: 'block' }}>
+      {data.map((d, i) => {
+        const barH = (d.value / max) * (h - 4);
+        const x = (i / data.length) * w;
+        const barColor = d.status === 'failed' ? '#ef4444' : color;
+        return (
+          <rect key={i} x={x} y={h - barH - 2} width={barW} height={barH}
+            fill={barColor} rx="1" opacity="0.8" />
+        );
+      })}
+    </svg>
+  );
+}
 
 export default function CharacterSheet() {
   const { id } = useParams<{ id: string }>();
@@ -10,7 +73,10 @@ export default function CharacterSheet() {
   const [agent, setAgent] = useState<AgentDetail | null>(null);
   const [inberAgent, setInberAgent] = useState<InberAgent | null>(null);
   const [quests, setQuests] = useState<InberQuest[]>([]);
+  const [achievements, setAchievements] = useState<InberAchievement[]>([]);
+  const [questHistory, setQuestHistory] = useState<QuestHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [levelUpAnim, setLevelUpAnim] = useState(false);
   const inberAgents = useStore((state) => state.inberAgents);
   const startPolling = useStore((state) => state.startPolling);
   const stopPolling = useStore((state) => state.stopPolling);
@@ -25,28 +91,36 @@ export default function CharacterSheet() {
       setLoading(true);
       const idx = parseInt(id);
 
-      // Load basic agent detail
       api.getAgent(idx)
         .then(setAgent)
         .catch(() => navigate('/'));
 
-      // Load inber-specific data
       const ia = inberAgents[idx - 1];
       if (ia) {
         setInberAgent(ia);
         api.getAgentQuests(ia.id).then(setQuests);
+        api.getAchievements(ia.id).then(setAchievements);
+        api.getQuestHistory(ia.id, 20).then(setQuestHistory);
       }
 
       setLoading(false);
     }
   }, [id, navigate, inberAgents]);
 
-  // Update inberAgent when store refreshes
+  // Detect level changes for animation
+  const prevLevel = useState(0);
   useEffect(() => {
     if (id) {
       const idx = parseInt(id);
       const ia = inberAgents[idx - 1];
-      if (ia) setInberAgent(ia);
+      if (ia) {
+        setInberAgent(ia);
+        if (prevLevel[0] > 0 && ia.level > prevLevel[0]) {
+          setLevelUpAnim(true);
+          setTimeout(() => setLevelUpAnim(false), 2000);
+        }
+        prevLevel[1](ia.level);
+      }
     }
   }, [inberAgents, id]);
 
@@ -58,6 +132,7 @@ export default function CharacterSheet() {
   const xpToNextLevel = isInber ? (inberAgent!.xp + inberAgent!.xp_to_next) : (agent.level + 1) * 100;
   const currentXP = isInber ? inberAgent!.xp : agent.xp;
   const xpProgress = xpToNextLevel > 0 ? (currentXP / xpToNextLevel) * 100 : 0;
+  const classColor = CLASS_COLORS[inberAgent?.class || agent.class] || '#d4af37';
 
   const formatTokens = (n: number) => {
     if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
@@ -82,12 +157,17 @@ export default function CharacterSheet() {
         ← Back to Camp
       </button>
 
-      <div className="character-header">
-        <div className="character-avatar">{agent.avatar_emoji}</div>
+      <div className="character-header" style={{ borderColor: classColor }}>
+        <div className="character-avatar">
+          {agent.avatar_emoji}
+          {levelUpAnim && <div className="level-up-effect">⬆️ LEVEL UP!</div>}
+        </div>
         <div className="character-title-section">
-          <h1 className="character-name">{agent.name}</h1>
+          <h1 className="character-name" style={{ color: classColor }}>{agent.name}</h1>
           <h2 className="character-title">{agent.title}</h2>
-          <div className="character-class">{agent.class}</div>
+          <div className="character-class" style={{ borderColor: classColor, color: classColor }}>
+            {inberAgent?.class || agent.class}
+          </div>
         </div>
         {isInber && (
           <div className="character-live-badge">🔮 LIVE</div>
@@ -97,14 +177,14 @@ export default function CharacterSheet() {
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-label">Level</div>
-          <div className="stat-value">{agent.level}</div>
+          <div className="stat-value" style={{ color: classColor }}>{agent.level}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">XP</div>
           <div className="stat-value">{currentXP}</div>
           <div className="stat-progress">
             <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${xpProgress}%` }} />
+              <div className="progress-fill" style={{ width: `${xpProgress}%`, background: `linear-gradient(90deg, ${classColor}, ${classColor}dd)` }} />
             </div>
             <div className="progress-text">{currentXP} / {xpToNextLevel}</div>
           </div>
@@ -153,7 +233,57 @@ export default function CharacterSheet() {
         </div>
       )}
 
+      {/* Token & Cost Charts */}
+      {questHistory.length > 1 && (
+        <div className="charts-section">
+          <h3>Activity</h3>
+          <div className="charts-grid">
+            <div className="chart-card">
+              <div className="chart-label">Tokens per Quest (last {questHistory.length})</div>
+              <BarChart
+                data={questHistory.map(q => ({ value: q.tokens, status: q.status }))}
+                color={classColor}
+                height={60}
+              />
+            </div>
+            <div className="chart-card">
+              <div className="chart-label">Token Trend</div>
+              <Sparkline
+                data={questHistory.map(q => q.tokens)}
+                color={classColor}
+                height={60}
+              />
+            </div>
+            <div className="chart-card">
+              <div className="chart-label">Cost per Quest</div>
+              <Sparkline
+                data={questHistory.map(q => q.cost)}
+                color="#4ade80"
+                height={60}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="content-grid">
+        {/* Achievements */}
+        <div className="section achievements-section">
+          <h3>Achievements {achievements.length > 0 && <span className="badge-count">{achievements.length}</span>}</h3>
+          {achievements.length > 0 ? (
+            <div className="achievements-grid">
+              {achievements.map((a) => (
+                <div key={a.id} className="achievement-badge" title={a.description}>
+                  <div className="badge-icon">{a.icon}</div>
+                  <div className="badge-name">{a.name}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-message">No achievements yet</p>
+          )}
+        </div>
+
         <div className="section skills-section">
           <h3>Skills</h3>
           {agent.skills && agent.skills.length > 0 ? (
@@ -166,7 +296,7 @@ export default function CharacterSheet() {
                     <span className="skill-count">{skill.task_count} uses</span>
                   </div>
                   <div className="skill-bar">
-                    <div className="skill-bar-fill" style={{ width: `${Math.min(skill.level * 10, 100)}%` }} />
+                    <div className="skill-bar-fill" style={{ width: `${Math.min(skill.level * 10, 100)}%`, background: `linear-gradient(90deg, ${classColor}, ${classColor}dd)` }} />
                   </div>
                 </div>
               ))}
@@ -180,7 +310,6 @@ export default function CharacterSheet() {
           <h3>Quest History {quests.length > 0 && <span className="quest-count">({quests.length})</span>}</h3>
           {quests.length > 0 ? (
             <>
-              {/* Quest summary bar */}
               <div className="quest-summary">
                 <div className="summary-item">
                   <span className="summary-label">Completed</span>
@@ -228,27 +357,6 @@ export default function CharacterSheet() {
             </>
           ) : (
             <p className="empty-message">No quest history</p>
-          )}
-        </div>
-
-        <div className="section achievements-section">
-          <h3>Achievements</h3>
-          {agent.achievements && agent.achievements.length > 0 ? (
-            <div className="achievements-list">
-              {agent.achievements.map((achievement) => (
-                <div key={achievement.id} className="achievement-item">
-                  <div className="achievement-icon">🏆</div>
-                  <div className="achievement-info">
-                    <div className="achievement-name">{achievement.achievement_name}</div>
-                    <div className="achievement-date">
-                      {new Date(achievement.unlocked_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="empty-message">No achievements yet</p>
           )}
         </div>
       </div>

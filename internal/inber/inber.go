@@ -64,6 +64,14 @@ type RPGQuest struct {
 	Children    int        `json:"children,omitempty"` // sub-quests spawned
 }
 
+type RPGAchievement struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	UnlockedAt  string `json:"unlocked_at"`
+}
+
 type RPGStats struct {
 	TotalAgents       int     `json:"total_agents"`
 	ActiveQuests      int     `json:"active_quests"`
@@ -73,6 +81,18 @@ type RPGStats struct {
 	TotalTokens       int     `json:"total_tokens"`
 	TotalCost         float64 `json:"total_cost"`
 	AverageAgentLevel float64 `json:"average_agent_level"`
+	TotalSessions     int     `json:"total_sessions"`
+	Uptime            string  `json:"uptime,omitempty"`
+}
+
+// QuestHistoryEntry is a lightweight quest record for chart data.
+type QuestHistoryEntry struct {
+	ID         int     `json:"id"`
+	Tokens     int     `json:"tokens"`
+	Cost       float64 `json:"cost"`
+	Status     string  `json:"status"`
+	StartedAt  string  `json:"started_at"`
+	CompletedAt string `json:"completed_at,omitempty"`
 }
 
 // Agent class assignments based on agent name patterns
@@ -130,11 +150,13 @@ func NewStore(sessionsDBPath, gatewayDBPath string) (*Store, error) {
 		}
 	}
 
-	if s.sessionsDB == nil && s.gatewayDB == nil {
-		return nil, fmt.Errorf("no inber databases found at %s or %s", sessionsDBPath, gatewayDBPath)
-	}
-
+	// It's OK if both are nil — caller can use HTTP fallback
 	return s, nil
+}
+
+// HasData returns true if at least one database is connected.
+func (s *Store) HasData() bool {
+	return s.sessionsDB != nil || s.gatewayDB != nil
 }
 
 func (s *Store) Close() {
@@ -545,14 +567,30 @@ func (s *Store) GetStats() (*RPGStats, error) {
 	}
 
 	totalLevel := 0
+	var earliest *time.Time
 	for _, a := range agents {
 		stats.TotalXP += a.XP
 		stats.TotalTokens += a.TotalTokens
 		stats.TotalCost += a.TotalCost
+		stats.TotalSessions += a.SessionCount
 		totalLevel += a.Level
+		if a.LastActive != nil && (earliest == nil || a.LastActive.Before(*earliest)) {
+			t := *a.LastActive
+			earliest = &t
+		}
 	}
 	if len(agents) > 0 {
 		stats.AverageAgentLevel = float64(totalLevel) / float64(len(agents))
+	}
+	if earliest != nil {
+		dur := time.Since(*earliest)
+		days := int(dur.Hours() / 24)
+		if days > 0 {
+			stats.Uptime = fmt.Sprintf("%dd", days)
+		} else {
+			hours := int(dur.Hours())
+			stats.Uptime = fmt.Sprintf("%dh", hours)
+		}
 	}
 
 	for _, q := range quests {
@@ -567,6 +605,201 @@ func (s *Store) GetStats() (*RPGStats, error) {
 	}
 
 	return stats, nil
+}
+
+// GetAchievements computes achievements for an agent based on their data and quest history.
+func (s *Store) GetAchievements(agentID string) ([]RPGAchievement, error) {
+	var achievements []RPGAchievement
+
+	agents, err := s.GetAgents()
+	if err != nil {
+		return nil, err
+	}
+	var agent *RPGAgent
+	for i := range agents {
+		if agents[i].ID == agentID {
+			agent = &agents[i]
+			break
+		}
+	}
+	if agent == nil {
+		return []RPGAchievement{}, nil
+	}
+
+	quests, err := s.GetQuests(1000)
+	if err != nil {
+		return nil, err
+	}
+
+	var agentQuests []RPGQuest
+	for _, q := range quests {
+		if q.AgentID == agentID {
+			agentQuests = append(agentQuests, q)
+		}
+	}
+
+	completedCount := 0
+	hasError := false
+	hasNightOwl := false
+	hasMarathon := false
+	var firstQuestTime string
+
+	for _, q := range agentQuests {
+		if q.Status == "completed" {
+			completedCount++
+		}
+		if q.Status == "failed" {
+			hasError = true
+		}
+		// Night owl: activity after midnight (00:00-05:00)
+		if q.StartedAt != "" {
+			if t, err := time.Parse("2006-01-02 15:04:05", q.StartedAt); err == nil {
+				h := t.Hour()
+				if h >= 0 && h < 5 {
+					hasNightOwl = true
+				}
+			}
+			if firstQuestTime == "" || q.StartedAt < firstQuestTime {
+				firstQuestTime = q.StartedAt
+			}
+		}
+		// Marathon: >30 turns (proxy for long session)
+		if q.Turns > 30 {
+			hasMarathon = true
+		}
+	}
+
+	ts := time.Now().Format("2006-01-02T15:04:05Z")
+
+	if len(agentQuests) > 0 {
+		achievements = append(achievements, RPGAchievement{
+			ID: "first_quest", Name: "First Quest", Description: "Completed their first quest",
+			Icon: "⚔️", UnlockedAt: firstQuestTime,
+		})
+	}
+
+	if agent.TotalTokens >= 1000 {
+		achievements = append(achievements, RPGAchievement{
+			ID: "1k_tokens", Name: "Apprentice Scribe", Description: "Used 1,000 tokens",
+			Icon: "📜", UnlockedAt: ts,
+		})
+	}
+	if agent.TotalTokens >= 100000 {
+		achievements = append(achievements, RPGAchievement{
+			ID: "100k_tokens", Name: "Master Scribe", Description: "Used 100,000 tokens",
+			Icon: "📚", UnlockedAt: ts,
+		})
+	}
+	if agent.TotalTokens >= 1000000 {
+		achievements = append(achievements, RPGAchievement{
+			ID: "1m_tokens", Name: "Archmage of Words", Description: "Used 1,000,000 tokens",
+			Icon: "🌟", UnlockedAt: ts,
+		})
+	}
+
+	if hasError {
+		achievements = append(achievements, RPGAchievement{
+			ID: "first_error", Name: "Battle Scarred", Description: "Survived their first failed quest",
+			Icon: "💀", UnlockedAt: ts,
+		})
+	}
+
+	if completedCount >= 10 {
+		achievements = append(achievements, RPGAchievement{
+			ID: "10_quests", Name: "Veteran", Description: "Completed 10 quests",
+			Icon: "🛡️", UnlockedAt: ts,
+		})
+	}
+	if completedCount >= 50 {
+		achievements = append(achievements, RPGAchievement{
+			ID: "50_quests", Name: "Champion", Description: "Completed 50 quests",
+			Icon: "👑", UnlockedAt: ts,
+		})
+	}
+
+	if hasNightOwl {
+		achievements = append(achievements, RPGAchievement{
+			ID: "night_owl", Name: "Night Owl", Description: "Active after midnight",
+			Icon: "🦉", UnlockedAt: ts,
+		})
+	}
+
+	if hasMarathon {
+		achievements = append(achievements, RPGAchievement{
+			ID: "marathon", Name: "Marathon Runner", Description: "Completed a quest with 30+ turns",
+			Icon: "🏃", UnlockedAt: ts,
+		})
+	}
+
+	if agent.Level >= 5 {
+		achievements = append(achievements, RPGAchievement{
+			ID: "level5", Name: "Seasoned Adventurer", Description: "Reached level 5",
+			Icon: "⭐", UnlockedAt: ts,
+		})
+	}
+	if agent.Level >= 10 {
+		achievements = append(achievements, RPGAchievement{
+			ID: "level10", Name: "Elite", Description: "Reached level 10",
+			Icon: "💎", UnlockedAt: ts,
+		})
+	}
+
+	return achievements, nil
+}
+
+// GetQuestHistory returns recent quest data for an agent (for charts).
+func (s *Store) GetQuestHistory(agentID string, limit int) ([]QuestHistoryEntry, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if s.gatewayDB == nil {
+		return []QuestHistoryEntry{}, nil
+	}
+
+	rows, err := s.gatewayDB.Query(`
+		SELECT r.id, (r.input_tokens + r.output_tokens) as tokens, r.cost,
+			r.status, r.started_at, r.completed_at
+		FROM requests r
+		JOIN sessions s ON s.key = r.session_key
+		WHERE s.agent = ?
+		ORDER BY r.id DESC
+		LIMIT ?
+	`, agentID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []QuestHistoryEntry
+	for rows.Next() {
+		var e QuestHistoryEntry
+		var startedAt, completedAt sql.NullString
+		if err := rows.Scan(&e.ID, &e.Tokens, &e.Cost, &e.Status, &startedAt, &completedAt); err != nil {
+			continue
+		}
+		if startedAt.Valid {
+			e.StartedAt = startedAt.String
+		}
+		if completedAt.Valid {
+			e.CompletedAt = completedAt.String
+		}
+		// Map status
+		switch e.Status {
+		case "completed", "success":
+			e.Status = "completed"
+		case "error", "timeout", "interrupted":
+			e.Status = "failed"
+		}
+		entries = append(entries, e)
+	}
+	// Reverse to chronological order
+	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
+		entries[i], entries[j] = entries[j], entries[i]
+	}
+	if entries == nil {
+		entries = []QuestHistoryEntry{}
+	}
+	return entries, nil
 }
 
 func titleCase(s string) string {
