@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -56,6 +57,8 @@ func main() {
 		})
 	})
 
+	inberURL := getEnv("INBER_URL", "http://127.0.0.1:8200")
+
 	// Mount inber integration — try SQLite first, fall back to HTTP API
 	var inberSource inber.DataSource
 
@@ -80,7 +83,6 @@ func main() {
 
 	// Fall back to HTTP API if no SQLite data
 	if inberSource == nil {
-		inberURL := getEnv("INBER_URL", "http://127.0.0.1:8200")
 		httpClient := inber.NewHTTPClient(inberURL)
 		// Quick check if the API is reachable
 		if _, err := httpClient.GetAgents(); err != nil {
@@ -118,6 +120,67 @@ func main() {
 				})
 			}
 		}()
+	}
+
+	// Proxy /api/run to inber for chat/task functionality
+	mux.HandleFunc("/api/run", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		// Forward the request to inber
+		proxyReq, err := http.NewRequest(http.MethodPost, inberURL+"/api/run", r.Body)
+		if err != nil {
+			http.Error(w, "Failed to create proxy request", http.StatusInternalServerError)
+			return
+		}
+		proxyReq.Header.Set("Content-Type", "application/json")
+		proxyReq.Header.Set("Accept", "text/event-stream")
+
+		client := &http.Client{Timeout: 0} // no timeout for streaming
+		resp, err := client.Do(proxyReq)
+		if err != nil {
+			http.Error(w, "Failed to reach inber: "+err.Error(), http.StatusBadGateway)
+			return
+		}
+		defer resp.Body.Close()
+
+		// Stream the response back
+		w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.WriteHeader(resp.StatusCode)
+
+		flusher, ok := w.(http.Flusher)
+		buf := make([]byte, 4096)
+		for {
+			n, err := resp.Body.Read(buf)
+			if n > 0 {
+				w.Write(buf[:n])
+				if ok {
+					flusher.Flush()
+				}
+			}
+			if err != nil {
+				break
+			}
+		}
+	})
+
+	// Proxy /api/agents and /api/sessions to inber for direct access
+	for _, path := range []string{"/api/agents", "/api/sessions"} {
+		p := path
+		mux.HandleFunc("/api/inber-proxy"+p, func(w http.ResponseWriter, r *http.Request) {
+			resp, err := http.Get(inberURL + p)
+			if err != nil {
+				http.Error(w, "Failed to reach inber", http.StatusBadGateway)
+				return
+			}
+			defer resp.Body.Close()
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(resp.StatusCode)
+			io.Copy(w, resp.Body)
+		})
 	}
 
 	// Serve frontend static files

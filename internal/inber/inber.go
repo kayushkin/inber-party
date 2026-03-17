@@ -97,10 +97,18 @@ type QuestHistoryEntry struct {
 
 // Agent class assignments based on agent name patterns
 var agentClasses = map[string]struct{ class, emoji, title string }{
-	"claxon": {"Wizard", "🧙", "the All-Seeing"},
-	"brigid": {"Healer", "✨", "the Radiant"},
-	"run":    {"Ranger", "🏹", "the Swift"},
-	"main":   {"Wizard", "🧙", "the Wise"},
+	"claxon":    {"Overlord", "👁️", "the All-Seeing"},
+	"brigid":    {"Artificer", "✨", "the Radiant"},
+	"fionn":     {"Engineer", "⚙️", "the Builder"},
+	"oisin":     {"Bard", "🎵", "the Storyteller"},
+	"manannan":  {"Ranger", "🌊", "the Voyager"},
+	"ogma":      {"Scribe", "📜", "the Chronicler"},
+	"scathach":  {"Shadow", "🗡️", "the Unseen"},
+	"goibniu":   {"Smith", "🔨", "the Forgemaster"},
+	"bench":     {"Gladiator", "🏛️", "the Proven"},
+	"main":      {"Sovereign", "👑", "the Wise"},
+	"run":       {"Ranger", "🏹", "the Swift"},
+	"inber-party": {"Bard", "🎭", "the Entertainer"},
 }
 
 func classFor(agent string) (string, string, string) {
@@ -108,7 +116,8 @@ func classFor(agent string) (string, string, string) {
 	if c, ok := agentClasses[agent]; ok {
 		return c.class, c.emoji, c.title
 	}
-	return "Warrior", "⚔️", "the Unknown"
+	// Sensible defaults for unknown agents
+	return "Adventurer", "⚔️", "the Unknown"
 }
 
 // Store provides read-only access to inber's databases.

@@ -5,16 +5,23 @@ import Layout from './components/Layout';
 import CampView from './pages/CampView';
 import CharacterSheet from './pages/CharacterSheet';
 import QuestBoard from './pages/QuestBoard';
+import StatsView from './pages/StatsView';
 import './App.css';
 
 function App() {
-  const connectWebSocket = useStore((state) => state.connectWebSocket);
-  const disconnectWebSocket = useStore((state) => state.disconnectWebSocket);
+  const connectWebSocket = useStore((s) => s.connectWebSocket);
+  const disconnectWebSocket = useStore((s) => s.disconnectWebSocket);
+  const startPolling = useStore((s) => s.startPolling);
+  const stopPolling = useStore((s) => s.stopPolling);
 
   useEffect(() => {
     connectWebSocket();
-    return () => disconnectWebSocket();
-  }, [connectWebSocket, disconnectWebSocket]);
+    startPolling(10000);
+    return () => {
+      disconnectWebSocket();
+      stopPolling();
+    };
+  }, [connectWebSocket, disconnectWebSocket, startPolling, stopPolling]);
 
   return (
     <BrowserRouter>
@@ -23,6 +30,7 @@ function App() {
           <Route index element={<CampView />} />
           <Route path="agent/:id" element={<CharacterSheet />} />
           <Route path="quests" element={<QuestBoard />} />
+          <Route path="stats" element={<StatsView />} />
         </Route>
       </Routes>
     </BrowserRouter>
