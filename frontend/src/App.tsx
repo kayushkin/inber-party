@@ -6,6 +6,7 @@ import CampView from './pages/CampView';
 import CharacterSheet from './pages/CharacterSheet';
 import QuestBoard from './pages/QuestBoard';
 import StatsView from './pages/StatsView';
+import ComparisonView from './pages/ComparisonView';
 import './App.css';
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
           <Route path="agent/:id" element={<CharacterSheet />} />
           <Route path="quests" element={<QuestBoard />} />
           <Route path="stats" element={<StatsView />} />
+          <Route path="compare" element={<ComparisonView />} />
         </Route>
       </Routes>
     </BrowserRouter>

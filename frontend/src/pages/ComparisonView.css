@@ -1,0 +1,364 @@
+.comparison-layout {
+  padding: 2rem;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+  min-height: 100vh;
+  color: #e5e7eb;
+}
+
+.comparison-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(212, 175, 55, 0.3);
+}
+
+.comparison-header h1 {
+  font-family: 'Courier New', monospace;
+  font-size: 2rem;
+  color: #d4af37;
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+  margin: 0;
+}
+
+.back-button, .clear-button {
+  background: rgba(212, 175, 55, 0.15);
+  border: 2px solid #d4af37;
+  color: #d4af37;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover, .clear-button:hover {
+  background: rgba(212, 175, 55, 0.25);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+}
+
+.clear-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clear-button:disabled:hover {
+  background: rgba(212, 175, 55, 0.15);
+  box-shadow: none;
+}
+
+/* Agent Selection */
+.agent-selection {
+  margin-bottom: 3rem;
+}
+
+.agent-selection h2 {
+  color: #d4af37;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 1rem;
+  font-size: 1.4rem;
+}
+
+.selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.agent-selector {
+  display: block;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.agent-selector input {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.agent-selector:hover {
+  border-color: rgba(212, 175, 55, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.agent-selector.selected {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.agent-selector.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.selector-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-right: 2rem;
+}
+
+.selector-avatar img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.selector-info {
+  flex: 1;
+}
+
+.selector-name {
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.selector-meta {
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+/* Comparison Section */
+.comparison-section {
+  margin-bottom: 2rem;
+}
+
+.comparison-section h2 {
+  color: #d4af37;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 1.5rem;
+  font-size: 1.6rem;
+  text-align: center;
+}
+
+.comparison-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.comparison-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.comparison-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--cc);
+  opacity: 0.8;
+}
+
+.comparison-card:hover {
+  border-color: var(--cc);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Card Header */
+.comp-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.comp-avatar img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 3px solid var(--cc);
+}
+
+.comp-title {
+  flex: 1;
+}
+
+.comp-name {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.4rem;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+}
+
+.comp-class {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Stats */
+.comp-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.comp-stat {
+  text-align: center;
+}
+
+.comp-stat .stat-label {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.25rem;
+}
+
+.comp-stat .stat-value {
+  font-size: 1.2rem;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 0.5rem;
+}
+
+.comp-stat .progress-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.comp-stat .progress-fill {
+  height: 100%;
+  transition: width 0.5s ease;
+  border-radius: 3px;
+}
+
+.comp-stat .energy .progress-fill {
+  background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981) !important;
+}
+
+/* Skills */
+.comp-skills {
+  margin-bottom: 1.5rem;
+}
+
+.skills-header {
+  font-size: 0.9rem;
+  color: #d4af37;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.75rem;
+  font-weight: bold;
+}
+
+.comp-skills .skill-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.comp-skills .skill-item:last-child {
+  border-bottom: none;
+}
+
+.skill-name {
+  font-size: 0.9rem;
+  color: #e5e7eb;
+}
+
+.skill-level {
+  font-size: 0.8rem;
+  color: var(--cc);
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+}
+
+/* Footer */
+.comp-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.last-active {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.view-details-btn {
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid #d4af37;
+  color: #d4af37;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-details-btn:hover {
+  background: rgba(212, 175, 55, 0.25);
+}
+
+/* Single agent notice */
+.single-agent-notice {
+  text-align: center;
+  padding: 3rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .comparison-layout {
+    padding: 1rem;
+  }
+  
+  .comparison-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .comparison-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .selection-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .comparison-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .comp-stats {
+    grid-template-columns: 1fr;
+  }
+}

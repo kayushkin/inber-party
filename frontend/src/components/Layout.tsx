@@ -13,6 +13,7 @@ export default function Layout() {
     { to: '/', label: '🏕️ Tavern', match: '/' },
     { to: '/quests', label: '📜 Quests', match: '/quests' },
     { to: '/stats', label: '📊 Stats', match: '/stats' },
+    { to: '/compare', label: '⚔️ Compare', match: '/compare' },
   ];
 
   return (
