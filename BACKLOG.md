@@ -18,7 +18,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Dark/light theme toggle with localStorage persistence
 - [x] Loading skeletons instead of blank states
 - [x] Pixel art UI frame/border around the main content area
-- [~] Sound effects (optional, muted by default) — level up chime, quest complete fanfare, new message ping
+- [x] Sound effects (optional, muted by default) — level up chime, quest complete fanfare, new message ping
 - [ ] Agent comparison view — side-by-side stat cards for 2-3 agents
 - [ ] Tooltip system — hover over stats/skills for explanations
 - [ ] Quest difficulty badges (★ to ★★★★★) based on token cost
