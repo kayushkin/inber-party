@@ -99,6 +99,11 @@ interface StoreState {
   selectedAgent: string | null;
   setSelectedAgent: (id: string | null) => void;
 
+  // Theme state
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => void;
+  toggleTheme: () => void;
+
   // Level-up detection
   previousAgentLevels: Record<string, number>;
   levelUpTriggers: Record<string, number>; // timestamp of level up for animation trigger
@@ -137,7 +142,22 @@ export const useStore = create<StoreState>((set, get) => ({
   previousQuestStatuses: {},
   questCompletionTriggers: {},
 
+  // Initialize theme from localStorage or default to dark
+  theme: (localStorage.getItem('theme') as 'light' | 'dark') || 'dark',
+
   setSelectedAgent: (id) => set({ selectedAgent: id }),
+
+  setTheme: (theme) => {
+    localStorage.setItem('theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    set({ theme });
+  },
+
+  toggleTheme: () => {
+    const currentTheme = get().theme;
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    get().setTheme(newTheme);
+  },
 
   triggerLevelUp: (agentId) => set((state) => ({
     levelUpTriggers: { ...state.levelUpTriggers, [agentId]: Date.now() }

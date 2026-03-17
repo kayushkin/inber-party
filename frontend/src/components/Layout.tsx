@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useStore } from '../store';
+import ThemeToggle from './ThemeToggle';
 import './Layout.css';
 
 export default function Layout() {
@@ -28,9 +29,12 @@ export default function Layout() {
               </Link>
             ))}
           </nav>
-          <div className="connection-status">
-            <span className={`status-dot ${connected ? 'connected' : 'disconnected'}`} />
-            <span className="status-text">{connected ? 'Live' : 'Offline'}</span>
+          <div className="header-controls">
+            <ThemeToggle />
+            <div className="connection-status">
+              <span className={`status-dot ${connected ? 'connected' : 'disconnected'}`} />
+              <span className="status-text">{connected ? 'Live' : 'Offline'}</span>
+            </div>
           </div>
         </div>
       </header>

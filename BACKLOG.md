@@ -15,7 +15,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Idle animations on agent cards (subtle breathing/bobbing CSS keyframes)
 - [x] Status-based visual effects — working agents have spinning gear, stuck agents have red pulse, idle agents have gentle glow
 - [x] Mobile responsive polish — test all pages on 375px viewport, fix any overflow/stacking issues
-- [ ] Dark/light theme toggle with localStorage persistence
+- [~] Dark/light theme toggle with localStorage persistence
 - [ ] Loading skeletons instead of blank states
 - [ ] Pixel art UI frame/border around the main content area
 - [ ] Sound effects (optional, muted by default) — level up chime, quest complete fanfare, new message ping

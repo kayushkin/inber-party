@@ -13,6 +13,7 @@ function App() {
   const disconnectWebSocket = useStore((s) => s.disconnectWebSocket);
   const startPolling = useStore((s) => s.startPolling);
   const stopPolling = useStore((s) => s.stopPolling);
+  const theme = useStore((s) => s.theme);
 
   useEffect(() => {
     connectWebSocket();
@@ -22,6 +23,11 @@ function App() {
       stopPolling();
     };
   }, [connectWebSocket, disconnectWebSocket, startPolling, stopPolling]);
+
+  // Apply theme on mount and when theme changes
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   return (
     <BrowserRouter>
