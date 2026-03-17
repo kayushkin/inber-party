@@ -1,5 +1,7 @@
 import { useStore, formatTokens, formatCost, classColor } from '../store';
 import { Skeleton } from '../components/SkeletonLoader';
+import Tooltip from '../components/Tooltip';
+import { STAT_TOOLTIPS } from '../constants/tooltips';
 import './StatsView.css';
 
 export default function StatsView() {
@@ -53,14 +55,14 @@ export default function StatsView() {
       <h1>📊 Guild Statistics</h1>
 
       <div className="overview-grid">
-        <div className="ov-card"><div className="ov-val">{stats.total_agents}</div><div className="ov-lbl">Adventurers</div></div>
-        <div className="ov-card"><div className="ov-val">{stats.total_sessions}</div><div className="ov-lbl">Sessions</div></div>
-        <div className="ov-card"><div className="ov-val">{formatTokens(stats.total_tokens)}</div><div className="ov-lbl">Total Tokens</div></div>
-        <div className="ov-card"><div className="ov-val">{formatCost(stats.total_cost)}</div><div className="ov-lbl">Total Cost</div></div>
-        <div className="ov-card"><div className="ov-val">{stats.completed_quests}</div><div className="ov-lbl">Quests Done</div></div>
-        <div className="ov-card"><div className="ov-val">{stats.failed_quests}</div><div className="ov-lbl">Quests Failed</div></div>
-        <div className="ov-card"><div className="ov-val">{stats.active_quests}</div><div className="ov-lbl">Active</div></div>
-        <div className="ov-card"><div className="ov-val">{stats.uptime || '—'}</div><div className="ov-lbl">Uptime</div></div>
+        <div className="ov-card"><div className="ov-val">{stats.total_agents}</div><Tooltip content={STAT_TOOLTIPS.adventurers}><div className="ov-lbl">Adventurers</div></Tooltip></div>
+        <div className="ov-card"><div className="ov-val">{stats.total_sessions}</div><Tooltip content={STAT_TOOLTIPS.total_sessions}><div className="ov-lbl">Sessions</div></Tooltip></div>
+        <div className="ov-card"><div className="ov-val">{formatTokens(stats.total_tokens)}</div><Tooltip content={STAT_TOOLTIPS.total_tokens}><div className="ov-lbl">Total Tokens</div></Tooltip></div>
+        <div className="ov-card"><div className="ov-val">{formatCost(stats.total_cost)}</div><Tooltip content={STAT_TOOLTIPS.total_cost}><div className="ov-lbl">Total Cost</div></Tooltip></div>
+        <div className="ov-card"><div className="ov-val">{stats.completed_quests}</div><Tooltip content={STAT_TOOLTIPS.quests_done}><div className="ov-lbl">Quests Done</div></Tooltip></div>
+        <div className="ov-card"><div className="ov-val">{stats.failed_quests}</div><Tooltip content={STAT_TOOLTIPS.quests_failed}><div className="ov-lbl">Quests Failed</div></Tooltip></div>
+        <div className="ov-card"><div className="ov-val">{stats.active_quests}</div><Tooltip content={STAT_TOOLTIPS.active}><div className="ov-lbl">Active</div></Tooltip></div>
+        <div className="ov-card"><div className="ov-val">{stats.uptime || '—'}</div><Tooltip content={STAT_TOOLTIPS.uptime}><div className="ov-lbl">Uptime</div></Tooltip></div>
       </div>
 
       <h2>Agent Leaderboard</h2>

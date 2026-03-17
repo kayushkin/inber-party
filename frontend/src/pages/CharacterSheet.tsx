@@ -4,6 +4,8 @@ import { useStore, classColor, formatTokens, formatCost } from '../store';
 import type { RPGAgent, RPGQuest, RPGAchievement, QuestHistoryEntry } from '../store';
 import ChatPanel from '../components/ChatPanel';
 import LevelUpAnimation from '../components/LevelUpAnimation';
+import Tooltip from '../components/Tooltip';
+import { STAT_TOOLTIPS, ACHIEVEMENT_TOOLTIPS, getSkillTooltip } from '../constants/tooltips';
 import './CharacterSheet.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -99,29 +101,41 @@ export default function CharacterSheet() {
         {/* Stats */}
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-label">Level</div>
+            <Tooltip content={STAT_TOOLTIPS.level}>
+              <div className="stat-label">Level</div>
+            </Tooltip>
             <div className="stat-value" style={{ color: cc }}>{agent.level}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">XP</div>
+            <Tooltip content={STAT_TOOLTIPS.xp}>
+              <div className="stat-label">XP</div>
+            </Tooltip>
             <div className="stat-value">{agent.xp}</div>
             <div className="progress-bar"><div className="progress-fill animated" style={{ width: showAnimations ? `${xpPct}%` : '0%', background: cc }} /></div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Energy</div>
+            <Tooltip content={STAT_TOOLTIPS.energy}>
+              <div className="stat-label">Energy</div>
+            </Tooltip>
             <div className="stat-value">{agent.energy}%</div>
             <div className="progress-bar energy"><div className="progress-fill animated" style={{ width: showAnimations ? `${agent.energy}%` : '0%' }} /></div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Tokens</div>
+            <Tooltip content={STAT_TOOLTIPS.tokens}>
+              <div className="stat-label">Tokens</div>
+            </Tooltip>
             <div className="stat-value" style={{ color: '#60a5fa' }}>{formatTokens(agent.total_tokens)}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Cost</div>
+            <Tooltip content={STAT_TOOLTIPS.cost}>
+              <div className="stat-label">Cost</div>
+            </Tooltip>
             <div className="stat-value" style={{ color: '#4ade80' }}>{formatCost(agent.total_cost)}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Sessions</div>
+            <Tooltip content={STAT_TOOLTIPS.sessions}>
+              <div className="stat-label">Sessions</div>
+            </Tooltip>
             <div className="stat-value">{agent.session_count}</div>
           </div>
         </div>
@@ -131,12 +145,18 @@ export default function CharacterSheet() {
           <div className="section">
             <h3>Achievements <span className="badge-count">{achievements.length}</span></h3>
             <div className="achievements-grid">
-              {achievements.map((a) => (
-                <div key={a.id} className="achievement-badge" title={a.description}>
-                  <span className="badge-icon">{a.icon}</span>
-                  <span className="badge-name">{a.name}</span>
-                </div>
-              ))}
+              {achievements.map((a) => {
+                const achievementKey = a.name.toLowerCase().replace(/\s+/g, '_') as keyof typeof ACHIEVEMENT_TOOLTIPS;
+                const tooltip = a.description || ACHIEVEMENT_TOOLTIPS[achievementKey] || 'Achievement unlocked!';
+                return (
+                  <Tooltip key={a.id} content={tooltip}>
+                    <div className="achievement-badge">
+                      <span className="badge-icon">{a.icon}</span>
+                      <span className="badge-name">{a.name}</span>
+                    </div>
+                  </Tooltip>
+                );
+              })}
             </div>
           </div>
         )}
@@ -149,7 +169,9 @@ export default function CharacterSheet() {
               {agent.skills.map((skill, i) => (
                 <div key={i} className="skill-item">
                   <div className="skill-header">
-                    <span className="skill-name">{skill.skill_name}</span>
+                    <Tooltip content={getSkillTooltip(skill.skill_name)}>
+                      <span className="skill-name">{skill.skill_name}</span>
+                    </Tooltip>
                     <span className="skill-level">Lv {skill.level}</span>
                   </div>
                   <div className="skill-bar">

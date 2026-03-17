@@ -1,0 +1,86 @@
+.tooltip-wrapper {
+  position: relative;
+  cursor: help;
+}
+
+.tooltip {
+  background: rgba(0, 0, 0, 0.95);
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  font-family: 'Courier New', monospace;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  white-space: normal;
+  word-wrap: break-word;
+  animation: tooltip-fade-in 0.2s ease-out;
+  transform: translateX(-50%);
+}
+
+.tooltip::before {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.tooltip-top::before {
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px 6px 0 6px;
+  border-color: rgba(0, 0, 0, 0.95) transparent transparent transparent;
+}
+
+.tooltip-bottom::before {
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 0 6px 6px 6px;
+  border-color: transparent transparent rgba(0, 0, 0, 0.95) transparent;
+}
+
+.tooltip-left::before {
+  top: 50%;
+  right: -6px;
+  transform: translateY(-50%);
+  border-width: 6px 0 6px 6px;
+  border-color: transparent transparent transparent rgba(0, 0, 0, 0.95);
+}
+
+.tooltip-right::before {
+  top: 50%;
+  left: -6px;
+  transform: translateY(-50%);
+  border-width: 6px 6px 6px 0;
+  border-color: transparent rgba(0, 0, 0, 0.95) transparent transparent;
+}
+
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Hover indicators */
+.tooltip-wrapper .stat-label,
+.tooltip-wrapper .skill-name,
+.tooltip-wrapper .ov-lbl {
+  border-bottom: 1px dotted rgba(212, 175, 55, 0.5);
+  transition: border-color 0.2s ease;
+}
+
+.tooltip-wrapper:hover .stat-label,
+.tooltip-wrapper:hover .skill-name,
+.tooltip-wrapper:hover .ov-lbl {
+  border-color: #d4af37;
+}

@@ -20,7 +20,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Pixel art UI frame/border around the main content area
 - [x] Sound effects (optional, muted by default) — level up chime, quest complete fanfare, new message ping
 - [x] Agent comparison view — side-by-side stat cards for 2-3 agents
-- [ ] Tooltip system — hover over stats/skills for explanations
+- [x] Tooltip system — hover over stats/skills for explanations
 - [ ] Quest difficulty badges (★ to ★★★★★) based on token cost
 - [ ] Animated background — subtle parallax starfield or torch flicker
 
@@ -54,6 +54,8 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [ ] Guild Quest-Giver agent — an AI agent that reviews incoming tasks and assigns/restricts them to appropriate agents based on skills and domain expertise
 - [ ] Skill trees — visual skill tree per agent class, unlock new capabilities at level thresholds
 - [ ] Equipment system — tools and permissions as "gear" (shell access = sword, web search = spyglass)
+- [ ] Role-based hats — orchestrator gets captain hat, coder agents get hard hat, etc. Derived from agent role in agents.json
+- [ ] Action-based held items — reflect recent activity: hammer for heavy edits, claxon horn for agents delegating/spawning, magnifying glass for search-heavy work, scroll for documentation, wrench for infra/deploy. Pull from recent session data.
 - [ ] Daily quests — auto-generated small tasks for agents to level up
 - [ ] Achievement notifications — toast popups when achievements are earned
 - [ ] Leaderboard — ranked agent stats (XP, quests completed, efficiency score)
