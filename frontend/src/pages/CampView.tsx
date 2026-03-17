@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStore, classColor, formatTokens, timeAgo } from '../store';
 import type { RPGAgent } from '../store';
 import ChatPanel from '../components/ChatPanel';
+import LevelUpAnimation from '../components/LevelUpAnimation';
 import './CampView.css';
 
 const GUILD_NAMES: Record<string, string> = {
@@ -19,6 +20,7 @@ export default function CampView() {
   const stats = useStore((s) => s.stats);
   const selectedAgent = useStore((s) => s.selectedAgent);
   const setSelectedAgent = useStore((s) => s.setSelectedAgent);
+  const levelUpTriggers = useStore((s) => s.levelUpTriggers);
 
   const handleAgentClick = (agent: RPGAgent) => {
     setSelectedAgent(agent.id);
@@ -134,6 +136,17 @@ export default function CampView() {
           onClose={() => setSelectedAgent(null)}
         />
       )}
+
+      {/* Level-up animations for all agents */}
+      {agents.map((agent) => (
+        <LevelUpAnimation
+          key={`levelup-${agent.id}`}
+          trigger={levelUpTriggers[agent.id] || 0}
+          agentName={agent.name}
+          level={agent.level}
+          color={classColor(agent.class)}
+        />
+      ))}
     </div>
   );
 }

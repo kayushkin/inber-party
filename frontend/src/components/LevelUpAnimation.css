@@ -1,0 +1,186 @@
+.level-up-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Background glow effect */
+.level-up-glow {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border: 3px solid;
+  border-radius: 50%;
+  animation: levelUpGlow 3s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes levelUpGlow {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+/* Particle burst system */
+.level-up-particles {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--color);
+  border-radius: 50%;
+  animation: particleBurst 2.5s ease-out forwards;
+  opacity: 0;
+  box-shadow: 0 0 6px var(--color);
+}
+
+.particle:nth-child(odd) {
+  width: 6px;
+  height: 6px;
+  animation-delay: 0.1s;
+}
+
+.particle:nth-child(3n) {
+  width: 10px;
+  height: 10px;
+  animation-delay: 0.05s;
+}
+
+@keyframes particleBurst {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateY(0) scale(0);
+  }
+  10% {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateY(-20px) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateY(-120px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateY(-180px) scale(0.3);
+  }
+}
+
+/* Central burst effect */
+.level-up-burst {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  animation: centralBurst 1.5s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes centralBurst {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  30% {
+    opacity: 0.8;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+
+/* Level up text */
+.level-up-text {
+  position: absolute;
+  text-align: center;
+  animation: levelUpTextReveal 3s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+  z-index: 1;
+}
+
+.level-up-title {
+  font-size: 3rem;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  margin-bottom: 0.5rem;
+  animation: titlePulse 3s ease-out forwards;
+}
+
+.level-up-subtitle {
+  font-size: 1.2rem;
+  color: #d4af37;
+  font-family: 'Courier New', monospace;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  margin-bottom: 0.5rem;
+}
+
+.level-up-sparkles {
+  font-size: 1.5rem;
+  animation: sparkleFloat 3s ease-in-out infinite;
+}
+
+@keyframes levelUpTextReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(1.1);
+  }
+  30% {
+    transform: translateY(-5px) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.9);
+  }
+}
+
+@keyframes titlePulse {
+  0%, 100% { transform: scale(1); }
+  15%, 25% { transform: scale(1.1); }
+  20% { transform: scale(1.15); }
+}
+
+@keyframes sparkleFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .level-up-title { font-size: 2rem; }
+  .level-up-subtitle { font-size: 1rem; }
+  .level-up-glow { width: 200px; height: 200px; }
+  .level-up-burst { width: 60px; height: 60px; }
+  .particle { width: 6px; height: 6px; }
+}

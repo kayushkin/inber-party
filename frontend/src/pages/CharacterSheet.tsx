@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useStore, classColor, formatTokens, formatCost } from '../store';
 import type { RPGAgent, RPGQuest, RPGAchievement, QuestHistoryEntry } from '../store';
 import ChatPanel from '../components/ChatPanel';
+import LevelUpAnimation from '../components/LevelUpAnimation';
 import './CharacterSheet.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -17,6 +18,7 @@ export default function CharacterSheet() {
   const [showAnimations, setShowAnimations] = useState(false);
   const selectedAgent = useStore((s) => s.selectedAgent);
   const setSelectedAgent = useStore((s) => s.setSelectedAgent);
+  const levelUpTriggers = useStore((s) => s.levelUpTriggers);
 
   const fetchAll = useStore((s) => s.fetchAll);
   const agent: RPGAgent | undefined = agents.find((a) => a.id === id);
@@ -202,6 +204,16 @@ export default function CharacterSheet() {
 
       {selectedAgent === agent.id && (
         <ChatPanel agentId={agent.id} agent={agent} onClose={() => setSelectedAgent(null)} />
+      )}
+      
+      {/* Level-up animation */}
+      {agent && (
+        <LevelUpAnimation
+          trigger={levelUpTriggers[agent.id] || 0}
+          agentName={agent.name}
+          level={agent.level}
+          color={cc}
+        />
       )}
     </div>
   );

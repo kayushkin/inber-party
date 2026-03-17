@@ -99,6 +99,11 @@ interface StoreState {
   selectedAgent: string | null;
   setSelectedAgent: (id: string | null) => void;
 
+  // Level-up detection
+  previousAgentLevels: Record<string, number>;
+  levelUpTriggers: Record<string, number>; // timestamp of level up for animation trigger
+  triggerLevelUp: (agentId: string) => void;
+
   // Actions
   fetchAll: () => Promise<void>;
   connectWebSocket: () => void;
@@ -122,8 +127,14 @@ export const useStore = create<StoreState>((set, get) => ({
   chatMessages: {},
   chatLoading: {},
   selectedAgent: null,
+  previousAgentLevels: {},
+  levelUpTriggers: {},
 
   setSelectedAgent: (id) => set({ selectedAgent: id }),
+
+  triggerLevelUp: (agentId) => set((state) => ({
+    levelUpTriggers: { ...state.levelUpTriggers, [agentId]: Date.now() }
+  })),
 
   fetchAll: async () => {
     try {
@@ -132,7 +143,32 @@ export const useStore = create<StoreState>((set, get) => ({
         fetch(`${API_URL}/api/inber/quests?limit=100`),
         fetch(`${API_URL}/api/inber/stats`),
       ]);
-      if (agentsRes.ok) set({ agents: await agentsRes.json() });
+      
+      if (agentsRes.ok) {
+        const newAgents = await agentsRes.json();
+        const { previousAgentLevels, triggerLevelUp } = get();
+        
+        // Check for level ups
+        newAgents.forEach((agent: RPGAgent) => {
+          const prevLevel = previousAgentLevels[agent.id];
+          if (prevLevel && agent.level > prevLevel) {
+            console.log(`${agent.name} leveled up from ${prevLevel} to ${agent.level}!`);
+            triggerLevelUp(agent.id);
+          }
+        });
+        
+        // Update agents and track their levels
+        const newLevels = newAgents.reduce((acc: Record<string, number>, agent: RPGAgent) => {
+          acc[agent.id] = agent.level;
+          return acc;
+        }, {});
+        
+        set({ 
+          agents: newAgents,
+          previousAgentLevels: newLevels
+        });
+      }
+      
       if (questsRes.ok) set({ quests: await questsRes.json() });
       if (statsRes.ok) set({ stats: await statsRes.json() });
     } catch {
@@ -152,7 +188,29 @@ export const useStore = create<StoreState>((set, get) => ({
         const msg = JSON.parse(event.data);
         if (msg.type === 'inber_update') {
           const { agents, stats } = msg.data;
-          if (agents) set({ agents });
+          if (agents) {
+            const { previousAgentLevels, triggerLevelUp } = get();
+            
+            // Check for level ups
+            agents.forEach((agent: RPGAgent) => {
+              const prevLevel = previousAgentLevels[agent.id];
+              if (prevLevel && agent.level > prevLevel) {
+                console.log(`${agent.name} leveled up from ${prevLevel} to ${agent.level}!`);
+                triggerLevelUp(agent.id);
+              }
+            });
+            
+            // Update agents and track their levels
+            const newLevels = agents.reduce((acc: Record<string, number>, agent: RPGAgent) => {
+              acc[agent.id] = agent.level;
+              return acc;
+            }, {});
+            
+            set({ 
+              agents,
+              previousAgentLevels: newLevels
+            });
+          }
           if (stats) set({ stats });
         }
       } catch { /* ignore */ }
