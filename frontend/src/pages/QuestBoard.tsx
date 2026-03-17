@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore, formatTokens, formatCost, timeAgo } from '../store';
+import { useStore, formatTokens, formatCost, timeAgo, getDifficultyStars, calculateQuestDifficulty, getDifficultyName } from '../store';
 import QuestCompletionAnimation from '../components/QuestCompletionAnimation';
 import { SkeletonQuestCard } from '../components/SkeletonLoader';
 import './QuestBoard.css';
@@ -49,7 +49,12 @@ export default function QuestBoard() {
           <div key={q.id} className={`quest-card status-${q.status}`}>
             <div className="quest-card-header">
               <h3 className="quest-card-name">{q.name}</h3>
-              <span className="quest-difficulty">{'⭐'.repeat(Math.min(q.difficulty, 5))}</span>
+              <span 
+                className="quest-difficulty" 
+                title={`${getDifficultyName(q.tokens_used)} (${calculateQuestDifficulty(q.tokens_used)}/5 stars) - ${formatTokens(q.tokens_used)} tokens`}
+              >
+                {getDifficultyStars(q.tokens_used)}
+              </span>
             </div>
             {q.description && (
               <p className="quest-card-desc">{q.description.slice(0, 120)}{q.description.length > 120 ? '...' : ''}</p>

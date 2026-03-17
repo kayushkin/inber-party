@@ -21,7 +21,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Sound effects (optional, muted by default) — level up chime, quest complete fanfare, new message ping
 - [x] Agent comparison view — side-by-side stat cards for 2-3 agents
 - [x] Tooltip system — hover over stats/skills for explanations
-- [ ] Quest difficulty badges (★ to ★★★★★) based on token cost
+- [~] Quest difficulty badges (★ to ★★★★★) based on token cost
 - [ ] Animated background — subtle parallax starfield or torch flicker
 
 ## 💬 Chat & Interaction

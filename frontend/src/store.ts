@@ -519,3 +519,25 @@ export const CLASS_COLORS: Record<string, string> = {
 export function classColor(cls: string) {
   return CLASS_COLORS[cls] || '#d4af37';
 }
+
+// Calculate quest difficulty based on token usage
+export function calculateQuestDifficulty(tokens: number): number {
+  if (tokens >= 100000) return 5; // ★★★★★ Very Hard
+  if (tokens >= 20000) return 4;  // ★★★★ Hard  
+  if (tokens >= 5000) return 3;   // ★★★ Medium
+  if (tokens >= 1000) return 2;   // ★★ Easy
+  return 1;                       // ★ Very Easy
+}
+
+// Get difficulty stars string
+export function getDifficultyStars(tokens: number): string {
+  const difficulty = calculateQuestDifficulty(tokens);
+  return '★'.repeat(difficulty);
+}
+
+// Get difficulty name for tooltip
+export function getDifficultyName(tokens: number): string {
+  const difficulty = calculateQuestDifficulty(tokens);
+  const names = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'];
+  return names[difficulty - 1] || 'Unknown';
+}
