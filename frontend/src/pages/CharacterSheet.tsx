@@ -14,6 +14,7 @@ export default function CharacterSheet() {
   const [quests, setQuests] = useState<RPGQuest[]>([]);
   const [achievements, setAchievements] = useState<RPGAchievement[]>([]);
   const [questHistory, setQuestHistory] = useState<QuestHistoryEntry[]>([]);
+  const [showAnimations, setShowAnimations] = useState(false);
   const selectedAgent = useStore((s) => s.selectedAgent);
   const setSelectedAgent = useStore((s) => s.setSelectedAgent);
 
@@ -33,6 +34,17 @@ export default function CharacterSheet() {
     fetch(`${API_URL}/api/inber/quest-history?agent=${encodeURIComponent(id)}&limit=20`)
       .then((r) => r.ok ? r.json() : []).then(setQuestHistory).catch(() => {});
   }, [id]);
+
+  // Trigger animations when agent data is loaded
+  useEffect(() => {
+    if (agent) {
+      // Reset animation state when agent changes
+      setShowAnimations(false);
+      // Trigger animation after a short delay to ensure DOM is ready
+      const timer = setTimeout(() => setShowAnimations(true), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [agent]);
 
   if (!agent) {
     return (
@@ -91,12 +103,12 @@ export default function CharacterSheet() {
           <div className="stat-card">
             <div className="stat-label">XP</div>
             <div className="stat-value">{agent.xp}</div>
-            <div className="progress-bar"><div className="progress-fill" style={{ width: `${xpPct}%`, background: cc }} /></div>
+            <div className="progress-bar"><div className="progress-fill animated" style={{ width: showAnimations ? `${xpPct}%` : '0%', background: cc }} /></div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Energy</div>
             <div className="stat-value">{agent.energy}%</div>
-            <div className="progress-bar energy"><div className="progress-fill" style={{ width: `${agent.energy}%` }} /></div>
+            <div className="progress-bar energy"><div className="progress-fill animated" style={{ width: showAnimations ? `${agent.energy}%` : '0%' }} /></div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Tokens</div>
@@ -139,7 +151,7 @@ export default function CharacterSheet() {
                     <span className="skill-level">Lv {skill.level}</span>
                   </div>
                   <div className="skill-bar">
-                    <div className="skill-bar-fill" style={{ width: `${Math.min(skill.level * 10, 100)}%`, background: cc }} />
+                    <div className="skill-bar-fill animated" style={{ width: showAnimations ? `${Math.min(skill.level * 10, 100)}%` : '0%', background: cc }} />
                   </div>
                 </div>
               ))}

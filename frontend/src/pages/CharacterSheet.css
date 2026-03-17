@@ -91,7 +91,19 @@
   margin-top: 0.5rem;
 }
 
-.progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.progress-fill { 
+  height: 100%; 
+  border-radius: 3px; 
+  transition: width 0.3s; 
+}
+
+.progress-fill.animated { 
+  transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.skill-bar-fill.animated { 
+  transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
 .progress-bar.energy .progress-fill { background: linear-gradient(90deg, #4ade80, #22c55e); }
 
 /* Sections */

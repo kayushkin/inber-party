@@ -9,7 +9,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 ## 🎨 Visual & UI Polish
 
 - [x] Generate pixel art avatars for each agent using OpenAI gpt-image-1 API (64x64, transparent bg, RPG style). Save as static assets in `frontend/public/avatars/`. See `PIXEL-ART.md` for details.
-- [ ] Animated XP bar fills when visiting an agent (CSS transition on load)
+- [x] Animated XP bar fills when visiting an agent (CSS transition on load)
 - [ ] Level-up animation — particle burst / glow effect when an agent levels up during a session
 - [ ] Quest completion animation — scroll unfurling or chest opening effect
 - [ ] Idle animations on agent cards (subtle breathing/bobbing CSS keyframes)
