@@ -60,3 +60,39 @@ input, select, textarea {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--gold);
 }
+
+/* Mobile viewport optimizations */
+@media (max-width: 375px) {
+  body {
+    font-size: 14px;
+  }
+
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.3rem; }
+  h3 { font-size: 1.1rem; }
+
+  /* Prevent horizontal overflow */
+  * {
+    max-width: 100%;
+  }
+
+  /* Improve touch targets */
+  button, .nav-link, .agent-card {
+    min-height: 44px;
+  }
+
+  /* Better scroll behavior on mobile */
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Reduce animations on mobile for performance */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

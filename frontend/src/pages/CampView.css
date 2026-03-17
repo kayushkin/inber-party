@@ -305,6 +305,84 @@
   }
 }
 
+@media (max-width: 375px) {
+  .camp-layout {
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: calc(100vh - 100px);
+  }
+  
+  .camp-layout.chat-open {
+    padding-bottom: 60vh; /* Make room for fixed chat panel */
+  }
+
+  .guild-bar {
+    padding: 0.5rem 0.75rem;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .guild-stat {
+    min-width: 50px;
+    flex-shrink: 0;
+  }
+
+  .gs-val {
+    font-size: 1.1rem;
+  }
+
+  .gs-lbl {
+    font-size: 0.6rem;
+  }
+
+  .guild-section {
+    margin-bottom: 1rem;
+  }
+
+  .guild-header {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .agents-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .agent-card {
+    padding: 0.75rem;
+  }
+
+  .ac-name {
+    font-size: 0.95rem;
+  }
+
+  .ac-class {
+    font-size: 0.7rem;
+  }
+
+  .ac-bottom {
+    font-size: 0.65rem;
+  }
+
+  .ac-chat-hint {
+    font-size: 0.6rem;
+    bottom: 0.4rem;
+  }
+
+  .ac-detail-btn {
+    font-size: 0.8rem;
+    top: 0.4rem;
+    right: 0.4rem;
+  }
+
+  .empty-state {
+    padding: 2rem 1rem;
+  }
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }

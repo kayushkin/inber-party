@@ -367,6 +367,166 @@
   }
 }
 
+@media (max-width: 375px) {
+  .quest-board-header {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+
+  .quest-board-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .quest-filters {
+    justify-content: center;
+    gap: 0.25rem;
+  }
+
+  .filter-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    gap: 0.25rem;
+  }
+
+  .filter-count {
+    padding: 0.05rem 0.3rem;
+    font-size: 0.7rem;
+  }
+
+  .create-quest-button {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+  }
+
+  .quests-grid {
+    gap: 1rem;
+  }
+
+  .quest-card {
+    padding: 1rem;
+  }
+
+  .quest-card-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .quest-card-name {
+    font-size: 1rem;
+    margin-bottom: 0;
+  }
+
+  .quest-difficulty {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    align-self: flex-start;
+  }
+
+  .quest-card-description {
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    min-height: 2rem;
+  }
+
+  .quest-meta-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+    padding: 0.5rem;
+    margin: 0.75rem 0;
+  }
+
+  .meta-label {
+    font-size: 0.65rem;
+  }
+
+  .meta-value {
+    font-size: 0.85rem;
+  }
+
+  .quest-subquests {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .quest-reward {
+    font-size: 1rem;
+  }
+
+  .reward-icon {
+    font-size: 1.1rem;
+  }
+
+  .assign-select {
+    font-size: 0.85rem;
+    padding: 0.6rem;
+  }
+
+  .assigned-agent {
+    gap: 0.4rem;
+    font-size: 0.85rem;
+  }
+
+  .assigned-avatar {
+    font-size: 1.3rem;
+  }
+
+  .quest-progress-bar {
+    height: 16px;
+  }
+
+  .complete-button {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  .quest-error {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  /* Modal responsive */
+  .modal {
+    padding: 1.5rem;
+    max-width: 95%;
+  }
+
+  .modal h2 {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    font-size: 0.9rem;
+    padding: 0.6rem;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .modal-actions {
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .cancel-button,
+  .submit-button {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;

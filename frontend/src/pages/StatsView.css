@@ -76,3 +76,71 @@
   .lb-bar-container { display: none; }
   .lb-info { min-width: 80px; }
 }
+
+@media (max-width: 375px) {
+  .stats-view h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .stats-view h2 {
+    font-size: 1.1rem;
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  .overview-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .ov-card {
+    padding: 1rem 0.75rem;
+  }
+
+  .ov-val {
+    font-size: 1.5rem;
+  }
+
+  .ov-lbl {
+    font-size: 0.65rem;
+    margin-top: 0.2rem;
+  }
+
+  .lb-row {
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .lb-rank {
+    width: 1.5rem;
+    font-size: 0.8rem;
+  }
+
+  .lb-avatar {
+    font-size: 1.3rem;
+  }
+
+  .lb-info {
+    min-width: 60px;
+  }
+
+  .lb-name {
+    font-size: 0.85rem;
+  }
+
+  .lb-class {
+    font-size: 0.65rem;
+  }
+
+  .lb-stats {
+    min-width: 60px;
+  }
+
+  .lb-tokens {
+    font-size: 0.8rem;
+  }
+
+  .lb-cost {
+    font-size: 0.7rem;
+  }
+}

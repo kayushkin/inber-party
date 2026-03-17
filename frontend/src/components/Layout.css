@@ -104,3 +104,16 @@
   .main { padding: 0.75rem; }
   .connection-status { display: none; }
 }
+
+@media (max-width: 375px) {
+  .header { padding: 0.5rem 0.75rem; }
+  .header-content { gap: 0.25rem; flex-wrap: wrap; }
+  .camp-name { font-size: 1.1rem; }
+  .nav { flex-wrap: wrap; gap: 0.25rem; }
+  .nav-link { 
+    font-size: 0.75rem; 
+    padding: 0.25rem 0.4rem;
+    white-space: nowrap;
+  }
+  .main { padding: 0.5rem; }
+}
