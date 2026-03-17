@@ -104,6 +104,11 @@ interface StoreState {
   levelUpTriggers: Record<string, number>; // timestamp of level up for animation trigger
   triggerLevelUp: (agentId: string) => void;
 
+  // Quest completion detection
+  previousQuestStatuses: Record<number, string>;
+  questCompletionTriggers: Record<number, { trigger: number; questName: string; xpReward: number; agentName: string }>;
+  triggerQuestCompletion: (questId: number, questName: string, xpReward: number, agentName: string) => void;
+
   // Actions
   fetchAll: () => Promise<void>;
   connectWebSocket: () => void;
@@ -129,11 +134,20 @@ export const useStore = create<StoreState>((set, get) => ({
   selectedAgent: null,
   previousAgentLevels: {},
   levelUpTriggers: {},
+  previousQuestStatuses: {},
+  questCompletionTriggers: {},
 
   setSelectedAgent: (id) => set({ selectedAgent: id }),
 
   triggerLevelUp: (agentId) => set((state) => ({
     levelUpTriggers: { ...state.levelUpTriggers, [agentId]: Date.now() }
+  })),
+
+  triggerQuestCompletion: (questId, questName, xpReward, agentName) => set((state) => ({
+    questCompletionTriggers: { 
+      ...state.questCompletionTriggers, 
+      [questId]: { trigger: Date.now(), questName, xpReward, agentName }
+    }
   })),
 
   fetchAll: async () => {
@@ -169,7 +183,30 @@ export const useStore = create<StoreState>((set, get) => ({
         });
       }
       
-      if (questsRes.ok) set({ quests: await questsRes.json() });
+      if (questsRes.ok) {
+        const newQuests = await questsRes.json();
+        const { previousQuestStatuses, triggerQuestCompletion } = get();
+        
+        // Check for quest completions
+        newQuests.forEach((quest: RPGQuest) => {
+          const prevStatus = previousQuestStatuses[quest.id];
+          if (prevStatus && prevStatus !== 'completed' && quest.status === 'completed') {
+            console.log(`Quest "${quest.name}" completed by ${quest.assigned_agent_name || 'Unknown Agent'}!`);
+            triggerQuestCompletion(quest.id, quest.name, quest.xp_reward, quest.assigned_agent_name || 'Unknown Agent');
+          }
+        });
+        
+        // Update quests and track their statuses
+        const newStatuses = newQuests.reduce((acc: Record<number, string>, quest: RPGQuest) => {
+          acc[quest.id] = quest.status;
+          return acc;
+        }, {});
+        
+        set({ 
+          quests: newQuests,
+          previousQuestStatuses: newStatuses
+        });
+      }
       if (statsRes.ok) set({ stats: await statsRes.json() });
     } catch {
       console.warn('Failed to fetch data');
@@ -187,7 +224,7 @@ export const useStore = create<StoreState>((set, get) => ({
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === 'inber_update') {
-          const { agents, stats } = msg.data;
+          const { agents, quests, stats } = msg.data;
           if (agents) {
             const { previousAgentLevels, triggerLevelUp } = get();
             
@@ -209,6 +246,29 @@ export const useStore = create<StoreState>((set, get) => ({
             set({ 
               agents,
               previousAgentLevels: newLevels
+            });
+          }
+          if (quests) {
+            const { previousQuestStatuses, triggerQuestCompletion } = get();
+            
+            // Check for quest completions
+            quests.forEach((quest: RPGQuest) => {
+              const prevStatus = previousQuestStatuses[quest.id];
+              if (prevStatus && prevStatus !== 'completed' && quest.status === 'completed') {
+                console.log(`Quest "${quest.name}" completed by ${quest.assigned_agent_name || 'Unknown Agent'}!`);
+                triggerQuestCompletion(quest.id, quest.name, quest.xp_reward, quest.assigned_agent_name || 'Unknown Agent');
+              }
+            });
+            
+            // Update quest statuses
+            const newStatuses = quests.reduce((acc: Record<number, string>, quest: RPGQuest) => {
+              acc[quest.id] = quest.status;
+              return acc;
+            }, {});
+            
+            set({ 
+              quests,
+              previousQuestStatuses: newStatuses
             });
           }
           if (stats) set({ stats });

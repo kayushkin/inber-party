@@ -1,0 +1,406 @@
+.quest-completion-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Background dimming */
+.quest-completion-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  animation: backdropFade 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes backdropFade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Floating particles */
+.quest-completion-particles {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.completion-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  background: #ffd700;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #ffd700;
+  animation: particleFloat 3s ease-out var(--delay, 0s) forwards;
+  opacity: 0;
+}
+
+@keyframes particleFloat {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--offset, 0deg)) translateY(0) scale(0);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--offset, 0deg)) translateY(-30px) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--offset, 0deg)) translateY(-120px) scale(0.8);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--offset, 0deg)) translateY(-200px) scale(0.3);
+  }
+}
+
+/* Main scroll container */
+.quest-scroll {
+  position: relative;
+  width: 400px;
+  max-width: 90vw;
+  animation: scrollAppear 0.8s ease-out forwards;
+  opacity: 0;
+  transform: translateY(-50px) scale(0.8);
+}
+
+@keyframes scrollAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Scroll rods (top and bottom) */
+.scroll-rod {
+  width: 100%;
+  height: 20px;
+  background: linear-gradient(90deg, #8B4513 0%, #A0522D 50%, #8B4513 100%);
+  border-radius: 10px;
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 3;
+}
+
+.scroll-rod-top {
+  margin-bottom: -5px;
+}
+
+.scroll-rod-bottom {
+  margin-top: -5px;
+}
+
+/* Scroll paper/parchment */
+.scroll-paper {
+  background: linear-gradient(135deg, #F5F5DC 0%, #FDF5E6 30%, #F5F5DC 100%);
+  border: 3px solid #D2B48C;
+  box-shadow: 
+    0 0 20px rgba(0, 0, 0, 0.3),
+    inset 0 0 30px rgba(210, 180, 140, 0.3);
+  position: relative;
+  min-height: 300px;
+  overflow: hidden;
+  animation: scrollUnfurl 1.5s ease-out 0.3s forwards;
+  height: 0;
+  opacity: 0;
+}
+
+@keyframes scrollUnfurl {
+  0% {
+    height: 0;
+    opacity: 0;
+  }
+  20% {
+    height: 50px;
+    opacity: 0.3;
+  }
+  60% {
+    height: 280px;
+    opacity: 0.8;
+  }
+  100% {
+    height: 300px;
+    opacity: 1;
+  }
+}
+
+/* Decorative scroll border */
+.scroll-border {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border: 2px solid #D2B48C;
+  border-style: double;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Scroll content */
+.scroll-content {
+  padding: 30px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  animation: contentReveal 2s ease-out 1.2s forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes contentReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header section */
+.completion-header {
+  margin-bottom: 1.5rem;
+}
+
+.completion-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  animation: iconBounce 0.8s ease-out 1.8s forwards;
+  opacity: 0;
+  transform: scale(0);
+}
+
+@keyframes iconBounce {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.completion-title {
+  font-family: 'Courier New', monospace;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #8B4513;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+  margin-bottom: 0.5rem;
+}
+
+/* Quest details */
+.quest-details {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: rgba(210, 180, 140, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(210, 180, 140, 0.4);
+}
+
+.quest-name {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #8B4513;
+  margin-bottom: 0.5rem;
+  font-family: 'Courier New', monospace;
+}
+
+.quest-agent {
+  font-size: 0.9rem;
+  color: #A0522D;
+  font-style: italic;
+}
+
+/* Reward section */
+.reward-section {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: rgba(255, 215, 0, 0.1);
+  border: 2px solid #ffd700;
+  border-radius: 8px;
+  animation: rewardGlow 2s ease-in-out infinite 2.5s;
+}
+
+@keyframes rewardGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    border-color: #ffd700;
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+    border-color: #ffed4e;
+  }
+}
+
+.reward-label {
+  font-size: 0.9rem;
+  color: #8B4513;
+  margin-bottom: 0.5rem;
+}
+
+.reward-value {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #ff8c00;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Completion stamp */
+.completion-stamp {
+  position: relative;
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: 3px solid #22c55e;
+  color: #22c55e;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  transform: rotate(-5deg);
+  margin-top: 1rem;
+  animation: stampAppear 0.5s ease-out 2.8s forwards;
+  opacity: 0;
+  transform: rotate(-5deg) scale(0);
+}
+
+@keyframes stampAppear {
+  0% {
+    opacity: 0;
+    transform: rotate(-5deg) scale(0);
+  }
+  70% {
+    opacity: 1;
+    transform: rotate(-5deg) scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-5deg) scale(1);
+  }
+}
+
+/* Celebration sparkles */
+.celebration-sparkles {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.sparkle {
+  position: absolute;
+  font-size: 1.5rem;
+  animation: sparkleFloat 3s ease-in-out infinite;
+  opacity: 0;
+}
+
+.sparkle-1 {
+  top: 20%;
+  left: 20%;
+  animation-delay: 2s;
+}
+
+.sparkle-2 {
+  top: 30%;
+  right: 15%;
+  animation-delay: 2.3s;
+}
+
+.sparkle-3 {
+  bottom: 30%;
+  left: 15%;
+  animation-delay: 2.6s;
+}
+
+.sparkle-4 {
+  bottom: 20%;
+  right: 25%;
+  animation-delay: 2.9s;
+}
+
+.sparkle-5 {
+  top: 60%;
+  left: 10%;
+  animation-delay: 3.2s;
+}
+
+.sparkle-6 {
+  top: 70%;
+  right: 10%;
+  animation-delay: 3.5s;
+}
+
+@keyframes sparkleFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1.1);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-15px) scale(0.9);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.7);
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .quest-scroll {
+    width: 350px;
+  }
+  
+  .completion-title {
+    font-size: 1.4rem;
+  }
+  
+  .quest-name {
+    font-size: 1rem;
+  }
+  
+  .scroll-content {
+    padding: 20px;
+  }
+  
+  .sparkle {
+    font-size: 1.2rem;
+  }
+}

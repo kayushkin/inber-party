@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useStore, formatTokens, formatCost, timeAgo } from '../store';
+import QuestCompletionAnimation from '../components/QuestCompletionAnimation';
 import './QuestBoard.css';
 
 export default function QuestBoard() {
   const quests = useStore((s) => s.quests);
+  const questCompletionTriggers = useStore((s) => s.questCompletionTriggers);
   const [filter, setFilter] = useState<string>('all');
 
   const filtered = filter === 'all' ? quests : quests.filter((q) => q.status === filter);
@@ -64,6 +66,17 @@ export default function QuestBoard() {
           <div className="no-quests">No quests match this filter.</div>
         )}
       </div>
+
+      {/* Quest completion animations */}
+      {Object.entries(questCompletionTriggers).map(([questId, data]) => (
+        <QuestCompletionAnimation
+          key={questId}
+          trigger={data.trigger}
+          questName={data.questName}
+          xpReward={data.xpReward}
+          agentName={data.agentName}
+        />
+      ))}
     </div>
   );
 }
