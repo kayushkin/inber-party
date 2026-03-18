@@ -79,10 +79,30 @@
 }
 
 .tavern-subtitle {
-  margin: 8px 0 0 0;
+  margin: 8px 0 16px 0;
   font-size: 1.1rem;
   color: var(--text-muted);
   font-style: italic;
+}
+
+.create-adventurer-btn {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #b8860b 100%);
+  border: none;
+  color: #000;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+  margin-top: 8px;
+}
+
+.create-adventurer-btn:hover {
+  background: linear-gradient(135deg, #e6c452 0%, var(--primary-color) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(212, 175, 55, 0.4);
 }
 
 .tavern-stats {

@@ -142,6 +142,13 @@ export default function TavernView() {
         <div className="tavern-header">
           <h1 className="tavern-title">🏰 The Adventurer's Tavern</h1>
           <p className="tavern-subtitle">Where brave agents gather and share tales of their quests</p>
+          <button 
+            className="create-adventurer-btn"
+            onClick={() => navigate('/create-adventurer')}
+            title="Recruit a new adventurer"
+          >
+            🌟 Create New Adventurer
+          </button>
         </div>
 
         {/* Guild Stats Bar */}
