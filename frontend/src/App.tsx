@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import TavernView from './pages/TavernView';
 import CharacterSheet from './pages/CharacterSheet';
 import QuestBoard from './pages/QuestBoard';
+import WarRoom from './pages/WarRoom';
 import StatsView from './pages/StatsView';
 import ComparisonView from './pages/ComparisonView';
 import GuildMasterChat from './pages/GuildMasterChat';
@@ -39,6 +40,7 @@ function App() {
           <Route index element={<TavernView />} />
           <Route path="agent/:id" element={<CharacterSheet />} />
           <Route path="quests" element={<QuestBoard />} />
+          <Route path="war-room" element={<WarRoom />} />
           <Route path="guild-chat" element={<GuildMasterChat />} />
           <Route path="conversations" element={<AgentConversations />} />
           <Route path="stats" element={<StatsView />} />

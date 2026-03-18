@@ -14,10 +14,11 @@ export default function Layout() {
   const navItems = [
     { to: '/', label: '🏕️ Tavern', match: '/' },
     { to: '/quests', label: '📜 Quests', match: '/quests' },
+    { to: '/war-room', label: '⚔️ War Room', match: '/war-room' },
     { to: '/guild-chat', label: '👑 Guild Hall', match: '/guild-chat' },
     { to: '/conversations', label: '🗣️ Conversations', match: '/conversations' },
     { to: '/stats', label: '📊 Stats', match: '/stats' },
-    { to: '/compare', label: '⚔️ Compare', match: '/compare' },
+    { to: '/compare', label: '🔍 Compare', match: '/compare' },
   ];
 
   return (

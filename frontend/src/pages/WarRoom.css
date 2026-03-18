@@ -1,0 +1,450 @@
+.war-room {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.war-room-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.war-room-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+  background: linear-gradient(45deg, #ffd700, #ffed4e, #d4af37);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.war-room-subtitle {
+  color: #ccc;
+  font-size: 1.1rem;
+  font-style: italic;
+}
+
+/* Strategic Overview */
+.strategic-overview {
+  margin-bottom: 2rem;
+}
+
+.overview-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 2px solid #d4af37;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+  border-color: #ffd700;
+}
+
+.stat-icon {
+  font-size: 2rem;
+  opacity: 0.8;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-number {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #ffd700;
+  line-height: 1;
+}
+
+.stat-label {
+  color: #ccc;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-subtitle {
+  color: #999;
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+
+/* Agent Status Board */
+.agent-status-board {
+  margin-bottom: 2rem;
+}
+
+.agent-status-board h2 {
+  color: #ffd700;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.agent-status-card {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+
+.agent-status-card:hover {
+  border-color: #d4af37;
+  transform: translateY(-1px);
+}
+
+.agent-status-card.status-working {
+  border-color: #4a7c2e;
+  box-shadow: 0 0 8px rgba(74, 124, 46, 0.3);
+}
+
+.agent-status-card.status-idle {
+  border-color: #666;
+}
+
+.agent-status-card.status-stuck {
+  border-color: #dc3545;
+  box-shadow: 0 0 8px rgba(220, 53, 69, 0.3);
+}
+
+.agent-avatar {
+  font-size: 2rem;
+}
+
+.agent-info {
+  flex: 1;
+}
+
+.agent-name {
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 0.25rem;
+}
+
+.agent-details {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.agent-level {
+  color: #ffd700;
+}
+
+.agent-quests {
+  color: #ccc;
+}
+
+.agent-energy-bar {
+  width: 4px;
+  height: 40px;
+  background: #333;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-energy-fill {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background: linear-gradient(0deg, #4a7c2e 0%, #7fb069 100%);
+  transition: height 0.5s ease;
+}
+
+/* Active Operations */
+.active-operations h2 {
+  color: #ffd700;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.operation-card {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 1px solid #444;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.operation-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, #4a7c2e 50%, transparent 100%);
+  opacity: 0.7;
+}
+
+.operation-card.progress-high::before {
+  background: linear-gradient(90deg, transparent 0%, #28a745 50%, transparent 100%);
+}
+
+.operation-card.progress-medium::before {
+  background: linear-gradient(90deg, transparent 0%, #ffc107 50%, transparent 100%);
+}
+
+.operation-card.progress-low::before {
+  background: linear-gradient(90deg, transparent 0%, #dc3545 50%, transparent 100%);
+}
+
+.operation-card:hover {
+  border-color: #d4af37;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.operation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.operation-name {
+  color: #fff;
+  font-size: 1.1rem;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.operation-difficulty {
+  color: #ffd700;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.operation-description {
+  color: #ccc;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-bottom: 1rem;
+}
+
+.operation-agent {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+}
+
+.operation-agent .agent-avatar {
+  font-size: 1.2rem;
+}
+
+.operation-agent .agent-name {
+  color: #fff;
+  font-weight: 500;
+}
+
+.operation-agent .agent-status {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  text-transform: capitalize;
+  margin-left: auto;
+}
+
+.operation-agent .agent-status.status-working {
+  background: rgba(74, 124, 46, 0.3);
+  color: #7fb069;
+}
+
+.operation-agent .agent-status.status-idle {
+  background: rgba(108, 117, 125, 0.3);
+  color: #adb5bd;
+}
+
+.operation-agent .agent-status.status-stuck {
+  background: rgba(220, 53, 69, 0.3);
+  color: #f8d7da;
+}
+
+.operation-progress {
+  margin-bottom: 1rem;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.progress-label {
+  color: #ccc;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.progress-percentage {
+  color: #ffd700;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #333;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.progress-fill.progress-high {
+  background: linear-gradient(90deg, #28a745, #7fb069);
+}
+
+.progress-fill.progress-medium {
+  background: linear-gradient(90deg, #ffc107, #ffed4e);
+}
+
+.progress-fill.progress-low {
+  background: linear-gradient(90deg, #dc3545, #f87171);
+}
+
+.operation-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.metric-label {
+  color: #999;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.metric-value {
+  color: #fff;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+/* No Operations State */
+.no-operations {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+}
+
+.no-operations-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.no-operations-text {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #999;
+}
+
+.no-operations-subtitle {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(90deg, #333 25%, #444 50%, #333 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-bar {
+  height: 60px;
+  border-radius: 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .war-room {
+    padding: 1rem;
+  }
+  
+  .operations-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .agents-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .overview-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .operation-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .overview-stats {
+    grid-template-columns: 1fr;
+  }
+}
