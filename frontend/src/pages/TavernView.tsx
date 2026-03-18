@@ -6,6 +6,18 @@ import LevelUpAnimation from '../components/LevelUpAnimation';
 import { SkeletonAgentCard, SkeletonStatsBar } from '../components/SkeletonLoader';
 import './TavernView.css';
 
+// Mood helper functions
+function getMoodEmoji(mood?: string): string {
+  switch (mood) {
+    case 'exhausted': return '😫';
+    case 'stressed': return '😰';
+    case 'neutral': return '😐';
+    case 'content': return '😊';
+    case 'happy': return '😄';
+    default: return '😐';
+  }
+}
+
 const GUILD_NAMES: Record<string, string> = {
   inber: '🏰 Inber Guild',
   openclaw: '🐾 OpenClaw Guild',
@@ -288,6 +300,9 @@ export default function TavernView() {
                         </div>
                         <div className="ac-bottom">
                           <span className="ac-tokens">🔮 {formatTokens(agent.total_tokens)}</span>
+                          <span className="ac-mood" title={`Mood: ${agent.mood || 'neutral'} (${agent.mood_score || 75}/100)`}>
+                            {getMoodEmoji(agent.mood)} {agent.mood || 'neutral'}
+                          </span>
                           <span className="ac-time">{timeAgo(agent.last_active)}</span>
                         </div>
                         <span className="ac-chat-hint">💬 Click to chat</span>

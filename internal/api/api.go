@@ -9,6 +9,7 @@ import (
 
 	"github.com/kayushkin/inber-party/internal/dailyquests"
 	"github.com/kayushkin/inber-party/internal/db"
+	"github.com/kayushkin/inber-party/internal/mood"
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
@@ -18,10 +19,12 @@ type Server struct {
 	Hub              *ws.Hub
 	QuestGiver       *questgiver.QuestGiver
 	DailyQuestMgr    *dailyquests.DailyQuestManager
+	MoodCalc         *mood.MoodCalculator
 }
 
 func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dailyquests.DailyQuestManager) *Server {
-	return &Server{DB: database, Hub: hub, QuestGiver: qg, DailyQuestMgr: dqm}
+	moodCalc := mood.NewMoodCalculator(database)
+	return &Server{DB: database, Hub: hub, QuestGiver: qg, DailyQuestMgr: dqm, MoodCalc: moodCalc}
 }
 
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
@@ -39,6 +42,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/daily-quests", s.handleDailyQuests)
 	mux.HandleFunc("/api/daily-quests/generate", s.handleGenerateDailyQuests)
 	mux.HandleFunc("/api/daily-quests/stats", s.handleDailyQuestStats)
+	mux.HandleFunc("/api/mood/update", s.handleMoodUpdate)
+	mux.HandleFunc("/api/mood/levels", s.handleMoodLevels)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +82,7 @@ func (s *Server) listAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := s.DB.Query(`
-		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, created_at, updated_at
+		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, mood, mood_score, workload, last_active, created_at, updated_at
 		FROM agents
 		ORDER BY id
 	`)
@@ -91,7 +96,7 @@ func (s *Server) listAgents(w http.ResponseWriter, r *http.Request) {
 	agents := []db.Agent{}
 	for rows.Next() {
 		var a db.Agent
-		if err := rows.Scan(&a.ID, &a.Name, &a.Title, &a.Class, &a.Level, &a.XP, &a.Energy, &a.Status, &a.AvatarEmoji, &a.CreatedAt, &a.UpdatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.Name, &a.Title, &a.Class, &a.Level, &a.XP, &a.Energy, &a.Status, &a.AvatarEmoji, &a.Mood, &a.MoodScore, &a.Workload, &a.LastActive, &a.CreatedAt, &a.UpdatedAt); err != nil {
 			log.Printf("Error scanning agent: %v", err)
 			continue
 		}
@@ -109,9 +114,9 @@ func (s *Server) getAgentDetail(w http.ResponseWriter, r *http.Request, id int) 
 	}
 	var agent db.Agent
 	err := s.DB.QueryRow(`
-		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, created_at, updated_at
+		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, mood, mood_score, workload, last_active, created_at, updated_at
 		FROM agents WHERE id = $1
-	`, id).Scan(&agent.ID, &agent.Name, &agent.Title, &agent.Class, &agent.Level, &agent.XP, &agent.Energy, &agent.Status, &agent.AvatarEmoji, &agent.CreatedAt, &agent.UpdatedAt)
+	`, id).Scan(&agent.ID, &agent.Name, &agent.Title, &agent.Class, &agent.Level, &agent.XP, &agent.Energy, &agent.Status, &agent.AvatarEmoji, &agent.Mood, &agent.MoodScore, &agent.Workload, &agent.LastActive, &agent.CreatedAt, &agent.UpdatedAt)
 	if err != nil {
 		http.Error(w, "Agent not found", http.StatusNotFound)
 		return
@@ -398,6 +403,36 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request, id int) {
 		log.Printf("Error updating task: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
+	}
+
+	// Update agent mood if task is completed or failed and assigned to an agent
+	if status, hasStatus := updates["status"].(string); hasStatus && (status == "completed" || status == "failed") {
+		if agentID, hasAgent := updates["assigned_agent_id"].(float64); hasAgent && s.MoodCalc != nil {
+			// Update last active time for completed tasks
+			if status == "completed" {
+				s.MoodCalc.UpdateAgentLastActive(int(agentID))
+			}
+			
+			// Recalculate mood for this agent
+			mood, moodScore, err := s.MoodCalc.CalculateAgentMood(int(agentID))
+			if err == nil {
+				var workload int
+				s.DB.QueryRow("SELECT COUNT(*) FROM tasks WHERE assigned_agent_id = $1 AND status = 'in_progress'", int(agentID)).Scan(&workload)
+				
+				s.DB.Exec(`
+					UPDATE agents 
+					SET mood = $1, mood_score = $2, workload = $3, updated_at = NOW()
+					WHERE id = $4
+				`, mood, moodScore, workload, int(agentID))
+				
+				s.Hub.Broadcast(ws.Message{Type: "agent_mood_updated", Data: map[string]interface{}{
+					"agent_id": int(agentID),
+					"mood": mood,
+					"mood_score": moodScore,
+					"workload": workload,
+				}})
+			}
+		}
 	}
 
 	s.Hub.Broadcast(ws.Message{Type: "task_updated", Data: map[string]interface{}{"id": id, "updates": updates}})
@@ -1051,4 +1086,41 @@ func (s *Server) handleDailyQuestStats(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
+}
+
+// Mood endpoints
+func (s *Server) handleMoodUpdate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.MoodCalc == nil {
+		http.Error(w, "Mood calculator not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	err := s.MoodCalc.UpdateAllAgentMoods()
+	if err != nil {
+		log.Printf("Error updating agent moods: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	s.Hub.Broadcast(ws.Message{Type: "moods_updated", Data: map[string]string{
+		"message": "All agent moods have been recalculated",
+	}})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Moods updated successfully"})
+}
+
+func (s *Server) handleMoodLevels(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(mood.MoodLevels)
 }

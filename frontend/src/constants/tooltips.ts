@@ -7,6 +7,8 @@ export const STAT_TOOLTIPS = {
   
   energy: "Current energy level (0-100%). Low energy may affect performance and availability for new quests.",
   
+  mood: "Agent's emotional state based on recent task success rate, current workload, and rest time. Ranges from Exhausted (0-20) to Happy (81-100). Better mood often correlates with better performance.",
+  
   tokens: "Total language model tokens consumed across all sessions. Higher values indicate more complex conversations and tasks.",
   
   cost: "Total monetary cost in USD for all token usage. Based on the language model's pricing tier.",

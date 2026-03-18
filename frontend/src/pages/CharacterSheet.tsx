@@ -13,6 +13,30 @@ import './CharacterSheet.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+// Mood helper functions
+function getMoodColor(score: number): string {
+  if (score <= 20) return '#ef4444'; // exhausted - red
+  if (score <= 40) return '#f97316'; // stressed - orange  
+  if (score <= 60) return '#eab308'; // neutral - yellow
+  if (score <= 80) return '#22c55e'; // content - green
+  return '#3b82f6'; // happy - blue
+}
+
+function getMoodEmoji(mood: string): string {
+  switch (mood) {
+    case 'exhausted': return '😫';
+    case 'stressed': return '😰';
+    case 'neutral': return '😐';
+    case 'content': return '😊';
+    case 'happy': return '😄';
+    default: return '😐';
+  }
+}
+
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 export default function CharacterSheet() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -131,6 +155,23 @@ export default function CharacterSheet() {
             </Tooltip>
             <div className="stat-value">{agent.energy}%</div>
             <div className="progress-bar energy"><div className="progress-fill animated" style={{ width: showAnimations ? `${agent.energy}%` : '0%' }} /></div>
+          </div>
+          <div className="stat-card">
+            <Tooltip content={`${STAT_TOOLTIPS.mood} Current score: ${agent.mood_score || 75}/100`}>
+              <div className="stat-label">Mood</div>
+            </Tooltip>
+            <div className="stat-value" style={{ color: getMoodColor(agent.mood_score || 75) }}>
+              {getMoodEmoji(agent.mood || 'neutral')} {capitalize(agent.mood || 'neutral')}
+            </div>
+            <div className="progress-bar mood">
+              <div 
+                className="progress-fill animated" 
+                style={{ 
+                  width: showAnimations ? `${agent.mood_score || 75}%` : '0%',
+                  background: getMoodColor(agent.mood_score || 75)
+                }} 
+              />
+            </div>
           </div>
           <div className="stat-card">
             <Tooltip content={STAT_TOOLTIPS.tokens}>

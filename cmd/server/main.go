@@ -12,6 +12,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/dailyquests"
 	"github.com/kayushkin/inber-party/internal/db"
 	"github.com/kayushkin/inber-party/internal/inber"
+	"github.com/kayushkin/inber-party/internal/mood"
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
@@ -37,6 +38,14 @@ func main() {
 			}
 			if err := database.Seed(); err != nil {
 				log.Fatalf("Failed to seed database: %v", err)
+			}
+			
+			// Initialize mood calculator and update all agent moods
+			moodCalc := mood.NewMoodCalculator(database)
+			if err := moodCalc.UpdateAllAgentMoods(); err != nil {
+				log.Printf("Warning: Failed to initialize agent moods: %v", err)
+			} else {
+				log.Println("✓ Agent moods initialized")
 			}
 		}
 	} else {

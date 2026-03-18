@@ -12,6 +12,10 @@ type Agent struct {
 	Energy      int       `json:"energy"`
 	Status      string    `json:"status"`
 	AvatarEmoji string    `json:"avatar_emoji"`
+	Mood        string    `json:"mood"`          // happy, content, neutral, stressed, exhausted
+	MoodScore   int       `json:"mood_score"`    // 0-100, higher = better mood
+	Workload    int       `json:"workload"`      // current active task count
+	LastActive  *time.Time `json:"last_active"`  // last task completion time
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

@@ -89,6 +89,11 @@ func (db *DB) Migrate() error {
 			unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(agent_id, achievement_name)
 		)`,
+		// Add mood/morale system fields to agents table
+		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS mood VARCHAR(20) DEFAULT 'neutral'`,
+		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS mood_score INTEGER DEFAULT 75`,
+		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS workload INTEGER DEFAULT 0`,
+		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_active TIMESTAMP`,
 	}
 
 	for i, migration := range migrations {

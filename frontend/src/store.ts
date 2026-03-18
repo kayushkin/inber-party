@@ -33,6 +33,9 @@ export interface RPGAgent {
   skills: { skill_name: string; level: number; task_count: number }[];
   last_active?: string;
   held_items?: RPGHeldItem[];
+  mood?: string;
+  mood_score?: number;
+  workload?: number;
 }
 
 export interface RPGQuest {
