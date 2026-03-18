@@ -5,6 +5,7 @@ import SoundToggle from './SoundToggle';
 import TTSToggle from './TTSToggle';
 import SoundEffects from './SoundEffects';
 import AnimatedBackground from './AnimatedBackground';
+import PageTransition from './PageTransition';
 import './Layout.css';
 
 export default function Layout() {
@@ -53,7 +54,9 @@ export default function Layout() {
         </div>
       </header>
       <main className="main">
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </main>
       <SoundEffects />
     </div>
