@@ -93,9 +93,18 @@ export default function CharacterSheet() {
               {agent.class}
             </div>
           </div>
-          <button className="chat-with-btn" onClick={() => setSelectedAgent(agent.id)}>
-            💬 Chat
-          </button>
+          <div className="character-actions">
+            <button className="chat-with-btn" onClick={() => setSelectedAgent(agent.id)}>
+              💬 Chat
+            </button>
+            <button 
+              className="quarters-btn" 
+              onClick={() => navigate(`/quarters/${id}`)}
+              style={{ borderColor: cc, color: cc }}
+            >
+              🏠 Quarters
+            </button>
+          </div>
         </div>
 
         {/* Stats */}

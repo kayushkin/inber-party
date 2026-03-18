@@ -13,6 +13,7 @@ import AgentConversations from './pages/AgentConversations';
 import Library from './pages/Library';
 import TrainingGrounds from './pages/TrainingGrounds';
 import Forge from './pages/Forge';
+import AgentQuarters from './pages/AgentQuarters';
 import './App.css';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<TavernView />} />
           <Route path="agent/:id" element={<CharacterSheet />} />
+          <Route path="quarters/:id" element={<AgentQuarters />} />
           <Route path="quests" element={<QuestBoard />} />
           <Route path="war-room" element={<WarRoom />} />
           <Route path="guild-chat" element={<GuildMasterChat />} />
