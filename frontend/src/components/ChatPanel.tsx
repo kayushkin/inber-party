@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore, classColor } from '../store';
 import type { RPGAgent } from '../store';
+import TTSButton from './TTSButton';
 import './ChatPanel.css';
 
 interface Props {
@@ -78,6 +79,9 @@ export default function ChatPanel({ agentId, agent, onClose }: Props) {
               </div>
               {!msg.streaming && msg.role === 'assistant' && (
                 <div className="chat-reactions-container">
+                  <div className="chat-message-actions">
+                    <TTSButton text={msg.content} agentName={agent?.name} />
+                  </div>
                   {msg.reactions && Object.entries(msg.reactions).length > 0 && (
                     <div className="chat-reactions">
                       {Object.entries(msg.reactions).map(([emoji, count]) => (

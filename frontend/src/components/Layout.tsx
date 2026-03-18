@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useStore } from '../store';
 import ThemeToggle from './ThemeToggle';
 import SoundToggle from './SoundToggle';
+import TTSToggle from './TTSToggle';
 import SoundEffects from './SoundEffects';
 import AnimatedBackground from './AnimatedBackground';
 import './Layout.css';
@@ -37,6 +38,7 @@ export default function Layout() {
             ))}
           </nav>
           <div className="header-controls">
+            <TTSToggle />
             <SoundToggle />
             <ThemeToggle />
             <div className="connection-status">

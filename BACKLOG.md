@@ -32,7 +32,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Chat history persistence — store conversations in localStorage or backend
 - [x] Typing indicator when agent is thinking/responding
 - [x] Message reactions — react to agent responses with emoji
-- [ ] Voice messages — TTS for agent responses (optional, using existing TTS infrastructure)
+- [x] Voice messages — TTS for agent responses (optional, using existing TTS infrastructure)
 
 ## 🏰 Rooms & Spaces
 

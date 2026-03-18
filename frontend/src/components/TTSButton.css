@@ -1,0 +1,93 @@
+.tts-button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+  position: relative;
+}
+
+.tts-button:hover {
+  opacity: 1;
+  background: var(--bg-secondary);
+  color: var(--accent);
+  transform: scale(1.1);
+}
+
+.tts-button:active {
+  transform: scale(0.95);
+}
+
+.tts-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.tts-button-small {
+  min-width: 20px;
+  min-height: 20px;
+}
+
+.tts-button-medium {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 6px;
+}
+
+/* Animation for speaking state */
+.tts-button svg {
+  transition: all 0.2s ease;
+}
+
+.tts-button:hover svg {
+  transform: scale(1.1);
+}
+
+/* Speaking animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.tts-button:has(svg path[d*="6 19h4V5H6v14zm8-14v14h4V5h-4z"]) {
+  animation: pulse 1.5s ease-in-out infinite;
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* Fallback for browsers that don't support :has() */
+.tts-button[data-speaking="true"] {
+  animation: pulse 1.5s ease-in-out infinite;
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .tts-button {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .tts-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--accent);
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .tts-button {
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .tts-button:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--accent);
+}

@@ -205,6 +205,19 @@
   gap: 0.25rem;
 }
 
+.chat-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.15rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.chat-message-container:hover .chat-message-actions {
+  opacity: 1;
+}
+
 .chat-reactions {
   display: flex;
   gap: 0.25rem;
