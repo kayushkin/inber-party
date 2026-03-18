@@ -30,7 +30,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Adventurers chat with each other — show inter-agent conversations (from spawn chains, btw messages)
 - [x] Prompt adventurers directly from their character sheet — quick-action buttons ("Scout this repo", "Fix bugs", "Write tests")
 - [x] Chat history persistence — store conversations in localStorage or backend
-- [ ] Typing indicator when agent is thinking/responding
+- [x] Typing indicator when agent is thinking/responding
 - [ ] Message reactions — react to agent responses with emoji
 - [ ] Voice messages — TTS for agent responses (optional, using existing TTS infrastructure)
 

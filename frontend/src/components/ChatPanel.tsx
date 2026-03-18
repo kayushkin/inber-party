@@ -76,6 +76,18 @@ export default function ChatPanel({ agentId, agent, onClose }: Props) {
             </div>
           </div>
         ))}
+        {loading && !messages.some(msg => msg.streaming) && (
+          <div className="chat-msg chat-msg-assistant">
+            <div className="chat-bubble typing-indicator">
+              <span className="typing-text">{agent?.name || 'Agent'} is thinking</span>
+              <span className="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
