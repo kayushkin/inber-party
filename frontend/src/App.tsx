@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useStore } from './store';
 import Layout from './components/Layout';
-import CampView from './pages/CampView';
+import TavernView from './pages/TavernView';
 import CharacterSheet from './pages/CharacterSheet';
 import QuestBoard from './pages/QuestBoard';
 import StatsView from './pages/StatsView';
@@ -36,7 +36,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<CampView />} />
+          <Route index element={<TavernView />} />
           <Route path="agent/:id" element={<CharacterSheet />} />
           <Route path="quests" element={<QuestBoard />} />
           <Route path="guild-chat" element={<GuildMasterChat />} />
