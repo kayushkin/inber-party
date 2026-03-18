@@ -57,6 +57,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/reputation/rankings", s.handleReputationRankings)
 	mux.HandleFunc("/api/conversations", s.handleConversations)
 	mux.HandleFunc("/api/conversations/", s.handleConversationDetail)
+	mux.HandleFunc("/api/webhooks/spawn", s.handleSpawnWebhook)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -1298,6 +1299,92 @@ func (s *Server) handleConversationDetail(w http.ResponseWriter, r *http.Request
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(foundConversation)
+}
+
+// Webhook handler for spawn events
+func (s *Server) handleSpawnWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse the spawn event payload
+	var spawnEvent struct {
+		Type      string `json:"type"`       // "spawn_started", "spawn_completed", "spawn_failed"
+		SessionID string `json:"session_id"` // Session ID of the spawn
+		AgentID   string `json:"agent_id"`   // Agent that spawned the task
+		Task      string `json:"task"`       // Task description
+		Label     string `json:"label"`      // Optional label for the spawn
+		Data      interface{} `json:"data"`  // Additional spawn data
+		Timestamp string `json:"timestamp"`  // ISO timestamp
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&spawnEvent); err != nil {
+		log.Printf("Invalid webhook payload: %v", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("📡 Received spawn webhook: %s for agent %s (session: %s)", 
+		spawnEvent.Type, spawnEvent.AgentID, spawnEvent.SessionID)
+
+	// Generate a human-readable message based on the event type
+	var message string
+	var eventIcon string
+	switch spawnEvent.Type {
+	case "spawn_started":
+		eventIcon = "🚀"
+		message = eventIcon + " " + spawnEvent.AgentID + " spawned a sub-agent"
+		if spawnEvent.Label != "" {
+			message += " (" + spawnEvent.Label + ")"
+		}
+		if len(spawnEvent.Task) > 100 {
+			message += ": " + spawnEvent.Task[:100] + "..."
+		} else {
+			message += ": " + spawnEvent.Task
+		}
+	case "spawn_completed":
+		eventIcon = "✅"
+		message = eventIcon + " Sub-agent completed task for " + spawnEvent.AgentID
+		if spawnEvent.Label != "" {
+			message += " (" + spawnEvent.Label + ")"
+		}
+	case "spawn_failed":
+		eventIcon = "❌"
+		message = eventIcon + " Sub-agent failed task for " + spawnEvent.AgentID
+		if spawnEvent.Label != "" {
+			message += " (" + spawnEvent.Label + ")"
+		}
+	default:
+		eventIcon = "📍"
+		message = eventIcon + " Spawn event " + spawnEvent.Type + " for " + spawnEvent.AgentID
+	}
+
+	// Broadcast the event via WebSocket
+	s.Hub.Broadcast(ws.Message{
+		Type: "spawn_event",
+		Data: map[string]interface{}{
+			"type":       spawnEvent.Type,
+			"session_id": spawnEvent.SessionID,
+			"agent_id":   spawnEvent.AgentID,
+			"task":       spawnEvent.Task,
+			"label":      spawnEvent.Label,
+			"message":    message,
+			"timestamp":  spawnEvent.Timestamp,
+			"data":       spawnEvent.Data,
+		},
+	})
+
+	// Log the event for debugging
+	log.Printf("🎯 Spawn Event: %s", message)
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": "Spawn event processed successfully",
+	})
 }
 
 // calculateGoldReward computes gold reward based on XP and difficulty
