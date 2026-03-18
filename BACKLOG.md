@@ -73,7 +73,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Health check dashboard — show which backend services are up/down
 - [x] Session replay — replay a past session's tool calls as an animated quest log
 - [x] Cost tracking dashboard — daily/weekly/monthly token spend per agent
-- [~] Export stats — download agent stats as JSON/CSV
+- [x] Export stats — download agent stats as JSON/CSV
 
 ## 🧪 Testing & Quality
 
