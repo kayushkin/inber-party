@@ -25,8 +25,26 @@ export default function Layout() {
     { to: '/compare', label: '🔍 Compare', match: '/compare' },
   ];
 
+  // Map paths to room classes for ambient styling
+  const getRoomClass = (path: string) => {
+    if (path === '/') return 'room-tavern';
+    if (path.startsWith('/agent/') || path.startsWith('/quarters/')) return 'room-quarters';
+    if (path === '/quests') return 'room-quests';
+    if (path === '/war-room') return 'room-war-room';
+    if (path === '/guild-chat') return 'room-guild-hall';
+    if (path === '/conversations') return 'room-conversations';
+    if (path === '/library') return 'room-library';
+    if (path === '/training') return 'room-training';
+    if (path === '/forge') return 'room-forge';
+    if (path === '/stats') return 'room-stats';
+    if (path === '/compare') return 'room-compare';
+    return 'room-default';
+  };
+
+  const roomClass = getRoomClass(location.pathname);
+
   return (
-    <div className="layout">
+    <div className={`layout ${roomClass}`}>
       <AnimatedBackground />
       <header className="header">
         <div className="header-content">
