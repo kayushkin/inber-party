@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useStore } from './store';
 import Layout from './components/Layout';
-import ErrorBoundary, { AgentErrorFallback, QuestErrorFallback } from './components/ErrorBoundary';
-import AsyncErrorBoundary from './components/AsyncErrorBoundary';
+import ErrorBoundary from './components/ErrorBoundary';
+import OfflineIndicator from './components/OfflineIndicator';
 import TavernView from './pages/TavernView';
 import CharacterSheet from './pages/CharacterSheet';
 import QuestBoard from './pages/QuestBoard';
@@ -51,41 +51,40 @@ function App() {
       console.error('App-level error:', error, errorInfo);
       // Could integrate with error reporting service here
     }}>
+      <OfflineIndicator />
       <BrowserRouter>
-        <AsyncErrorBoundary>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<TavernView />} />
-              <Route path="agent/:id" element={
-                <ErrorBoundary fallback={AgentErrorFallback}>
-                  <CharacterSheet />
-                </ErrorBoundary>
-              } />
-              <Route path="quarters/:id" element={
-                <ErrorBoundary fallback={AgentErrorFallback}>
-                  <AgentQuarters />
-                </ErrorBoundary>
-              } />
-              <Route path="quests" element={
-                <ErrorBoundary fallback={QuestErrorFallback}>
-                  <QuestBoard />
-                </ErrorBoundary>
-              } />
-              <Route path="war-room" element={<WarRoom />} />
-              <Route path="guild-chat" element={<GuildMasterChat />} />
-              <Route path="conversations" element={<AgentConversations />} />
-              <Route path="library" element={<Library />} />
-              <Route path="training" element={<TrainingGrounds />} />
-              <Route path="forge" element={<Forge />} />
-              <Route path="stats" element={<StatsView />} />
-              <Route path="compare" element={<ComparisonView />} />
-              <Route path="parties" element={<Parties />} />
-              <Route path="leaderboard" element={<Leaderboard />} />
-              <Route path="costs" element={<CostDashboard />} />
-              <Route path="create-adventurer" element={<CreateAdventurer />} />
-            </Route>
-          </Routes>
-        </AsyncErrorBoundary>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<TavernView />} />
+            <Route path="agent/:id" element={
+              <ErrorBoundary>
+                <CharacterSheet />
+              </ErrorBoundary>
+            } />
+            <Route path="quarters/:id" element={
+              <ErrorBoundary>
+                <AgentQuarters />
+              </ErrorBoundary>
+            } />
+            <Route path="quests" element={
+              <ErrorBoundary>
+                <QuestBoard />
+              </ErrorBoundary>
+            } />
+            <Route path="war-room" element={<WarRoom />} />
+            <Route path="guild-chat" element={<GuildMasterChat />} />
+            <Route path="conversations" element={<AgentConversations />} />
+            <Route path="library" element={<Library />} />
+            <Route path="training" element={<TrainingGrounds />} />
+            <Route path="forge" element={<Forge />} />
+            <Route path="stats" element={<StatsView />} />
+            <Route path="compare" element={<ComparisonView />} />
+            <Route path="parties" element={<Parties />} />
+            <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="costs" element={<CostDashboard />} />
+            <Route path="create-adventurer" element={<CreateAdventurer />} />
+          </Route>
+        </Routes>
         
         <ErrorBoundary>
           <AchievementToastContainer

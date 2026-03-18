@@ -3,6 +3,14 @@ import { loadChatHistory, saveChatHistoryForAgent, saveChatHistory } from './uti
 
 // ── Types ──────────────────────────────────────────────────
 
+export type QuestStatus = 
+  | 'pending'
+  | 'in_progress'
+  | 'completed' 
+  | 'failed'
+  | 'cancelled'
+  | 'abandoned';
+
 export interface RPGHeldItem {
   id: string;
   name: string;

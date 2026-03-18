@@ -238,7 +238,16 @@ func main() {
 	log.Printf("📡 WebSocket endpoint: ws://localhost%s/ws", addr)
 	log.Printf("🔌 API endpoint: http://localhost%s/api", addr)
 
-	if err := http.ListenAndServe(addr, corsMiddleware(mux)); err != nil {
+	// Configure HTTP server with proper timeouts for better error handling
+	server := &http.Server{
+		Addr:         addr,
+		Handler:      corsMiddleware(mux),
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }

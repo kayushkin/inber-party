@@ -10,9 +10,8 @@ import EquipmentComponent from '../components/Equipment';
 import Reputation from '../components/Reputation';
 import { STAT_TOOLTIPS, ACHIEVEMENT_TOOLTIPS, getSkillTooltip } from '../constants/tooltips';
 import { getAgentEquipment, inferAvailableTools } from '../constants/equipment';
+import { useAgentOperations } from '../services/agentService';
 import './CharacterSheet.css';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
 
 // Mood helper functions
 function getMoodColor(score: number): string {
@@ -52,6 +51,17 @@ export default function CharacterSheet() {
 
   const fetchAll = useStore((s) => s.fetchAll);
   const agent: RPGAgent | undefined = agents.find((a) => a.id === id);
+  
+  const {
+    loadAgentQuests,
+    loadAgentAchievements,
+    loadAgentQuestHistory,
+    error,
+    hasError,
+    canRetry,
+    retry,
+    isOnline
+  } = useAgentOperations();
 
   useEffect(() => {
     if (agents.length === 0) fetchAll();
@@ -59,13 +69,23 @@ export default function CharacterSheet() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`${API_URL}/api/inber/quests?agent=${encodeURIComponent(id)}&limit=100`)
-      .then((r) => r.ok ? r.json() : []).then(setQuests).catch(() => {});
-    fetch(`${API_URL}/api/inber/achievements?agent=${encodeURIComponent(id)}`)
-      .then((r) => r.ok ? r.json() : []).then(setAchievements).catch(() => {});
-    fetch(`${API_URL}/api/inber/quest-history?agent=${encodeURIComponent(id)}&limit=20`)
-      .then((r) => r.ok ? r.json() : []).then(setQuestHistory).catch(() => {});
-  }, [id]);
+    
+    const loadAgentData = async () => {
+      // Load all agent-related data
+      const [questsResult, achievementsResult, historyResult] = await Promise.all([
+        loadAgentQuests(id, 100),
+        loadAgentAchievements(id),
+        loadAgentQuestHistory(id, 20)
+      ]);
+
+      // Update state with successful results
+      if (questsResult?.data) setQuests(questsResult.data);
+      if (achievementsResult?.data) setAchievements(achievementsResult.data);
+      if (historyResult?.data) setQuestHistory(historyResult.data);
+    };
+
+    loadAgentData();
+  }, [id, loadAgentQuests, loadAgentAchievements, loadAgentQuestHistory]);
 
   // Trigger animations when agent data is loaded
   useEffect(() => {
@@ -87,6 +107,55 @@ export default function CharacterSheet() {
             <button onClick={() => navigate('/')} style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: 'rgba(212,175,55,0.2)', border: '2px solid #d4af37', color: '#d4af37', borderRadius: '6px', cursor: 'pointer', fontFamily: 'Courier New, monospace' }}>← Back to Tavern</button>
           </>
         )}
+      </div>
+    );
+  }
+
+  // Show error state with retry option
+  if (hasError && error) {
+    return (
+      <div className="loading" style={{ color: '#dc2626', fontSize: '1.2rem', padding: '4rem', textAlign: 'center' }}>
+        <p>⚠️ Failed to load adventurer data</p>
+        <p style={{ fontSize: '1rem', color: '#6b7280', marginBottom: '1rem' }}>
+          {error.message}
+        </p>
+        {!isOnline && (
+          <p style={{ fontSize: '0.9rem', color: '#f97316', marginBottom: '1rem' }}>
+            📡 You appear to be offline
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {canRetry && (
+            <button
+              onClick={retry}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#059669',
+                border: 'none',
+                color: 'white',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontFamily: 'Courier New, monospace'
+              }}
+            >
+              🔄 Retry
+            </button>
+          )}
+          <button
+            onClick={() => navigate('/')}
+            style={{
+              padding: '0.5rem 1rem',
+              background: 'rgba(212,175,55,0.2)',
+              border: '2px solid #d4af37',
+              color: '#d4af37',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontFamily: 'Courier New, monospace'
+            }}
+          >
+            ← Back to Tavern
+          </button>
+        </div>
       </div>
     );
   }

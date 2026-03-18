@@ -83,7 +83,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Error boundary components — graceful error states instead of white/black screens
 - [x] Accessibility audit — keyboard navigation, screen reader labels, contrast ratios
 - [x] Performance profiling — ensure smooth 60fps with 25+ agent cards rendering
-- [ ] API error handling — retry logic, timeout handling, offline mode
+- [x] API error handling — retry logic, timeout handling, offline mode
 
 ## 🏪 MMO Task Board (Bounty System)
 

@@ -1,203 +1,198 @@
 .error-boundary {
   display: flex;
-  justify-content: center;
   align-items: center;
-  min-height: 300px;
+  justify-content: center;
+  min-height: 400px;
   padding: 2rem;
-  background: var(--background);
-  border: 2px solid var(--border-error, #dc3545);
+  background: rgba(185, 28, 28, 0.05);
+  border: 2px solid #dc2626;
   border-radius: 8px;
   margin: 1rem;
 }
 
-.error-boundary-content {
+.error-content {
   text-align: center;
-  max-width: 600px;
-  padding: 2rem;
-  background: var(--card-background, #1a1a1a);
-  border-radius: 12px;
-  border: 1px solid var(--border-error, #dc3545);
-  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+  max-width: 500px;
+  color: #1f2937;
 }
 
 .error-icon {
-  font-size: 3rem;
+  font-size: 4rem;
   margin-bottom: 1rem;
   opacity: 0.8;
 }
 
-.error-boundary h2 {
-  color: var(--text-primary, #fff);
-  margin: 1rem 0;
-  font-family: 'MedievalSharp', serif;
-}
-
-.error-boundary h3 {
-  color: var(--text-primary, #fff);
-  margin: 1rem 0;
-  font-size: 1.25rem;
+.error-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #dc2626;
+  font-family: 'Courier New', monospace;
 }
 
 .error-message {
-  color: var(--text-secondary, #ccc);
-  margin-bottom: 1.5rem;
+  font-size: 1rem;
   line-height: 1.5;
-}
-
-.error-details {
-  margin: 1.5rem 0;
-  text-align: left;
-}
-
-.error-details summary {
-  color: var(--text-secondary, #ccc);
-  cursor: pointer;
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-  user-select: none;
-}
-
-.error-details summary:hover {
-  color: var(--text-primary, #fff);
-}
-
-.error-stack {
-  background: var(--background-darker, #111);
-  border: 1px solid var(--border, #333);
-  border-radius: 4px;
-  padding: 1rem;
-  font-size: 0.8rem;
-  color: var(--text-muted, #999);
-  overflow-x: auto;
-  max-height: 200px;
-  overflow-y: auto;
+  margin-bottom: 2rem;
+  color: #374151;
 }
 
 .error-actions {
   display: flex;
   gap: 1rem;
   justify-content: center;
-  margin-top: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
 }
 
-.retry-button,
-.reload-button {
+.retry-button, .reload-button {
   padding: 0.75rem 1.5rem;
-  border: none;
+  border: 2px solid;
   border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
+  text-decoration: none;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
 
 .retry-button {
-  background: var(--accent-color, #007bff);
+  background: #059669;
+  border-color: #059669;
   color: white;
 }
 
 .retry-button:hover {
-  background: var(--accent-hover, #0056b3);
+  background: #047857;
+  border-color: #047857;
   transform: translateY(-1px);
 }
 
 .reload-button {
-  background: var(--secondary-color, #6c757d);
-  color: white;
+  background: transparent;
+  border-color: #6b7280;
+  color: #374151;
 }
 
 .reload-button:hover {
-  background: var(--secondary-hover, #545b62);
+  background: #f3f4f6;
+  border-color: #374151;
   transform: translateY(-1px);
 }
 
-/* Specific error type styles */
-.agent-error {
-  min-height: 200px;
+.error-details {
+  text-align: left;
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
 }
 
-.agent-error .error-boundary-content {
-  border-color: var(--warning-color, #ffc107);
-  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
+.error-details summary {
+  cursor: pointer;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #6b7280;
 }
 
-.quest-error .error-boundary-content {
-  border-color: var(--info-color, #17a2b8);
-  box-shadow: 0 4px 12px rgba(23, 162, 184, 0.2);
+.error-details summary:hover {
+  color: #374151;
 }
 
-.network-error .error-boundary-content {
-  border-color: var(--danger-color, #dc3545);
-  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
-}
-
-/* Dark theme adjustments */
-[data-theme="dark"] .error-boundary-content {
-  background: #1a1a1a;
-  border-color: #dc3545;
-}
-
-[data-theme="dark"] .error-stack {
-  background: #0d1117;
-  border-color: #21262d;
-  color: #7d8590;
-}
-
-/* Light theme adjustments */
-[data-theme="light"] .error-boundary-content {
+.error-stack {
+  white-space: pre-wrap;
+  word-break: break-all;
   background: #ffffff;
-  border-color: #dc3545;
-  color: #333;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.75rem;
+  color: #dc2626;
 }
 
-[data-theme="light"] .error-boundary h2,
-[data-theme="light"] .error-boundary h3 {
-  color: #333;
-}
-
-[data-theme="light"] .error-message {
-  color: #666;
-}
-
-[data-theme="light"] .error-details summary {
-  color: #666;
-}
-
-[data-theme="light"] .error-details summary:hover {
-  color: #333;
-}
-
-[data-theme="light"] .error-stack {
-  background: #f8f9fa;
-  border-color: #dee2e6;
-  color: #6c757d;
-}
-
-/* Mobile responsive */
-@media (max-width: 768px) {
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
   .error-boundary {
-    padding: 1rem;
-    min-height: 200px;
+    background: rgba(185, 28, 28, 0.1);
+    border-color: #f87171;
   }
 
-  .error-boundary-content {
-    padding: 1.5rem;
+  .error-content {
+    color: #e5e7eb;
+  }
+
+  .error-title {
+    color: #f87171;
+  }
+
+  .error-message {
+    color: #d1d5db;
+  }
+
+  .reload-button {
+    color: #d1d5db;
+    border-color: #9ca3af;
+  }
+
+  .reload-button:hover {
+    background: #374151;
+    border-color: #d1d5db;
+  }
+
+  .error-details {
+    background: #1f2937;
+    border-color: #374151;
+  }
+
+  .error-details summary {
+    color: #9ca3af;
+  }
+
+  .error-details summary:hover {
+    color: #d1d5db;
+  }
+
+  .error-stack {
+    background: #111827;
+    border-color: #374151;
+    color: #f87171;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+  .error-boundary {
+    padding: 1rem;
+    margin: 0.5rem;
+  }
+
+  .error-content {
+    max-width: none;
   }
 
   .error-icon {
-    font-size: 2rem;
+    font-size: 3rem;
+  }
+
+  .error-title {
+    font-size: 1.25rem;
   }
 
   .error-actions {
     flex-direction: column;
+    align-items: center;
   }
 
-  .retry-button,
-  .reload-button {
+  .retry-button, .reload-button {
     width: 100%;
-    justify-content: center;
+    max-width: 200px;
   }
 }
