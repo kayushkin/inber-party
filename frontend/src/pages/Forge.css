@@ -551,3 +551,65 @@
     max-width: 200px;
   }
 }
+
+/* Loading and Error States */
+.loading-services {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+}
+
+.loading-text {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.no-services {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+}
+
+.no-services-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.no-services-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+.no-services-subtitle {
+  font-size: 0.9rem;
+  color: #999;
+}
+
+.service-error {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 4px;
+}
+
+.error-text {
+  font-size: 0.8rem;
+  color: #f87171;
+  word-break: break-word;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}

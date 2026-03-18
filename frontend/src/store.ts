@@ -132,6 +132,29 @@ export interface ChatMessage {
   reactions?: Record<string, number>; // emoji -> count
 }
 
+export interface ServiceHealth {
+  name: string;
+  status: 'running' | 'warning' | 'down';
+  health: number; // 0-100
+  response_time?: number; // milliseconds
+  error?: string;
+  port?: number;
+  version?: string;
+  uptime?: string;
+  last_check: string;
+}
+
+export interface HealthCheckResponse {
+  timestamp: string;
+  services: ServiceHealth[];
+  overall: {
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    healthy: number;
+    total: number;
+    score: number;
+  };
+}
+
 // ── Store ──────────────────────────────────────────────────
 
 interface StoreState {
@@ -147,6 +170,11 @@ interface StoreState {
   isLoadingAgents: boolean;
   isLoadingQuests: boolean;
   isLoadingParties: boolean;
+  
+  // Health check
+  healthData: HealthCheckResponse | null;
+  isLoadingHealth: boolean;
+  fetchHealthData: () => Promise<void>;
   isLoadingStats: boolean;
   hasInitialLoad: boolean;
 
@@ -227,6 +255,10 @@ export const useStore = create<StoreState>((set, get) => ({
   isLoadingParties: false,
   isLoadingStats: false,
   hasInitialLoad: false,
+  
+  // Health check defaults
+  healthData: null,
+  isLoadingHealth: false,
 
   // Initialize theme from localStorage or default to dark
   theme: (localStorage.getItem('theme') as 'light' | 'dark') || 'dark',
@@ -419,6 +451,30 @@ export const useStore = create<StoreState>((set, get) => ({
         isLoadingStats: false,
         hasInitialLoad: true 
       });
+    }
+  },
+
+  fetchHealthData: async () => {
+    const { isLoadingHealth } = get();
+    if (isLoadingHealth) return; // Prevent multiple concurrent requests
+    
+    set({ isLoadingHealth: true });
+    
+    try {
+      const healthRes = await fetch(`${API_URL}/api/health`);
+      if (healthRes.ok) {
+        const healthData: HealthCheckResponse = await healthRes.json();
+        set({ 
+          healthData,
+          isLoadingHealth: false 
+        });
+      } else {
+        console.warn('Failed to fetch health data');
+        set({ isLoadingHealth: false });
+      }
+    } catch (error) {
+      console.warn('Health check failed:', error);
+      set({ isLoadingHealth: false });
     }
   },
 

@@ -70,7 +70,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Pull conversation history from logstack for chat display
 - [x] Webhook for spawn events — update quest board in real-time when spawns start/complete
 - [x] Agent registry sync — auto-discover new agents when they're added to inber/openclaw
-- [ ] Health check dashboard — show which backend services are up/down
+- [~] Health check dashboard — show which backend services are up/down
 - [ ] Session replay — replay a past session's tool calls as an animated quest log
 - [ ] Cost tracking dashboard — daily/weekly/monthly token spend per agent
 - [ ] Export stats — download agent stats as JSON/CSV

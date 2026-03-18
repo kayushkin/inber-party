@@ -1,48 +1,22 @@
-import { timeAgo } from '../store';
+import { useEffect } from 'react';
+import { useStore, timeAgo } from '../store';
 import Tooltip from '../components/Tooltip';
 import './Forge.css';
 
 export default function Forge() {
+  const { healthData, isLoadingHealth, fetchHealthData } = useStore();
 
-  // Mock infrastructure data - in real implementation, this would come from the backend
-  const infrastructureServices = [
-    { 
-      name: 'inber-party-backend', 
-      status: 'running', 
-      uptime: '3d 14h',
-      health: 98,
-      port: 3000,
-      lastDeploy: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
-      version: 'v1.2.3'
-    },
-    { 
-      name: 'inber-party-frontend', 
-      status: 'running', 
-      uptime: '3d 14h',
-      health: 100,
-      port: 5173,
-      lastDeploy: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      version: 'v1.2.4'
-    },
-    { 
-      name: 'openclaw-gateway', 
-      status: 'running', 
-      uptime: '7d 2h',
-      health: 95,
-      port: 8080,
-      lastDeploy: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
-      version: 'v2.1.0'
-    },
-    { 
-      name: 'database', 
-      status: 'warning', 
-      uptime: '12d 8h',
-      health: 85,
-      port: 5432,
-      lastDeploy: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7), // 7 days ago
-      version: 'pg-15.2'
-    }
-  ];
+  useEffect(() => {
+    // Fetch health data on component mount
+    fetchHealthData();
+    
+    // Set up polling for health data every 30 seconds
+    const healthInterval = setInterval(fetchHealthData, 30000);
+    return () => clearInterval(healthInterval);
+  }, [fetchHealthData]);
+
+  // Use real health data or fallback to mock data for development
+  const infrastructureServices = healthData?.services || [];
 
   const buildLogs = [
     {
@@ -84,9 +58,9 @@ export default function Forge() {
     cpuUsage: 45
   };
 
-  const healthyServices = infrastructureServices.filter(s => s.status === 'running').length;
-  const totalServices = infrastructureServices.length;
-  const avgHealth = infrastructureServices.reduce((sum, s) => sum + s.health, 0) / totalServices;
+  const healthyServices = healthData?.overall.healthy || 0;
+  const totalServices = healthData?.overall.total || infrastructureServices.length;
+  const avgHealth = healthData?.overall.score || 0;
 
   return (
     <div className="forge">
@@ -134,56 +108,85 @@ export default function Forge() {
       <div className="infrastructure-status">
         <h2>🏗️ Infrastructure Status</h2>
         <div className="services-grid">
-          {infrastructureServices.map((service) => (
-            <Tooltip 
-              key={service.name}
-              content={`${service.name} v${service.version} • Uptime: ${service.uptime} • Health: ${service.health}%`}
-            >
-              <div className={`service-card status-${service.status}`}>
-                <div className="service-header">
-                  <div className="service-name">{service.name}</div>
-                  <div className="service-status">
-                    <span className={`status-indicator status-${service.status}`}>
-                      {service.status === 'running' ? '🟢' : service.status === 'warning' ? '🟡' : '🔴'}
-                    </span>
-                    <span className="status-text">{service.status}</span>
+          {isLoadingHealth ? (
+            <div className="loading-services">
+              <div className="loading-text">🔍 Checking service health...</div>
+            </div>
+          ) : infrastructureServices.length === 0 ? (
+            <div className="no-services">
+              <div className="no-services-icon">⚠️</div>
+              <div className="no-services-text">No health data available</div>
+              <div className="no-services-subtitle">Health check service may be down</div>
+            </div>
+          ) : (
+            infrastructureServices.map((service) => (
+              <Tooltip 
+                key={service.name}
+                content={`${service.name}${service.version ? ` v${service.version}` : ''}${service.uptime ? ` • Uptime: ${service.uptime}` : ''} • Health: ${service.health}%${service.response_time ? ` • Response: ${service.response_time}ms` : ''}${service.error ? ` • Error: ${service.error}` : ''}`}
+              >
+                <div className={`service-card status-${service.status}`}>
+                  <div className="service-header">
+                    <div className="service-name">{service.name}</div>
+                    <div className="service-status">
+                      <span className={`status-indicator status-${service.status}`}>
+                        {service.status === 'running' ? '🟢' : service.status === 'warning' ? '🟡' : '🔴'}
+                      </span>
+                      <span className="status-text">{service.status}</span>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="service-details">
-                  <div className="detail-row">
-                    <span className="detail-label">Port:</span>
-                    <span className="detail-value">{service.port}</span>
+                  
+                  <div className="service-details">
+                    {service.port && (
+                      <div className="detail-row">
+                        <span className="detail-label">Port:</span>
+                        <span className="detail-value">{service.port}</span>
+                      </div>
+                    )}
+                    {service.version && (
+                      <div className="detail-row">
+                        <span className="detail-label">Version:</span>
+                        <span className="detail-value">{service.version}</span>
+                      </div>
+                    )}
+                    {service.uptime && (
+                      <div className="detail-row">
+                        <span className="detail-label">Uptime:</span>
+                        <span className="detail-value">{service.uptime}</span>
+                      </div>
+                    )}
+                    {service.response_time && (
+                      <div className="detail-row">
+                        <span className="detail-label">Response:</span>
+                        <span className="detail-value">{service.response_time}ms</span>
+                      </div>
+                    )}
+                    <div className="detail-row">
+                      <span className="detail-label">Last Check:</span>
+                      <span className="detail-value">{timeAgo(service.last_check)}</span>
+                    </div>
                   </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Version:</span>
-                    <span className="detail-value">{service.version}</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Uptime:</span>
-                    <span className="detail-value">{service.uptime}</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Last Deploy:</span>
-                    <span className="detail-value">{timeAgo(service.lastDeploy.toISOString())}</span>
-                  </div>
-                </div>
 
-                <div className="service-health">
-                  <div className="health-header">
-                    <span className="health-label">Health</span>
-                    <span className="health-percentage">{service.health}%</span>
-                  </div>
-                  <div className="health-bar">
-                    <div 
-                      className={`health-fill ${service.health < 90 ? 'health-warning' : 'health-good'}`}
-                      style={{ width: `${service.health}%` }}
-                    />
+                  <div className="service-health">
+                    <div className="health-header">
+                      <span className="health-label">Health</span>
+                      <span className="health-percentage">{service.health}%</span>
+                    </div>
+                    <div className="health-bar">
+                      <div 
+                        className={`health-fill ${service.health < 90 ? 'health-warning' : 'health-good'}`}
+                        style={{ width: `${service.health}%` }}
+                      />
+                    </div>
+                    {service.error && (
+                      <div className="service-error">
+                        <span className="error-text">{service.error}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            </Tooltip>
-          ))}
+              </Tooltip>
+            ))
+          )}
         </div>
       </div>
 

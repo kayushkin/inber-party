@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kayushkin/inber-party/internal/dailyquests"
 	"github.com/kayushkin/inber-party/internal/db"
@@ -63,6 +64,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/conversations", s.handleConversations)
 	mux.HandleFunc("/api/conversations/", s.handleConversationDetail)
 	mux.HandleFunc("/api/webhooks/spawn", s.handleSpawnWebhook)
+	mux.HandleFunc("/api/health", s.handleHealthCheck)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -1390,6 +1392,146 @@ func (s *Server) handleSpawnWebhook(w http.ResponseWriter, r *http.Request) {
 		"status":  "success",
 		"message": "Spawn event processed successfully",
 	})
+}
+
+// handleHealthCheck returns the health status of various services
+func (s *Server) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	type ServiceHealth struct {
+		Name         string  `json:"name"`
+		Status       string  `json:"status"`       // "running", "warning", "down"
+		Health       int     `json:"health"`       // 0-100
+		ResponseTime *int    `json:"response_time,omitempty"` // milliseconds
+		Error        *string `json:"error,omitempty"`
+		Port         *int    `json:"port,omitempty"`
+		Version      *string `json:"version,omitempty"`
+		Uptime       *string `json:"uptime,omitempty"`
+		LastCheck    string  `json:"last_check"`
+	}
+
+	type HealthResponse struct {
+		Timestamp string          `json:"timestamp"`
+		Services  []ServiceHealth `json:"services"`
+		Overall   struct {
+			Status  string  `json:"status"`
+			Healthy int     `json:"healthy"`
+			Total   int     `json:"total"`
+			Score   float64 `json:"score"`
+		} `json:"overall"`
+	}
+
+	var response HealthResponse
+	response.Timestamp = time.Now().UTC().Format(time.RFC3339)
+
+	// Check Database
+	dbHealth := ServiceHealth{
+		Name:      "database",
+		LastCheck: response.Timestamp,
+	}
+	if s.DB != nil {
+		start := time.Now()
+		err := s.DB.Ping()
+		responseTime := int(time.Since(start).Milliseconds())
+		dbHealth.ResponseTime = &responseTime
+		
+		if err != nil {
+			dbHealth.Status = "down"
+			dbHealth.Health = 0
+			errStr := err.Error()
+			dbHealth.Error = &errStr
+		} else {
+			dbHealth.Status = "running"
+			dbHealth.Health = 100
+			port := 5432
+			dbHealth.Port = &port
+			version := "PostgreSQL"
+			dbHealth.Version = &version
+		}
+	} else {
+		dbHealth.Status = "down"
+		dbHealth.Health = 0
+		errStr := "Database connection not configured"
+		dbHealth.Error = &errStr
+	}
+
+	// Check inber-party backend (self)
+	backendHealth := ServiceHealth{
+		Name:      "inber-party-backend",
+		Status:    "running",
+		Health:    100,
+		LastCheck: response.Timestamp,
+	}
+	port := 8080
+	backendHealth.Port = &port
+	version := "v1.0.0" // You could read this from a version file
+	backendHealth.Version = &version
+
+	// Check OpenClaw Gateway (attempt connection to typical port)
+	gatewayHealth := ServiceHealth{
+		Name:      "openclaw-gateway",
+		LastCheck: response.Timestamp,
+	}
+	gatewayUrl := "http://localhost:8080/status"  // Adjust based on actual OpenClaw port
+	start := time.Now()
+	resp, err := http.Get(gatewayUrl)
+	responseTime := int(time.Since(start).Milliseconds())
+	gatewayHealth.ResponseTime = &responseTime
+	
+	if err != nil {
+		gatewayHealth.Status = "warning"
+		gatewayHealth.Health = 50
+		errStr := "Connection failed: " + err.Error()
+		gatewayHealth.Error = &errStr
+	} else {
+		resp.Body.Close()
+		if resp.StatusCode == 200 {
+			gatewayHealth.Status = "running"
+			gatewayHealth.Health = 100
+		} else {
+			gatewayHealth.Status = "warning"
+			gatewayHealth.Health = 75
+		}
+		port := 8080
+		gatewayHealth.Port = &port
+	}
+
+	// Add services to response
+	response.Services = []ServiceHealth{
+		backendHealth,
+		dbHealth,
+		gatewayHealth,
+	}
+
+	// Calculate overall health
+	totalServices := len(response.Services)
+	healthyServices := 0
+	totalScore := 0
+
+	for _, service := range response.Services {
+		totalScore += service.Health
+		if service.Status == "running" {
+			healthyServices++
+		}
+	}
+
+	response.Overall.Total = totalServices
+	response.Overall.Healthy = healthyServices
+	response.Overall.Score = float64(totalScore) / float64(totalServices)
+
+	if healthyServices == totalServices {
+		response.Overall.Status = "healthy"
+	} else if healthyServices > 0 {
+		response.Overall.Status = "degraded"
+	} else {
+		response.Overall.Status = "unhealthy"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 // calculateGoldReward computes gold reward based on XP and difficulty
