@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { loadChatHistory, saveChatHistoryForAgent, saveChatHistory } from './utils/chatHistory';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -128,6 +129,7 @@ interface StoreState {
   stopPolling: () => void;
   sendMessage: (agentId: string, message: string) => Promise<void>;
   addChatMessage: (agentId: string, msg: ChatMessage) => void;
+  clearChatHistory: (agentId?: string) => void;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -140,7 +142,7 @@ export const useStore = create<StoreState>((set, get) => ({
   connected: false,
   ws: null,
   pollTimer: null,
-  chatMessages: {},
+  chatMessages: loadChatHistory(), // Load persisted chat history on initialization
   chatLoading: {},
   selectedAgent: null,
   previousAgentLevels: {},
@@ -360,12 +362,20 @@ export const useStore = create<StoreState>((set, get) => ({
     if (t) { clearInterval(t); set({ pollTimer: null }); }
   },
 
-  addChatMessage: (agentId, msg) => set((state) => ({
-    chatMessages: {
+  addChatMessage: (agentId, msg) => set((state) => {
+    const newMessages = [...(state.chatMessages[agentId] || []), msg];
+    const updatedChatMessages = {
       ...state.chatMessages,
-      [agentId]: [...(state.chatMessages[agentId] || []), msg],
-    },
-  })),
+      [agentId]: newMessages,
+    };
+    
+    // Persist to localStorage (skip streaming messages as they're temporary)
+    if (!msg.streaming) {
+      saveChatHistoryForAgent(agentId, newMessages);
+    }
+    
+    return { chatMessages: updatedChatMessages };
+  }),
 
   sendMessage: async (agentId, message) => {
     const { addChatMessage } = get();
@@ -446,11 +456,14 @@ export const useStore = create<StoreState>((set, get) => ({
         }
       }
 
-      // Mark streaming complete
+      // Mark streaming complete and persist
       set((s) => {
         const msgs = [...(s.chatMessages[agentId] || [])];
         if (msgs[msgIdx]) {
           msgs[msgIdx] = { ...msgs[msgIdx], streaming: false, content: assistantMsg || '(no response)' };
+          
+          // Persist the completed message
+          saveChatHistoryForAgent(agentId, msgs);
         }
         return { chatMessages: { ...s.chatMessages, [agentId]: msgs } };
       });
@@ -464,6 +477,20 @@ export const useStore = create<StoreState>((set, get) => ({
       set((s) => ({ chatLoading: { ...s.chatLoading, [agentId]: false } }));
     }
   },
+
+  clearChatHistory: (agentId) => set((state) => {
+    if (agentId) {
+      // Clear history for specific agent
+      const updatedChatMessages = { ...state.chatMessages };
+      delete updatedChatMessages[agentId];
+      saveChatHistory(updatedChatMessages);
+      return { chatMessages: updatedChatMessages };
+    } else {
+      // Clear all chat history
+      saveChatHistory({});
+      return { chatMessages: {} };
+    }
+  }),
 }));
 
 // ── Helpers ────────────────────────────────────────────────

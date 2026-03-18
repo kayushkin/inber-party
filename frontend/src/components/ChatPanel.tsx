@@ -14,6 +14,7 @@ export default function ChatPanel({ agentId, agent, onClose }: Props) {
   const messages = useStore((s) => s.chatMessages[agentId] || []);
   const loading = useStore((s) => s.chatLoading[agentId] || false);
   const sendMessage = useStore((s) => s.sendMessage);
+  const clearChatHistory = useStore((s) => s.clearChatHistory);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,6 +26,12 @@ export default function ChatPanel({ agentId, agent, onClose }: Props) {
     if (!msg || loading) return;
     setInput('');
     sendMessage(agentId, msg);
+  };
+
+  const handleClearHistory = () => {
+    if (confirm(`Clear chat history with ${agent?.name || agentId}?`)) {
+      clearChatHistory(agentId);
+    }
   };
 
   const cc = agent ? classColor(agent.class) : '#d4af37';
@@ -41,6 +48,18 @@ export default function ChatPanel({ agentId, agent, onClose }: Props) {
         </div>
         <button className="chat-close" onClick={onClose}>✕</button>
       </div>
+
+      {messages.length > 0 && (
+        <div className="chat-history-info">
+          <div className="chat-history-indicator">
+            <span>💾</span>
+            <span>{messages.length} messages saved</span>
+          </div>
+          <button className="chat-clear-btn" onClick={handleClearHistory}>
+            Clear History
+          </button>
+        </div>
+      )}
 
       <div className="chat-messages">
         {messages.length === 0 && (

@@ -40,6 +40,38 @@
 
 .chat-close:hover { color: #fff; }
 
+.chat-history-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: #666;
+  padding: 0.25rem 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid #333;
+}
+
+.chat-history-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.chat-clear-btn {
+  background: none;
+  border: 1px solid #444;
+  color: #888;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.6rem;
+}
+
+.chat-clear-btn:hover {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
 /* Messages */
 .chat-messages {
   flex: 1;
