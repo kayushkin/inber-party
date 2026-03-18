@@ -8,16 +8,18 @@ import (
 	"strings"
 
 	"github.com/kayushkin/inber-party/internal/db"
+	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
 
 type Server struct {
-	DB  *db.DB
-	Hub *ws.Hub
+	DB         *db.DB
+	Hub        *ws.Hub
+	QuestGiver *questgiver.QuestGiver
 }
 
-func NewServer(database *db.DB, hub *ws.Hub) *Server {
-	return &Server{DB: database, Hub: hub}
+func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver) *Server {
+	return &Server{DB: database, Hub: hub, QuestGiver: qg}
 }
 
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
@@ -28,6 +30,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/tasks", s.handleTasks)
 	mux.HandleFunc("/api/tasks/", s.handleTaskDetail)
 	mux.HandleFunc("/api/stats", s.handleStats)
+	mux.HandleFunc("/api/quest-giver/analyze", s.handleQuestAnalyze)
+	mux.HandleFunc("/api/quest-giver/recommendations", s.handleQuestRecommendations)
+	mux.HandleFunc("/api/quest-giver/assign", s.handleQuestAssign)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -321,6 +326,15 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 	task.Progress = 0
 
 	s.Hub.Broadcast(ws.Message{Type: "task_created", Data: task})
+
+	// Auto-assign using quest giver if available
+	if s.QuestGiver != nil {
+		go func() {
+			if err := s.QuestGiver.AutoAssignTask(task.ID, task.Name, task.Description); err != nil {
+				log.Printf("Quest Giver auto-assignment failed: %v", err)
+			}
+		}()
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -776,4 +790,90 @@ func (s *Server) disbandParty(w http.ResponseWriter, r *http.Request, id int) {
 	s.Hub.Broadcast(ws.Message{Type: "party_disbanded", Data: map[string]interface{}{"id": id}})
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Quest Giver handlers
+func (s *Server) handleQuestAnalyze(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if s.QuestGiver == nil {
+		http.Error(w, "Quest Giver not available", http.StatusServiceUnavailable)
+		return
+	}
+	
+	var req struct {
+		TaskName        string `json:"task_name"`
+		TaskDescription string `json:"task_description"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	analysis := s.QuestGiver.AnalyzeTask(req.TaskName, req.TaskDescription)
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(analysis)
+}
+
+func (s *Server) handleQuestRecommendations(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if s.QuestGiver == nil {
+		http.Error(w, "Quest Giver not available", http.StatusServiceUnavailable)
+		return
+	}
+	
+	recommendations, err := s.QuestGiver.GetTaskRecommendations()
+	if err != nil {
+		log.Printf("Error getting quest recommendations: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(recommendations)
+}
+
+func (s *Server) handleQuestAssign(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if s.QuestGiver == nil {
+		http.Error(w, "Quest Giver not available", http.StatusServiceUnavailable)
+		return
+	}
+	
+	var req struct {
+		TaskID          int    `json:"task_id"`
+		TaskName        string `json:"task_name"`
+		TaskDescription string `json:"task_description"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	err := s.QuestGiver.AutoAssignTask(req.TaskID, req.TaskName, req.TaskDescription)
+	if err != nil {
+		log.Printf("Error assigning task: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	s.Hub.Broadcast(ws.Message{Type: "task_auto_assigned", Data: map[string]interface{}{
+		"task_id": req.TaskID,
+		"message": "Task automatically assigned by Quest Giver",
+	}})
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Task assigned successfully"})
 }

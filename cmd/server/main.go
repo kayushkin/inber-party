@@ -11,6 +11,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/api"
 	"github.com/kayushkin/inber-party/internal/db"
 	"github.com/kayushkin/inber-party/internal/inber"
+	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
 
@@ -41,7 +42,7 @@ func main() {
 		log.Println("⚠ No DATABASE_URL set — running in inber-only mode")
 	}
 
-	apiServer := api.NewServer(database, hub)
+	apiServer := api.NewServer(database, hub, nil)
 
 	mux := http.NewServeMux()
 	apiServer.RegisterRoutes(mux)
@@ -120,6 +121,14 @@ func main() {
 				})
 			}
 		}()
+		
+		// Initialize quest-giver now that we have both database and inber source
+		if database != nil {
+			qg := questgiver.NewQuestGiver(database, inberSource)
+			// Update the API server to use the quest-giver
+			apiServer.QuestGiver = qg
+			log.Println("✓ Quest Giver initialized - ready to assign tasks automatically")
+		}
 	}
 
 	// Proxy /api/run to inber for chat/task functionality
