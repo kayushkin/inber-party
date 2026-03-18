@@ -12,6 +12,7 @@ import GuildMasterChat from './pages/GuildMasterChat';
 import AgentConversations from './pages/AgentConversations';
 import Library from './pages/Library';
 import TrainingGrounds from './pages/TrainingGrounds';
+import Forge from './pages/Forge';
 import './App.css';
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
           <Route path="conversations" element={<AgentConversations />} />
           <Route path="library" element={<Library />} />
           <Route path="training" element={<TrainingGrounds />} />
+          <Route path="forge" element={<Forge />} />
           <Route path="stats" element={<StatsView />} />
           <Route path="compare" element={<ComparisonView />} />
         </Route>

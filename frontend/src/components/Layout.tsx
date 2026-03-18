@@ -19,6 +19,7 @@ export default function Layout() {
     { to: '/conversations', label: '🗣️ Conversations', match: '/conversations' },
     { to: '/library', label: '📚 Library', match: '/library' },
     { to: '/training', label: '🏋️ Training', match: '/training' },
+    { to: '/forge', label: '🔨 Forge', match: '/forge' },
     { to: '/stats', label: '📊 Stats', match: '/stats' },
     { to: '/compare', label: '🔍 Compare', match: '/compare' },
   ];
