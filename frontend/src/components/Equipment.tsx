@@ -27,8 +27,9 @@ export default function EquipmentComponent({ equipment, className = '' }: Equipm
     return acc;
   }, {} as Record<string, Equipment[]>);
 
-  const typeOrder = ['weapon', 'armor', 'accessory', 'tool'] as const;
+  const typeOrder = ['hat', 'weapon', 'armor', 'accessory', 'tool'] as const;
   const typeLabels: Record<string, string> = {
+    hat: 'Headwear',
     weapon: 'Weapons',
     armor: 'Armor',
     accessory: 'Accessories',

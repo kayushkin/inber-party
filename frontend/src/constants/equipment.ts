@@ -6,16 +6,98 @@ export interface Equipment {
   name: string;
   description: string;
   icon: string;
-  type: 'weapon' | 'armor' | 'accessory' | 'tool';
+  type: 'weapon' | 'armor' | 'accessory' | 'tool' | 'hat';
   rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
   toolRequirement?: string; // OpenClaw tool name required
   skillRequirement?: string; // Skill name required
   levelRequirement?: number; // Minimum level
+  roleRequirement?: 'orchestrator' | 'agent'; // Role-based equipment
   statBonus?: Record<string, number>; // Stat bonuses
 }
 
 // Equipment definitions - maps to OpenClaw tools and capabilities
 export const EQUIPMENT_CATALOG: Equipment[] = [
+  // === HATS (Role-based headwear) ===
+  {
+    id: 'captain_hat',
+    name: 'Captain\'s Hat',
+    description: 'Distinguished naval cap worn by orchestrator agents who command fleets of sub-agents.',
+    icon: '🎩',
+    type: 'hat',
+    rarity: 'rare',
+    roleRequirement: 'orchestrator',
+    levelRequirement: 1,
+    statBonus: { leadership: 4, command: 3, presence: 2 }
+  },
+  {
+    id: 'hard_hat',
+    name: 'Engineer\'s Hard Hat',
+    description: 'Safety-first headgear for agents who work with heavy code and system infrastructure.',
+    icon: '⛑️',
+    type: 'hat',
+    rarity: 'uncommon',
+    roleRequirement: 'agent',
+    skillRequirement: 'Tool Mastery',
+    levelRequirement: 3,
+    statBonus: { protection: 3, efficiency: 2 }
+  },
+  {
+    id: 'wizard_hat',
+    name: 'Wizard\'s Pointy Hat',
+    description: 'Mystical hat worn by agents who weave complex spells of code and logic.',
+    icon: '🧙‍♂️',
+    type: 'hat',
+    rarity: 'epic',
+    roleRequirement: 'agent',
+    levelRequirement: 8,
+    statBonus: { wisdom: 5, magical_power: 4, insight: 3 }
+  },
+  {
+    id: 'cowboy_hat',
+    name: 'Ranger\'s Cowboy Hat',
+    description: 'Wide-brimmed hat for agents who venture into the wild frontiers of the web.',
+    icon: '🤠',
+    type: 'hat',
+    rarity: 'uncommon',
+    roleRequirement: 'agent',
+    skillRequirement: 'Swift Execution',
+    levelRequirement: 4,
+    statBonus: { range: 4, adventure: 3, speed: 2 }
+  },
+  {
+    id: 'top_hat',
+    name: 'Gentleman\'s Top Hat',
+    description: 'Elegant formal hat for distinguished agents of culture and refinement.',
+    icon: '🎭',
+    type: 'hat',
+    rarity: 'rare',
+    roleRequirement: 'agent',
+    levelRequirement: 6,
+    statBonus: { charisma: 4, eloquence: 3, sophistication: 2 }
+  },
+  {
+    id: 'beret',
+    name: 'Artist\'s Beret',
+    description: 'Creative beret for agents specializing in design, documentation, and artistic expression.',
+    icon: '👨‍🎨',
+    type: 'hat',
+    rarity: 'uncommon',
+    roleRequirement: 'agent',
+    levelRequirement: 2,
+    statBonus: { creativity: 4, inspiration: 2, aesthetic: 1 }
+  },
+  {
+    id: 'crown',
+    name: 'Royal Crown',
+    description: 'Majestic golden crown reserved for the highest-level orchestrator agents.',
+    icon: '👑',
+    type: 'hat',
+    rarity: 'legendary',
+    roleRequirement: 'orchestrator',
+    levelRequirement: 15,
+    statBonus: { command: 8, authority: 6, presence: 5, majesty: 4 }
+  },
+  
   // === WEAPONS (Primary Tools) ===
   {
     id: 'iron_sword',
@@ -268,6 +350,9 @@ export const RARITY_COLORS = {
 export function getAgentEquipment(agent: any, availableTools: string[]): Equipment[] {
   const equipped: Equipment[] = [];
   
+  // Determine if this agent is an orchestrator
+  const isOrchestrator = determineIfOrchestrator(agent);
+  
   for (const item of EQUIPMENT_CATALOG) {
     let canEquip = true;
     
@@ -289,6 +374,16 @@ export function getAgentEquipment(agent: any, availableTools: string[]): Equipme
       }
     }
     
+    // Check role requirement
+    if (item.roleRequirement) {
+      if (item.roleRequirement === 'orchestrator' && !isOrchestrator) {
+        canEquip = false;
+      }
+      if (item.roleRequirement === 'agent' && isOrchestrator) {
+        canEquip = false;
+      }
+    }
+    
     if (canEquip) {
       equipped.push(item);
     }
@@ -296,13 +391,37 @@ export function getAgentEquipment(agent: any, availableTools: string[]): Equipme
   
   // Sort by rarity and type for better display
   const rarityOrder = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
-  const typeOrder = { weapon: 0, armor: 1, accessory: 2, tool: 3 };
+  const typeOrder = { weapon: 0, armor: 1, hat: 2, accessory: 3, tool: 4 };
   
   return equipped.sort((a, b) => {
     const rarityDiff = rarityOrder[b.rarity] - rarityOrder[a.rarity];
     if (rarityDiff !== 0) return rarityDiff;
     return typeOrder[a.type] - typeOrder[b.type];
   });
+}
+
+// Helper function to determine if an agent is an orchestrator
+function determineIfOrchestrator(agent: any): boolean {
+  // Key orchestrator agents based on common naming patterns
+  const knownOrchestrators = ['main', 'claxon', 'inber', 'openclaw'];
+  
+  // Check if the agent name is a known orchestrator
+  if (knownOrchestrators.includes(agent.id?.toLowerCase() || agent.name?.toLowerCase())) {
+    return true;
+  }
+  
+  // Check if the agent's orchestrator field is empty or matches itself
+  // This typically indicates it's a top-level orchestrator
+  if (!agent.orchestrator || agent.orchestrator === agent.id || agent.orchestrator === agent.name) {
+    return true;
+  }
+  
+  // Additional logic: agents with very high levels and command-related classes
+  if (agent.level >= 10 && ['Overlord', 'Sovereign'].includes(agent.class)) {
+    return true;
+  }
+  
+  return false;
 }
 
 // Get available tools for an agent (this would normally come from API)
