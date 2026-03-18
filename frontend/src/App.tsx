@@ -15,6 +15,7 @@ import TrainingGrounds from './pages/TrainingGrounds';
 import Forge from './pages/Forge';
 import AgentQuarters from './pages/AgentQuarters';
 import CreateAdventurer from './pages/CreateAdventurer';
+import Parties from './pages/Parties';
 import './App.css';
 
 function App() {
@@ -54,6 +55,7 @@ function App() {
           <Route path="forge" element={<Forge />} />
           <Route path="stats" element={<StatsView />} />
           <Route path="compare" element={<ComparisonView />} />
+          <Route path="parties" element={<Parties />} />
           <Route path="create-adventurer" element={<CreateAdventurer />} />
         </Route>
       </Routes>

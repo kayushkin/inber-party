@@ -43,6 +43,23 @@ func (db *DB) Migrate() error {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
+		`CREATE TABLE IF NOT EXISTS parties (
+			id SERIAL PRIMARY KEY,
+			name VARCHAR(255) NOT NULL,
+			description TEXT,
+			leader_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
+			status VARCHAR(50) DEFAULT 'active',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS party_members (
+			id SERIAL PRIMARY KEY,
+			party_id INTEGER REFERENCES parties(id) ON DELETE CASCADE,
+			agent_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
+			role VARCHAR(50) DEFAULT 'member',
+			joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(party_id, agent_id)
+		)`,
 		`CREATE TABLE IF NOT EXISTS tasks (
 			id SERIAL PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
@@ -51,6 +68,7 @@ func (db *DB) Migrate() error {
 			xp_reward INTEGER DEFAULT 10,
 			status VARCHAR(50) DEFAULT 'available',
 			assigned_agent_id INTEGER REFERENCES agents(id),
+			assigned_party_id INTEGER REFERENCES parties(id),
 			progress INTEGER DEFAULT 0,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			started_at TIMESTAMP,

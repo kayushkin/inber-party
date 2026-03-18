@@ -75,6 +75,28 @@ export interface QuestHistoryEntry {
   completed_at?: string;
 }
 
+export interface RPGParty {
+  id: number;
+  name: string;
+  description: string;
+  leader_id: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  leader?: {
+    name: string;
+    title: string;
+    class: string;
+  };
+  member_count?: number;
+}
+
+export interface RPGPartyDetail extends RPGParty {
+  members: RPGAgent[];
+  tasks: RPGQuest[];
+  leader: RPGAgent;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -88,6 +110,7 @@ export interface ChatMessage {
 interface StoreState {
   agents: RPGAgent[];
   quests: RPGQuest[];
+  parties: RPGParty[];
   stats: RPGStats | null;
   connected: boolean;
   ws: WebSocket | null;
@@ -96,6 +119,7 @@ interface StoreState {
   // Loading states
   isLoadingAgents: boolean;
   isLoadingQuests: boolean;
+  isLoadingParties: boolean;
   isLoadingStats: boolean;
   hasInitialLoad: boolean;
 
@@ -140,6 +164,7 @@ const WS_URL = import.meta.env.VITE_WS_URL || `${location.protocol === 'https:' 
 export const useStore = create<StoreState>((set, get) => ({
   agents: [],
   quests: [],
+  parties: [],
   stats: null,
   connected: false,
   ws: null,
@@ -155,6 +180,7 @@ export const useStore = create<StoreState>((set, get) => ({
   // Loading state defaults
   isLoadingAgents: false,
   isLoadingQuests: false,
+  isLoadingParties: false,
   isLoadingStats: false,
   hasInitialLoad: false,
 
@@ -194,14 +220,16 @@ export const useStore = create<StoreState>((set, get) => ({
       set({ 
         isLoadingAgents: true, 
         isLoadingQuests: true, 
+        isLoadingParties: true,
         isLoadingStats: true 
       });
     }
 
     try {
-      const [agentsRes, questsRes, statsRes] = await Promise.all([
+      const [agentsRes, questsRes, partiesRes, statsRes] = await Promise.all([
         fetch(`${API_URL}/api/inber/agents`),
         fetch(`${API_URL}/api/inber/quests?limit=100`),
+        fetch(`${API_URL}/api/parties`),
         fetch(`${API_URL}/api/inber/stats`),
       ]);
       
@@ -261,6 +289,16 @@ export const useStore = create<StoreState>((set, get) => ({
         set({ isLoadingQuests: false });
       }
       
+      if (partiesRes.ok) {
+        const newParties = await partiesRes.json();
+        set({ 
+          parties: newParties,
+          isLoadingParties: false
+        });
+      } else {
+        set({ isLoadingParties: false });
+      }
+      
       if (statsRes.ok) {
         set({ stats: await statsRes.json(), isLoadingStats: false });
       } else {
@@ -276,6 +314,7 @@ export const useStore = create<StoreState>((set, get) => ({
       set({ 
         isLoadingAgents: false, 
         isLoadingQuests: false, 
+        isLoadingParties: false,
         isLoadingStats: false,
         hasInitialLoad: true 
       });

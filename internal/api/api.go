@@ -23,6 +23,8 @@ func NewServer(database *db.DB, hub *ws.Hub) *Server {
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/agents", s.handleAgents)
 	mux.HandleFunc("/api/agents/", s.handleAgentDetail)
+	mux.HandleFunc("/api/parties", s.handleParties)
+	mux.HandleFunc("/api/parties/", s.handlePartyDetail)
 	mux.HandleFunc("/api/tasks", s.handleTasks)
 	mux.HandleFunc("/api/tasks/", s.handleTaskDetail)
 	mux.HandleFunc("/api/stats", s.handleStats)
@@ -127,14 +129,14 @@ func (s *Server) getAgentDetail(w http.ResponseWriter, r *http.Request, id int) 
 	// Get tasks
 	tasks := []db.Task{}
 	taskRows, _ := s.DB.Query(`
-		SELECT id, name, description, difficulty, xp_reward, status, assigned_agent_id, progress, created_at, started_at, completed_at
+		SELECT id, name, description, difficulty, xp_reward, status, assigned_agent_id, assigned_party_id, progress, created_at, started_at, completed_at
 		FROM tasks WHERE assigned_agent_id = $1
 		ORDER BY created_at DESC
 	`, id)
 	defer taskRows.Close()
 	for taskRows.Next() {
 		var task db.Task
-		taskRows.Scan(&task.ID, &task.Name, &task.Description, &task.Difficulty, &task.XPReward, &task.Status, &task.AssignedAgentID, &task.Progress, &task.CreatedAt, &task.StartedAt, &task.CompletedAt)
+		taskRows.Scan(&task.ID, &task.Name, &task.Description, &task.Difficulty, &task.XPReward, &task.Status, &task.AssignedAgentID, &task.AssignedPartyID, &task.Progress, &task.CreatedAt, &task.StartedAt, &task.CompletedAt)
 		tasks = append(tasks, task)
 	}
 
@@ -268,7 +270,7 @@ func (s *Server) listTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := s.DB.Query(`
-		SELECT id, name, description, difficulty, xp_reward, status, assigned_agent_id, progress, created_at, started_at, completed_at
+		SELECT id, name, description, difficulty, xp_reward, status, assigned_agent_id, assigned_party_id, progress, created_at, started_at, completed_at
 		FROM tasks
 		ORDER BY created_at DESC
 	`)
@@ -282,7 +284,7 @@ func (s *Server) listTasks(w http.ResponseWriter, r *http.Request) {
 	tasks := []db.Task{}
 	for rows.Next() {
 		var t db.Task
-		if err := rows.Scan(&t.ID, &t.Name, &t.Description, &t.Difficulty, &t.XPReward, &t.Status, &t.AssignedAgentID, &t.Progress, &t.CreatedAt, &t.StartedAt, &t.CompletedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.Description, &t.Difficulty, &t.XPReward, &t.Status, &t.AssignedAgentID, &t.AssignedPartyID, &t.Progress, &t.CreatedAt, &t.StartedAt, &t.CompletedAt); err != nil {
 			log.Printf("Error scanning task: %v", err)
 			continue
 		}
@@ -356,6 +358,11 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request, id int) {
 		args = append(args, int(agentID))
 		argCount++
 	}
+	if partyID, ok := updates["assigned_party_id"].(float64); ok {
+		query += "assigned_party_id = $" + strconv.Itoa(argCount) + ", "
+		args = append(args, int(partyID))
+		argCount++
+	}
 	if progress, ok := updates["progress"].(float64); ok {
 		query += "progress = $" + strconv.Itoa(argCount) + ", "
 		args = append(args, int(progress))
@@ -391,7 +398,382 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	s.DB.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'completed'").Scan(&stats.CompletedTasks)
 	s.DB.QueryRow("SELECT COALESCE(SUM(xp), 0) FROM agents").Scan(&stats.TotalXP)
 	s.DB.QueryRow("SELECT COALESCE(AVG(level), 0) FROM agents").Scan(&stats.AverageAgentLevel)
+	s.DB.QueryRow("SELECT COUNT(*) FROM parties").Scan(&stats.TotalParties)
+	s.DB.QueryRow("SELECT COUNT(*) FROM parties WHERE status = 'active' OR status = 'on_quest'").Scan(&stats.ActiveParties)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
+}
+
+func (s *Server) handleParties(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.listParties(w, r)
+	case http.MethodPost:
+		s.createParty(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handlePartyDetail(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/parties/")
+	parts := strings.Split(idStr, "/")
+	id, err := strconv.Atoi(parts[0])
+	if err != nil {
+		http.Error(w, "Invalid party ID", http.StatusBadRequest)
+		return
+	}
+
+	if len(parts) > 1 && parts[1] == "members" {
+		switch r.Method {
+		case http.MethodPost:
+			s.addPartyMember(w, r, id)
+		case http.MethodDelete:
+			s.removePartyMember(w, r, id)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		s.getPartyDetail(w, r, id)
+	case http.MethodPatch:
+		s.updateParty(w, r, id)
+	case http.MethodDelete:
+		s.disbandParty(w, r, id)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) listParties(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+
+	rows, err := s.DB.Query(`
+		SELECT p.id, p.name, p.description, p.leader_id, p.status, p.created_at, p.updated_at,
+			   a.name as leader_name, a.title as leader_title, a.class as leader_class
+		FROM parties p
+		JOIN agents a ON p.leader_id = a.id
+		ORDER BY p.created_at DESC
+	`)
+	if err != nil {
+		log.Printf("Error listing parties: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	parties := []map[string]interface{}{}
+	for rows.Next() {
+		var p db.Party
+		var leaderName, leaderTitle, leaderClass string
+		
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.LeaderID, &p.Status, &p.CreatedAt, &p.UpdatedAt,
+			&leaderName, &leaderTitle, &leaderClass); err != nil {
+			log.Printf("Error scanning party: %v", err)
+			continue
+		}
+		
+		// Get member count
+		var memberCount int
+		s.DB.QueryRow("SELECT COUNT(*) FROM party_members WHERE party_id = $1", p.ID).Scan(&memberCount)
+		
+		party := map[string]interface{}{
+			"id":          p.ID,
+			"name":        p.Name,
+			"description": p.Description,
+			"leader_id":   p.LeaderID,
+			"status":      p.Status,
+			"created_at":  p.CreatedAt,
+			"updated_at":  p.UpdatedAt,
+			"leader": map[string]interface{}{
+				"name":  leaderName,
+				"title": leaderTitle,
+				"class": leaderClass,
+			},
+			"member_count": memberCount,
+		}
+		parties = append(parties, party)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(parties)
+}
+
+func (s *Server) createParty(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		LeaderID    int    `json:"leader_id"`
+		MemberIDs   []int  `json:"member_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Create party
+	var party db.Party
+	err := s.DB.QueryRow(`
+		INSERT INTO parties (name, description, leader_id)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at, updated_at
+	`, req.Name, req.Description, req.LeaderID).Scan(&party.ID, &party.CreatedAt, &party.UpdatedAt)
+	if err != nil {
+		log.Printf("Error creating party: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	party.Name = req.Name
+	party.Description = req.Description
+	party.LeaderID = req.LeaderID
+	party.Status = "active"
+
+	// Add leader as member
+	_, err = s.DB.Exec(`
+		INSERT INTO party_members (party_id, agent_id, role)
+		VALUES ($1, $2, $3)
+	`, party.ID, req.LeaderID, "leader")
+	if err != nil {
+		log.Printf("Error adding party leader: %v", err)
+	}
+
+	// Add other members
+	for _, memberID := range req.MemberIDs {
+		if memberID != req.LeaderID {
+			_, err = s.DB.Exec(`
+				INSERT INTO party_members (party_id, agent_id, role)
+				VALUES ($1, $2, $3)
+			`, party.ID, memberID, "member")
+			if err != nil {
+				log.Printf("Error adding party member %d: %v", memberID, err)
+			}
+		}
+	}
+
+	s.Hub.Broadcast(ws.Message{Type: "party_created", Data: party})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(party)
+}
+
+func (s *Server) getPartyDetail(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	var party db.Party
+	err := s.DB.QueryRow(`
+		SELECT id, name, description, leader_id, status, created_at, updated_at
+		FROM parties WHERE id = $1
+	`, id).Scan(&party.ID, &party.Name, &party.Description, &party.LeaderID, &party.Status, &party.CreatedAt, &party.UpdatedAt)
+	if err != nil {
+		http.Error(w, "Party not found", http.StatusNotFound)
+		return
+	}
+
+	// Get leader
+	var leader db.Agent
+	s.DB.QueryRow(`
+		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, created_at, updated_at
+		FROM agents WHERE id = $1
+	`, party.LeaderID).Scan(&leader.ID, &leader.Name, &leader.Title, &leader.Class, &leader.Level, &leader.XP, &leader.Energy, &leader.Status, &leader.AvatarEmoji, &leader.CreatedAt, &leader.UpdatedAt)
+
+	// Get members
+	members := []db.Agent{}
+	memberRows, _ := s.DB.Query(`
+		SELECT a.id, a.name, a.title, a.class, a.level, a.xp, a.energy, a.status, a.avatar_emoji, a.created_at, a.updated_at
+		FROM agents a
+		JOIN party_members pm ON a.id = pm.agent_id
+		WHERE pm.party_id = $1
+		ORDER BY pm.joined_at
+	`, id)
+	defer memberRows.Close()
+	for memberRows.Next() {
+		var member db.Agent
+		memberRows.Scan(&member.ID, &member.Name, &member.Title, &member.Class, &member.Level, &member.XP, &member.Energy, &member.Status, &member.AvatarEmoji, &member.CreatedAt, &member.UpdatedAt)
+		members = append(members, member)
+	}
+
+	// Get tasks
+	tasks := []db.Task{}
+	taskRows, _ := s.DB.Query(`
+		SELECT id, name, description, difficulty, xp_reward, status, assigned_agent_id, assigned_party_id, progress, created_at, started_at, completed_at
+		FROM tasks WHERE assigned_party_id = $1
+		ORDER BY created_at DESC
+	`, id)
+	defer taskRows.Close()
+	for taskRows.Next() {
+		var task db.Task
+		taskRows.Scan(&task.ID, &task.Name, &task.Description, &task.Difficulty, &task.XPReward, &task.Status, &task.AssignedAgentID, &task.AssignedPartyID, &task.Progress, &task.CreatedAt, &task.StartedAt, &task.CompletedAt)
+		tasks = append(tasks, task)
+	}
+
+	detail := db.PartyDetail{
+		Party:   party,
+		Members: members,
+		Tasks:   tasks,
+		Leader:  leader,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(detail)
+}
+
+func (s *Server) addPartyMember(w http.ResponseWriter, r *http.Request, partyID int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		AgentID int    `json:"agent_id"`
+		Role    string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Role == "" {
+		req.Role = "member"
+	}
+
+	_, err := s.DB.Exec(`
+		INSERT INTO party_members (party_id, agent_id, role)
+		VALUES ($1, $2, $3)
+	`, partyID, req.AgentID, req.Role)
+	if err != nil {
+		log.Printf("Error adding party member: %v", err)
+		http.Error(w, "Failed to add member", http.StatusInternalServerError)
+		return
+	}
+
+	s.Hub.Broadcast(ws.Message{Type: "party_member_added", Data: map[string]interface{}{
+		"party_id": partyID,
+		"agent_id": req.AgentID,
+		"role":     req.Role,
+	}})
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (s *Server) removePartyMember(w http.ResponseWriter, r *http.Request, partyID int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	agentIDStr := r.URL.Query().Get("agent_id")
+	agentID, err := strconv.Atoi(agentIDStr)
+	if err != nil {
+		http.Error(w, "Invalid agent_id", http.StatusBadRequest)
+		return
+	}
+
+	_, err = s.DB.Exec(`
+		DELETE FROM party_members 
+		WHERE party_id = $1 AND agent_id = $2
+	`, partyID, agentID)
+	if err != nil {
+		log.Printf("Error removing party member: %v", err)
+		http.Error(w, "Failed to remove member", http.StatusInternalServerError)
+		return
+	}
+
+	s.Hub.Broadcast(ws.Message{Type: "party_member_removed", Data: map[string]interface{}{
+		"party_id": partyID,
+		"agent_id": agentID,
+	}})
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) updateParty(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var updates map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Build dynamic update query
+	query := "UPDATE parties SET updated_at = NOW()"
+	args := []interface{}{}
+	argCount := 1
+
+	if name, ok := updates["name"].(string); ok {
+		query += ", name = $" + strconv.Itoa(argCount)
+		args = append(args, name)
+		argCount++
+	}
+	if desc, ok := updates["description"].(string); ok {
+		query += ", description = $" + strconv.Itoa(argCount)
+		args = append(args, desc)
+		argCount++
+	}
+	if status, ok := updates["status"].(string); ok {
+		query += ", status = $" + strconv.Itoa(argCount)
+		args = append(args, status)
+		argCount++
+	}
+
+	query += " WHERE id = $" + strconv.Itoa(argCount)
+	args = append(args, id)
+
+	if _, err := s.DB.Exec(query, args...); err != nil {
+		log.Printf("Error updating party: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	s.Hub.Broadcast(ws.Message{Type: "party_updated", Data: map[string]interface{}{"id": id, "updates": updates}})
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) disbandParty(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	// First remove all party members
+	_, err := s.DB.Exec("DELETE FROM party_members WHERE party_id = $1", id)
+	if err != nil {
+		log.Printf("Error removing party members: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Then delete the party
+	_, err = s.DB.Exec("DELETE FROM parties WHERE id = $1", id)
+	if err != nil {
+		log.Printf("Error disbanding party: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	s.Hub.Broadcast(ws.Message{Type: "party_disbanded", Data: map[string]interface{}{"id": id}})
+
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -18,6 +18,7 @@ export default function Layout() {
   const navItems = [
     { to: '/', label: '🏕️ Tavern', match: '/' },
     { to: '/quests', label: '📜 Quests', match: '/quests' },
+    { to: '/parties', label: '🏰 Parties', match: '/parties' },
     { to: '/war-room', label: '⚔️ War Room', match: '/war-room' },
     { to: '/guild-chat', label: '👑 Guild Hall', match: '/guild-chat' },
     { to: '/conversations', label: '🗣️ Conversations', match: '/conversations' },
@@ -33,6 +34,7 @@ export default function Layout() {
     if (path === '/') return 'room-tavern';
     if (path.startsWith('/agent/') || path.startsWith('/quarters/')) return 'room-quarters';
     if (path === '/quests') return 'room-quests';
+    if (path === '/parties') return 'room-parties';
     if (path === '/war-room') return 'room-war-room';
     if (path === '/guild-chat') return 'room-guild-hall';
     if (path === '/conversations') return 'room-conversations';

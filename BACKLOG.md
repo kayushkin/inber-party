@@ -50,7 +50,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 - [x] Create new adventurers — form to define name, class, skills, assign to a repo/domain
 - [x] Create tasks/quests — quest creation form that maps to inber API calls
-- [ ] Party system — agents form parties to tackle multi-agent tasks (maps to spawn chains)
+- [~] Party system — agents form parties to tackle multi-agent tasks (maps to spawn chains)
 - [ ] Guild Quest-Giver agent — an AI agent that reviews incoming tasks and assigns/restricts them to appropriate agents based on skills and domain expertise
 - [ ] Skill trees — visual skill tree per agent class, unlock new capabilities at level thresholds
 - [ ] Equipment system — tools and permissions as "gear" (shell access = sword, web search = spyglass)
