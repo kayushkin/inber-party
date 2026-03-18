@@ -15,6 +15,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/inber"
 	"github.com/kayushkin/inber-party/internal/mood"
 	"github.com/kayushkin/inber-party/internal/questgiver"
+	"github.com/kayushkin/inber-party/internal/sync"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
 
@@ -152,6 +153,13 @@ func main() {
 			// Update the API server to use the quest-giver
 			apiServer.QuestGiver = qg
 			log.Println("✓ Quest Giver initialized - ready to assign tasks automatically")
+			
+			// Initialize agent registry sync
+			agentSync := sync.NewAgentRegistrySync(inberSource, database)
+			apiServer.AgentSync = agentSync
+			// Start periodic sync every 5 minutes
+			agentSync.StartPeriodicSync(5)
+			log.Println("✓ Agent Registry Sync initialized - auto-discovering agents from inber")
 		}
 	}
 

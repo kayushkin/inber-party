@@ -90,10 +90,15 @@ func (db *DB) Migrate() error {
 			UNIQUE(agent_id, achievement_name)
 		)`,
 		// Add mood/morale system fields to agents table
+		// Add missing gold column
+		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS gold INTEGER DEFAULT 0`,
+		// Add mood/morale system fields to agents table
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS mood VARCHAR(20) DEFAULT 'neutral'`,
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS mood_score INTEGER DEFAULT 75`,
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS workload INTEGER DEFAULT 0`,
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_active TIMESTAMP`,
+		// Add unique constraint on agent names for sync
+		`CREATE UNIQUE INDEX IF NOT EXISTS agents_name_unique ON agents(name)`,
 		// Add reputation system
 		`CREATE TABLE IF NOT EXISTS reputation (
 			id SERIAL PRIMARY KEY,
@@ -158,4 +163,9 @@ func (db *DB) Seed() error {
 
 	log.Println("✓ Seeded default agents")
 	return nil
+}
+
+// NewAgentSyncService creates a new agent sync service for this database
+func (db *DB) NewAgentSyncService() *AgentSyncService {
+	return NewAgentSyncService(db)
 }

@@ -69,7 +69,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] WebSocket real-time quest progress from inber (subscribe to bus events)
 - [x] Pull conversation history from logstack for chat display
 - [x] Webhook for spawn events — update quest board in real-time when spawns start/complete
-- [ ] Agent registry sync — auto-discover new agents when they're added to inber/openclaw
+- [x] Agent registry sync — auto-discover new agents when they're added to inber/openclaw
 - [ ] Health check dashboard — show which backend services are up/down
 - [ ] Session replay — replay a past session's tool calls as an animated quest log
 - [ ] Cost tracking dashboard — daily/weekly/monthly token spend per agent

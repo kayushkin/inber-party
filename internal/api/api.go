@@ -12,6 +12,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/logstack"
 	"github.com/kayushkin/inber-party/internal/mood"
 	"github.com/kayushkin/inber-party/internal/questgiver"
+	"github.com/kayushkin/inber-party/internal/sync"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
 
@@ -22,6 +23,7 @@ type Server struct {
 	DailyQuestMgr    *dailyquests.DailyQuestManager
 	MoodCalc         *mood.MoodCalculator
 	LogstackClient   *logstack.LogstackClient
+	AgentSync        *sync.AgentRegistrySync
 }
 
 func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dailyquests.DailyQuestManager) *Server {
@@ -48,6 +50,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/leaderboard", s.handleLeaderboard)
 	mux.HandleFunc("/api/quest-giver/analyze", s.handleQuestAnalyze)
 	mux.HandleFunc("/api/quest-giver/recommendations", s.handleQuestRecommendations)
+	mux.HandleFunc("/api/agents/sync", s.handleAgentSync)
+	mux.HandleFunc("/api/agents/sync/status", s.handleAgentSyncStatus)
+	mux.HandleFunc("/api/agents/managed", s.handleManagedAgents)
 	mux.HandleFunc("/api/quest-giver/assign", s.handleQuestAssign)
 	mux.HandleFunc("/api/daily-quests", s.handleDailyQuests)
 	mux.HandleFunc("/api/daily-quests/generate", s.handleGenerateDailyQuests)
@@ -1431,4 +1436,66 @@ func calculateGoldReward(xpReward int, difficulty string) int {
 	}
 	
 	return goldReward
+}
+
+// handleAgentSync triggers manual agent sync from inber
+func (s *Server) handleAgentSync(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.AgentSync == nil {
+		http.Error(w, "Agent sync not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	result, err := s.AgentSync.SyncAgents()
+	if err != nil {
+		http.Error(w, "Sync failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// handleAgentSyncStatus returns the current agent sync status
+func (s *Server) handleAgentSyncStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.AgentSync == nil {
+		http.Error(w, "Agent sync not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	status := s.AgentSync.GetSyncStatus()
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
+}
+
+// handleManagedAgents returns agents managed in the local database
+func (s *Server) handleManagedAgents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.AgentSync == nil {
+		http.Error(w, "Agent sync not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	agents, err := s.AgentSync.GetManagedAgents()
+	if err != nil {
+		http.Error(w, "Failed to get managed agents: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(agents)
 }
