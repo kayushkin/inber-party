@@ -30,6 +30,7 @@ export interface RPGAgent {
   level: number;
   xp: number;
   xp_to_next: number;
+  gold: number;
   energy: number;
   max_energy: number;
   status: string;
@@ -55,6 +56,7 @@ export interface RPGQuest {
   description: string;
   difficulty: number;
   xp_reward: number;
+  gold_reward: number;
   status: string;
   assigned_agent_id?: string;
   assigned_agent_name?: string;
@@ -75,6 +77,7 @@ export interface RPGStats {
   completed_quests: number;
   failed_quests: number;
   total_xp: number;
+  total_gold: number;
   total_tokens: number;
   total_cost: number;
   average_agent_level: number;

@@ -151,6 +151,12 @@ export default function CharacterSheet() {
             <div className="progress-bar"><div className="progress-fill animated" style={{ width: showAnimations ? `${xpPct}%` : '0%', background: cc }} /></div>
           </div>
           <div className="stat-card">
+            <Tooltip content="Gold earned from completing quests. Used as currency in the RPG world.">
+              <div className="stat-label">Gold</div>
+            </Tooltip>
+            <div className="stat-value" style={{ color: '#fbbf24' }}>🪙 {agent.gold || 0}</div>
+          </div>
+          <div className="stat-card">
             <Tooltip content={STAT_TOOLTIPS.energy}>
               <div className="stat-label">Energy</div>
             </Tooltip>

@@ -83,7 +83,7 @@ func (s *Server) listAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := s.DB.Query(`
-		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, mood, mood_score, workload, last_active, created_at, updated_at
+		SELECT id, name, title, class, level, xp, gold, energy, status, avatar_emoji, mood, mood_score, workload, last_active, created_at, updated_at
 		FROM agents
 		ORDER BY id
 	`)
@@ -97,7 +97,7 @@ func (s *Server) listAgents(w http.ResponseWriter, r *http.Request) {
 	agents := []db.Agent{}
 	for rows.Next() {
 		var a db.Agent
-		if err := rows.Scan(&a.ID, &a.Name, &a.Title, &a.Class, &a.Level, &a.XP, &a.Energy, &a.Status, &a.AvatarEmoji, &a.Mood, &a.MoodScore, &a.Workload, &a.LastActive, &a.CreatedAt, &a.UpdatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.Name, &a.Title, &a.Class, &a.Level, &a.XP, &a.Gold, &a.Energy, &a.Status, &a.AvatarEmoji, &a.Mood, &a.MoodScore, &a.Workload, &a.LastActive, &a.CreatedAt, &a.UpdatedAt); err != nil {
 			log.Printf("Error scanning agent: %v", err)
 			continue
 		}
@@ -115,9 +115,9 @@ func (s *Server) getAgentDetail(w http.ResponseWriter, r *http.Request, id int) 
 	}
 	var agent db.Agent
 	err := s.DB.QueryRow(`
-		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, mood, mood_score, workload, last_active, created_at, updated_at
+		SELECT id, name, title, class, level, xp, gold, energy, status, avatar_emoji, mood, mood_score, workload, last_active, created_at, updated_at
 		FROM agents WHERE id = $1
-	`, id).Scan(&agent.ID, &agent.Name, &agent.Title, &agent.Class, &agent.Level, &agent.XP, &agent.Energy, &agent.Status, &agent.AvatarEmoji, &agent.Mood, &agent.MoodScore, &agent.Workload, &agent.LastActive, &agent.CreatedAt, &agent.UpdatedAt)
+	`, id).Scan(&agent.ID, &agent.Name, &agent.Title, &agent.Class, &agent.Level, &agent.XP, &agent.Gold, &agent.Energy, &agent.Status, &agent.AvatarEmoji, &agent.Mood, &agent.MoodScore, &agent.Workload, &agent.LastActive, &agent.CreatedAt, &agent.UpdatedAt)
 	if err != nil {
 		http.Error(w, "Agent not found", http.StatusNotFound)
 		return
@@ -146,14 +146,14 @@ func (s *Server) getAgentDetail(w http.ResponseWriter, r *http.Request, id int) 
 	// Get tasks
 	tasks := []db.Task{}
 	taskRows, _ := s.DB.Query(`
-		SELECT id, name, description, difficulty, xp_reward, status, assigned_agent_id, assigned_party_id, progress, created_at, started_at, completed_at
+		SELECT id, name, description, difficulty, xp_reward, gold_reward, status, assigned_agent_id, assigned_party_id, progress, created_at, started_at, completed_at
 		FROM tasks WHERE assigned_agent_id = $1
 		ORDER BY created_at DESC
 	`, id)
 	defer taskRows.Close()
 	for taskRows.Next() {
 		var task db.Task
-		taskRows.Scan(&task.ID, &task.Name, &task.Description, &task.Difficulty, &task.XPReward, &task.Status, &task.AssignedAgentID, &task.AssignedPartyID, &task.Progress, &task.CreatedAt, &task.StartedAt, &task.CompletedAt)
+		taskRows.Scan(&task.ID, &task.Name, &task.Description, &task.Difficulty, &task.XPReward, &task.GoldReward, &task.Status, &task.AssignedAgentID, &task.AssignedPartyID, &task.Progress, &task.CreatedAt, &task.StartedAt, &task.CompletedAt)
 		tasks = append(tasks, task)
 	}
 
@@ -183,11 +183,16 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Start new agents with basic gold allowance
+	if agent.Gold == 0 {
+		agent.Gold = 100 // Starting gold
+	}
+	
 	err := s.DB.QueryRow(`
-		INSERT INTO agents (name, title, class, level, xp, avatar_emoji)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO agents (name, title, class, level, xp, gold, avatar_emoji)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
-	`, agent.Name, agent.Title, agent.Class, agent.Level, agent.XP, agent.AvatarEmoji).Scan(&agent.ID, &agent.CreatedAt, &agent.UpdatedAt)
+	`, agent.Name, agent.Title, agent.Class, agent.Level, agent.XP, agent.Gold, agent.AvatarEmoji).Scan(&agent.ID, &agent.CreatedAt, &agent.UpdatedAt)
 	if err != nil {
 		log.Printf("Error creating agent: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -242,6 +247,11 @@ func (s *Server) updateAgent(w http.ResponseWriter, r *http.Request, id int) {
 		args = append(args, int(xp))
 		argCount++
 	}
+	if gold, ok := updates["gold"].(float64); ok {
+		query += ", gold = $" + strconv.Itoa(argCount)
+		args = append(args, int(gold))
+		argCount++
+	}
 
 	query += " WHERE id = $" + strconv.Itoa(argCount)
 	args = append(args, id)
@@ -291,7 +301,7 @@ func (s *Server) listTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := s.DB.Query(`
-		SELECT id, name, description, difficulty, xp_reward, status, assigned_agent_id, assigned_party_id, progress, created_at, started_at, completed_at
+		SELECT id, name, description, difficulty, xp_reward, gold_reward, status, assigned_agent_id, assigned_party_id, progress, created_at, started_at, completed_at
 		FROM tasks
 		ORDER BY created_at DESC
 	`)
@@ -305,7 +315,7 @@ func (s *Server) listTasks(w http.ResponseWriter, r *http.Request) {
 	tasks := []db.Task{}
 	for rows.Next() {
 		var t db.Task
-		if err := rows.Scan(&t.ID, &t.Name, &t.Description, &t.Difficulty, &t.XPReward, &t.Status, &t.AssignedAgentID, &t.AssignedPartyID, &t.Progress, &t.CreatedAt, &t.StartedAt, &t.CompletedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.Description, &t.Difficulty, &t.XPReward, &t.GoldReward, &t.Status, &t.AssignedAgentID, &t.AssignedPartyID, &t.Progress, &t.CreatedAt, &t.StartedAt, &t.CompletedAt); err != nil {
 			log.Printf("Error scanning task: %v", err)
 			continue
 		}
@@ -327,11 +337,16 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Calculate gold reward based on difficulty and XP reward
+	if task.GoldReward == 0 {
+		task.GoldReward = calculateGoldReward(task.XPReward, task.Difficulty)
+	}
+
 	err := s.DB.QueryRow(`
-		INSERT INTO tasks (name, description, difficulty, xp_reward)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO tasks (name, description, difficulty, xp_reward, gold_reward)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at
-	`, task.Name, task.Description, task.Difficulty, task.XPReward).Scan(&task.ID, &task.CreatedAt)
+	`, task.Name, task.Description, task.Difficulty, task.XPReward, task.GoldReward).Scan(&task.ID, &task.CreatedAt)
 	if err != nil {
 		log.Printf("Error creating task: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -413,25 +428,48 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request, id int) {
 	// Update agent mood if task is completed or failed and assigned to an agent
 	if status, hasStatus := updates["status"].(string); hasStatus && (status == "completed" || status == "failed") {
 		if agentID, hasAgent := updates["assigned_agent_id"].(float64); hasAgent && s.MoodCalc != nil {
-			// Update last active time for completed tasks
+			agentIDInt := int(agentID)
+			
+			// Award gold and XP for completed tasks
 			if status == "completed" {
-				s.MoodCalc.UpdateAgentLastActive(int(agentID))
+				// Get task rewards
+				var xpReward, goldReward int
+				err := s.DB.QueryRow("SELECT xp_reward, gold_reward FROM tasks WHERE id = $1", id).Scan(&xpReward, &goldReward)
+				if err == nil {
+					// Award the rewards to the agent
+					_, err = s.DB.Exec(`
+						UPDATE agents 
+						SET xp = xp + $1, gold = gold + $2, updated_at = NOW()
+						WHERE id = $3
+					`, xpReward, goldReward, agentIDInt)
+					if err == nil {
+						s.Hub.Broadcast(ws.Message{Type: "rewards_awarded", Data: map[string]interface{}{
+							"agent_id": agentIDInt,
+							"task_id": id,
+							"xp_awarded": xpReward,
+							"gold_awarded": goldReward,
+						}})
+					}
+				}
+				
+				// Update last active time for completed tasks
+				s.MoodCalc.UpdateAgentLastActive(agentIDInt)
 			}
 			
 			// Recalculate mood for this agent
-			mood, moodScore, err := s.MoodCalc.CalculateAgentMood(int(agentID))
+			mood, moodScore, err := s.MoodCalc.CalculateAgentMood(agentIDInt)
 			if err == nil {
 				var workload int
-				s.DB.QueryRow("SELECT COUNT(*) FROM tasks WHERE assigned_agent_id = $1 AND status = 'in_progress'", int(agentID)).Scan(&workload)
+				s.DB.QueryRow("SELECT COUNT(*) FROM tasks WHERE assigned_agent_id = $1 AND status = 'in_progress'", agentIDInt).Scan(&workload)
 				
 				s.DB.Exec(`
 					UPDATE agents 
 					SET mood = $1, mood_score = $2, workload = $3, updated_at = NOW()
 					WHERE id = $4
-				`, mood, moodScore, workload, int(agentID))
+				`, mood, moodScore, workload, agentIDInt)
 				
 				s.Hub.Broadcast(ws.Message{Type: "agent_mood_updated", Data: map[string]interface{}{
-					"agent_id": int(agentID),
+					"agent_id": agentIDInt,
 					"mood": mood,
 					"mood_score": moodScore,
 					"workload": workload,
@@ -457,6 +495,7 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	s.DB.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'in_progress'").Scan(&stats.ActiveTasks)
 	s.DB.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'completed'").Scan(&stats.CompletedTasks)
 	s.DB.QueryRow("SELECT COALESCE(SUM(xp), 0) FROM agents").Scan(&stats.TotalXP)
+	s.DB.QueryRow("SELECT COALESCE(SUM(gold), 0) FROM agents").Scan(&stats.TotalGold)
 	s.DB.QueryRow("SELECT COALESCE(AVG(level), 0) FROM agents").Scan(&stats.AverageAgentLevel)
 	s.DB.QueryRow("SELECT COUNT(*) FROM parties").Scan(&stats.TotalParties)
 	s.DB.QueryRow("SELECT COUNT(*) FROM parties WHERE status = 'active' OR status = 'on_quest'").Scan(&stats.ActiveParties)
@@ -745,14 +784,14 @@ func (s *Server) getPartyDetail(w http.ResponseWriter, r *http.Request, id int) 
 	// Get leader
 	var leader db.Agent
 	s.DB.QueryRow(`
-		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, created_at, updated_at
+		SELECT id, name, title, class, level, xp, gold, energy, status, avatar_emoji, created_at, updated_at
 		FROM agents WHERE id = $1
-	`, party.LeaderID).Scan(&leader.ID, &leader.Name, &leader.Title, &leader.Class, &leader.Level, &leader.XP, &leader.Energy, &leader.Status, &leader.AvatarEmoji, &leader.CreatedAt, &leader.UpdatedAt)
+	`, party.LeaderID).Scan(&leader.ID, &leader.Name, &leader.Title, &leader.Class, &leader.Level, &leader.XP, &leader.Gold, &leader.Energy, &leader.Status, &leader.AvatarEmoji, &leader.CreatedAt, &leader.UpdatedAt)
 
 	// Get members
 	members := []db.Agent{}
 	memberRows, _ := s.DB.Query(`
-		SELECT a.id, a.name, a.title, a.class, a.level, a.xp, a.energy, a.status, a.avatar_emoji, a.created_at, a.updated_at
+		SELECT a.id, a.name, a.title, a.class, a.level, a.xp, a.gold, a.energy, a.status, a.avatar_emoji, a.created_at, a.updated_at
 		FROM agents a
 		JOIN party_members pm ON a.id = pm.agent_id
 		WHERE pm.party_id = $1
@@ -761,21 +800,21 @@ func (s *Server) getPartyDetail(w http.ResponseWriter, r *http.Request, id int) 
 	defer memberRows.Close()
 	for memberRows.Next() {
 		var member db.Agent
-		memberRows.Scan(&member.ID, &member.Name, &member.Title, &member.Class, &member.Level, &member.XP, &member.Energy, &member.Status, &member.AvatarEmoji, &member.CreatedAt, &member.UpdatedAt)
+		memberRows.Scan(&member.ID, &member.Name, &member.Title, &member.Class, &member.Level, &member.XP, &member.Gold, &member.Energy, &member.Status, &member.AvatarEmoji, &member.CreatedAt, &member.UpdatedAt)
 		members = append(members, member)
 	}
 
 	// Get tasks
 	tasks := []db.Task{}
 	taskRows, _ := s.DB.Query(`
-		SELECT id, name, description, difficulty, xp_reward, status, assigned_agent_id, assigned_party_id, progress, created_at, started_at, completed_at
+		SELECT id, name, description, difficulty, xp_reward, gold_reward, status, assigned_agent_id, assigned_party_id, progress, created_at, started_at, completed_at
 		FROM tasks WHERE assigned_party_id = $1
 		ORDER BY created_at DESC
 	`, id)
 	defer taskRows.Close()
 	for taskRows.Next() {
 		var task db.Task
-		taskRows.Scan(&task.ID, &task.Name, &task.Description, &task.Difficulty, &task.XPReward, &task.Status, &task.AssignedAgentID, &task.AssignedPartyID, &task.Progress, &task.CreatedAt, &task.StartedAt, &task.CompletedAt)
+		taskRows.Scan(&task.ID, &task.Name, &task.Description, &task.Difficulty, &task.XPReward, &task.GoldReward, &task.Status, &task.AssignedAgentID, &task.AssignedPartyID, &task.Progress, &task.CreatedAt, &task.StartedAt, &task.CompletedAt)
 		tasks = append(tasks, task)
 	}
 
@@ -1152,4 +1191,50 @@ func (s *Server) handleReputationRankings(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(rankings)
+}
+
+// calculateGoldReward computes gold reward based on XP and difficulty
+func calculateGoldReward(xpReward int, difficulty string) int {
+	// Base conversion: 1 XP = 2 gold
+	baseGold := xpReward * 2
+	
+	// Apply difficulty multiplier
+	multiplier := 1.0
+	switch difficulty {
+	case "easy", "1":
+		multiplier = 0.8
+	case "medium", "2":
+		multiplier = 1.0
+	case "hard", "3":
+		multiplier = 1.5
+	case "expert", "4":
+		multiplier = 2.0
+	case "legendary", "5":
+		multiplier = 3.0
+	default:
+		// Try to parse as integer
+		if diff, err := strconv.Atoi(difficulty); err == nil {
+			switch diff {
+			case 1:
+				multiplier = 0.8
+			case 2:
+				multiplier = 1.0
+			case 3:
+				multiplier = 1.5
+			case 4:
+				multiplier = 2.0
+			case 5:
+				multiplier = 3.0
+			}
+		}
+	}
+	
+	goldReward := int(float64(baseGold) * multiplier)
+	
+	// Minimum of 5 gold for any task
+	if goldReward < 5 {
+		goldReward = 5
+	}
+	
+	return goldReward
 }

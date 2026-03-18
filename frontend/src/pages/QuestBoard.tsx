@@ -79,6 +79,7 @@ export default function QuestBoard() {
             </div>
             <div className="quest-card-footer">
               <span className="quest-reward">⭐ +{q.xp_reward} XP</span>
+              <span className="quest-reward">🪙 +{q.gold_reward || 0} Gold</span>
               <span className="quest-time">{timeAgo(q.started_at || q.created_at)}</span>
             </div>
             {q.status === 'in_progress' && (

@@ -172,6 +172,7 @@ export default function TavernView() {
             <div className="guild-stat"><span className="gs-val">{stats.active_quests}</span><span className="gs-lbl">Active Quests</span></div>
             <div className="guild-stat"><span className="gs-val">{stats.completed_quests}</span><span className="gs-lbl">Completed</span></div>
             <div className="guild-stat"><span className="gs-val">{formatTokens(stats.total_tokens)}</span><span className="gs-lbl">Experience</span></div>
+            <div className="guild-stat"><span className="gs-val">{stats.total_gold || 0}</span><span className="gs-lbl">Guild Gold</span></div>
             <div className="guild-stat"><span className="gs-val">{stats.total_sessions}</span><span className="gs-lbl">Adventures</span></div>
           </div>
         )}
@@ -300,6 +301,7 @@ export default function TavernView() {
                         </div>
                         <div className="ac-bottom">
                           <span className="ac-tokens">🔮 {formatTokens(agent.total_tokens)}</span>
+                          <span className="ac-gold">🪙 {agent.gold || 0}</span>
                           <span className="ac-mood" title={`Mood: ${agent.mood || 'neutral'} (${agent.mood_score || 75}/100)`}>
                             {getMoodEmoji(agent.mood)} {agent.mood || 'neutral'}
                           </span>

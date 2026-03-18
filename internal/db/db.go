@@ -105,6 +105,9 @@ func (db *DB) Migrate() error {
 			last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(agent_id, domain)
 		)`,
+		// Add gold/currency system
+		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS gold INTEGER DEFAULT 0`,
+		`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS gold_reward INTEGER DEFAULT 0`,
 	}
 
 	for i, migration := range migrations {
@@ -143,10 +146,11 @@ func (db *DB) Seed() error {
 	}
 
 	for _, agent := range defaultAgents {
+		startingGold := agent.level * 50 // Give agents starting gold based on their level
 		_, err := db.Exec(`
-			INSERT INTO agents (name, title, class, level, xp, energy, status, avatar_emoji)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		`, agent.name, agent.title, agent.class, agent.level, agent.level*100, 100, "idle", agent.emoji)
+			INSERT INTO agents (name, title, class, level, xp, gold, energy, status, avatar_emoji)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`, agent.name, agent.title, agent.class, agent.level, agent.level*100, startingGold, 100, "idle", agent.emoji)
 		if err != nil {
 			return fmt.Errorf("failed to seed agent %s: %w", agent.name, err)
 		}

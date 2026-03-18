@@ -61,8 +61,8 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Leaderboard — ranked agent stats (XP, quests completed, efficiency score)
 - [x] Agent mood/morale system — based on error rate, workload, rest time
 - [x] Boss battles — complex multi-agent tasks displayed as boss encounters with health bars
-- [~] Reputation system — agents build reputation in their domains over time
-- [ ] Gold/currency — token cost converted to gold, agents "earn" gold for completing quests
+- [x] Reputation system — agents build reputation in their domains over time
+- [x] Gold/currency — token cost converted to gold, agents "earn" gold for completing quests
 
 ## 🔌 Backend & Integration
 

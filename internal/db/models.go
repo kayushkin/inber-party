@@ -9,6 +9,7 @@ type Agent struct {
 	Class       string    `json:"class"`
 	Level       int       `json:"level"`
 	XP          int       `json:"xp"`
+	Gold        int       `json:"gold"`          // currency earned from completed quests
 	Energy      int       `json:"energy"`
 	Status      string    `json:"status"`
 	AvatarEmoji string    `json:"avatar_emoji"`
@@ -34,6 +35,7 @@ type Task struct {
 	Description     string     `json:"description"`
 	Difficulty      string     `json:"difficulty"`
 	XPReward        int        `json:"xp_reward"`
+	GoldReward      int        `json:"gold_reward"`
 	Status          string     `json:"status"`
 	AssignedAgentID *int       `json:"assigned_agent_id,omitempty"`
 	AssignedPartyID *int       `json:"assigned_party_id,omitempty"`
@@ -98,6 +100,7 @@ type Stats struct {
 	ActiveTasks        int `json:"active_tasks"`
 	CompletedTasks     int `json:"completed_tasks"`
 	TotalXP            int `json:"total_xp"`
+	TotalGold          int `json:"total_gold"`
 	AverageAgentLevel  int `json:"average_agent_level"`
 	TotalParties       int `json:"total_parties"`
 	ActiveParties      int `json:"active_parties"`
