@@ -124,15 +124,19 @@ func createTestSessionsDB(t *testing.T) string {
 }
 
 func TestNewStore_NoDBs(t *testing.T) {
-	_, err := NewStore("/nonexistent/sessions.db", "/nonexistent/gateway.db")
-	if err == nil {
-		t.Fatal("expected error when no DBs found")
+	store, err := NewStore("/nonexistent/sessions.db", "/nonexistent/gateway.db", "")
+	if err != nil {
+		t.Fatal("expected no error when no DBs found (should use HTTP fallback)")
 	}
+	if store == nil {
+		t.Fatal("expected non-nil store")
+	}
+	store.Close()
 }
 
 func TestGetAgents_GatewayOnly(t *testing.T) {
 	gwPath := createTestGatewayDB(t)
-	store, err := NewStore("", gwPath)
+	store, err := NewStore("", gwPath, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,8 +163,8 @@ func TestGetAgents_GatewayOnly(t *testing.T) {
 		t.Fatal("claxon agent not found")
 	}
 
-	if claxon.Class != "Wizard" {
-		t.Errorf("expected claxon class Wizard, got %s", claxon.Class)
+	if claxon.Class != "Overlord" {
+		t.Errorf("expected claxon class Overlord, got %s", claxon.Class)
 	}
 	if claxon.TotalTokens != 3500 { // 1000+500 + 800+400 + 200+100 + 300+200
 		t.Errorf("expected claxon tokens 3500, got %d", claxon.TotalTokens)
@@ -176,7 +180,7 @@ func TestGetAgents_GatewayOnly(t *testing.T) {
 func TestGetAgents_BothDBs(t *testing.T) {
 	gwPath := createTestGatewayDB(t)
 	sessPath := createTestSessionsDB(t)
-	store, err := NewStore(sessPath, gwPath)
+	store, err := NewStore(sessPath, gwPath, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +224,7 @@ func TestGetAgents_BothDBs(t *testing.T) {
 
 func TestGetQuests(t *testing.T) {
 	gwPath := createTestGatewayDB(t)
-	store, err := NewStore("", gwPath)
+	store, err := NewStore("", gwPath, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +270,7 @@ func TestGetQuests(t *testing.T) {
 
 func TestGetQuests_Limit(t *testing.T) {
 	gwPath := createTestGatewayDB(t)
-	store, err := NewStore("", gwPath)
+	store, err := NewStore("", gwPath, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +287,7 @@ func TestGetQuests_Limit(t *testing.T) {
 
 func TestGetStats(t *testing.T) {
 	gwPath := createTestGatewayDB(t)
-	store, err := NewStore("", gwPath)
+	store, err := NewStore("", gwPath, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -374,19 +378,19 @@ func TestTitleCase(t *testing.T) {
 
 func TestClassFor(t *testing.T) {
 	class, emoji, _ := classFor("claxon")
-	if class != "Wizard" || emoji != "🧙" {
-		t.Errorf("claxon should be Wizard 🧙, got %s %s", class, emoji)
+	if class != "Overlord" || emoji != "♚" {
+		t.Errorf("claxon should be Overlord ♚, got %s %s", class, emoji)
 	}
 
 	class, emoji, _ = classFor("unknown_agent")
-	if class != "Warrior" || emoji != "⚔️" {
-		t.Error("unknown agent should default to Warrior")
+	if class != "Adventurer" || emoji != "⚔️" {
+		t.Error("unknown agent should default to Adventurer ⚔️")
 	}
 }
 
 func TestStoreClose(t *testing.T) {
 	gwPath := createTestGatewayDB(t)
-	store, err := NewStore("", gwPath)
+	store, err := NewStore("", gwPath, "")
 	if err != nil {
 		t.Fatal(err)
 	}
