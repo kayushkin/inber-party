@@ -1,22 +1,13 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore, classColor, formatTokens, timeAgo } from '../store';
 import type { RPGAgent } from '../store';
 import ChatPanel from '../components/ChatPanel';
 import LevelUpAnimation from '../components/LevelUpAnimation';
+import VirtualizedAgentGrid from '../components/VirtualizedAgentGrid';
+import PerformanceMonitor from '../components/PerformanceMonitor';
 import { SkeletonAgentCard, SkeletonStatsBar } from '../components/SkeletonLoader';
 import './TavernView.css';
-
-// Mood helper functions
-function getMoodEmoji(mood?: string): string {
-  switch (mood) {
-    case 'exhausted': return '😫';
-    case 'stressed': return '😰';
-    case 'neutral': return '😐';
-    case 'content': return '😊';
-    case 'happy': return '😄';
-    default: return '😐';
-  }
-}
 
 const GUILD_NAMES: Record<string, string> = {
   inber: '🏰 Inber Guild',
@@ -48,6 +39,9 @@ export default function TavernView() {
   const isLoadingAgents = useStore((s) => s.isLoadingAgents);
   const isLoadingStats = useStore((s) => s.isLoadingStats);
   const hasInitialLoad = useStore((s) => s.hasInitialLoad);
+  
+  // Performance monitoring state
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
 
   const handleAgentClick = (agent: RPGAgent) => {
     setSelectedAgent(agent.id);
@@ -263,62 +257,12 @@ export default function TavernView() {
             sortedKeys.map((key) => (
               <div key={key} className="guild-section">
                 <h3 className="guild-header">{guildLabel(key)}</h3>
-                <div className="agents-grid compact">
-                  {groups.get(key)!.map((agent) => {
-                    const cc = classColor(agent.class);
-                    const xpPct = agent.xp_to_next > 0
-                      ? (agent.xp / (agent.xp + agent.xp_to_next)) * 100
-                      : 100;
-                    return (
-                      <div
-                        key={agent.id}
-                        className={`agent-card ${getStatusClass(agent.status)} ${selectedAgent === agent.id ? 'selected' : ''}`}
-                        style={{ '--cc': cc } as React.CSSProperties}
-                        onClick={() => handleAgentClick(agent)}
-                      >
-                        <div className="ac-top">
-                          <div className="ac-avatar">
-                            <img
-                              src={`/avatars/${agent.name.toLowerCase().replace(/\s+/g, '-')}.png`}
-                              alt={agent.name}
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                const sibling = e.currentTarget.nextElementSibling as HTMLElement;
-                                if (sibling) sibling.style.display = 'block';
-                              }}
-                              style={{ width: '40px', height: '40px', borderRadius: '50%' }}
-                            />
-                            <span style={{ display: 'none' }}>{agent.avatar_emoji}</span>
-                          </div>
-                          <div className="ac-info">
-                            <div className="ac-name" style={{ color: cc }}>{agent.name}</div>
-                            <div className="ac-class">{agent.class} · Lv {agent.level}</div>
-                          </div>
-                          <div className={`ac-status-dot ${getStatusClass(agent.status)}`} title={agent.status} />
-                        </div>
-                        <div className="ac-xp-bar">
-                          <div className="ac-xp-fill" style={{ width: `${xpPct}%`, background: cc }} />
-                        </div>
-                        <div className="ac-bottom">
-                          <span className="ac-tokens">🔮 {formatTokens(agent.total_tokens)}</span>
-                          <span className="ac-gold">🪙 {agent.gold || 0}</span>
-                          <span className="ac-mood" title={`Mood: ${agent.mood || 'neutral'} (${agent.mood_score || 75}/100)`}>
-                            {getMoodEmoji(agent.mood)} {agent.mood || 'neutral'}
-                          </span>
-                          <span className="ac-time">{timeAgo(agent.last_active)}</span>
-                        </div>
-                        <span className="ac-chat-hint">💬 Click to chat</span>
-                        <button
-                          className="ac-detail-btn"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/agent/${agent.id}`); }}
-                          title="Character Sheet"
-                        >
-                          📋
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                <VirtualizedAgentGrid
+                  agents={groups.get(key)!}
+                  selectedAgent={selectedAgent}
+                  onAgentClick={handleAgentClick}
+                  className="guild-agents-grid"
+                />
               </div>
             ))
           )}
@@ -351,6 +295,34 @@ export default function TavernView() {
           color={classColor(agent.class)}
         />
       ))}
+
+      {/* Performance Monitor */}
+      <PerformanceMonitor 
+        agentCount={agents.length}
+        visible={showPerformanceMonitor || agents.length >= 20} // Auto-show for 20+ agents
+      />
+
+      {/* Performance toggle button */}
+      <button
+        className="performance-toggle"
+        onClick={() => setShowPerformanceMonitor(!showPerformanceMonitor)}
+        title="Toggle Performance Monitor"
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          background: 'var(--primary-color)',
+          border: 'none',
+          borderRadius: '50%',
+          width: '40px',
+          height: '40px',
+          cursor: 'pointer',
+          fontSize: '18px',
+          zIndex: 1000
+        }}
+      >
+        📊
+      </button>
     </div>
   );
 }

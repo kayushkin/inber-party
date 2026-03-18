@@ -82,7 +82,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Visual regression tests — screenshot comparison for key pages
 - [x] Error boundary components — graceful error states instead of white/black screens
 - [x] Accessibility audit — keyboard navigation, screen reader labels, contrast ratios
-- [ ] Performance profiling — ensure smooth 60fps with 25+ agent cards rendering
+- [~] Performance profiling — ensure smooth 60fps with 25+ agent cards rendering
 - [ ] API error handling — retry logic, timeout handling, offline mode
 
 ## 🏪 MMO Task Board (Bounty System)

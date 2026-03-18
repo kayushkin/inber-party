@@ -1,0 +1,100 @@
+/* VirtualizedAgentGrid.css - High-performance agent grid with virtualization */
+
+.virtual-grid-container {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Enable hardware acceleration */
+  -webkit-overflow-scrolling: touch;
+  /* Optimize for scrolling performance */
+  will-change: scroll-position;
+  contain: strict;
+}
+
+.virtual-grid-content {
+  position: relative;
+  /* Prevent layout thrashing */
+  contain: layout style;
+}
+
+.virtual-grid-item {
+  /* Use transform3d to enable GPU acceleration */
+  transform: translate3d(0, 0, 0);
+  /* Contain paint to improve performance */
+  contain: layout style paint;
+}
+
+/* Fallback grid for small lists (non-virtualized) */
+.agents-grid.performance {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  /* Optimize grid performance */
+  contain: layout style;
+}
+
+/* Smooth scrolling on supported devices */
+@media (pointer: fine) {
+  .virtual-grid-container {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Optimize for mobile touch scrolling */
+@media (max-width: 768px) {
+  .virtual-grid-container {
+    -webkit-overflow-scrolling: touch;
+    /* Reduce momentum on mobile for better control */
+    overscroll-behavior: contain;
+  }
+  
+  .agents-grid.performance {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+    padding: 12px;
+  }
+}
+
+/* Very small screens - single column */
+@media (max-width: 480px) {
+  .agents-grid.performance {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px;
+  }
+}
+
+/* Performance optimizations for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .virtual-grid-container {
+    scroll-behavior: auto;
+  }
+  
+  .virtual-grid-item {
+    transform: none;
+  }
+}
+
+/* Dark theme optimizations */
+[data-theme="dark"] .virtual-grid-container {
+  /* Better scrollbar styling for dark theme */
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+[data-theme="dark"] .virtual-grid-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-theme="dark"] .virtual-grid-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme="dark"] .virtual-grid-container::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .virtual-grid-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
