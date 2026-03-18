@@ -52,7 +52,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Create tasks/quests — quest creation form that maps to inber API calls
 - [x] Party system — agents form parties to tackle multi-agent tasks (maps to spawn chains)
 - [x] Guild Quest-Giver agent — an AI agent that reviews incoming tasks and assigns/restricts them to appropriate agents based on skills and domain expertise
-- [ ] Skill trees — visual skill tree per agent class, unlock new capabilities at level thresholds
+- [x] Skill trees — visual skill tree per agent class, unlock new capabilities at level thresholds
 - [ ] Equipment system — tools and permissions as "gear" (shell access = sword, web search = spyglass)
 - [ ] Role-based hats — orchestrator gets captain hat, coder agents get hard hat, etc. Derived from agent role in agents.json
 - [ ] Action-based held items — reflect recent activity: hammer for heavy edits, claxon horn for agents delegating/spawning, magnifying glass for search-heavy work, scroll for documentation, wrench for infra/deploy. Pull from recent session data.

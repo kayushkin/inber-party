@@ -5,6 +5,7 @@ import type { RPGAgent, RPGQuest, RPGAchievement, QuestHistoryEntry } from '../s
 import ChatPanel from '../components/ChatPanel';
 import LevelUpAnimation from '../components/LevelUpAnimation';
 import Tooltip from '../components/Tooltip';
+import SkillTree from '../components/SkillTree';
 import { STAT_TOOLTIPS, ACHIEVEMENT_TOOLTIPS, getSkillTooltip } from '../constants/tooltips';
 import './CharacterSheet.css';
 
@@ -264,6 +265,16 @@ export default function CharacterSheet() {
             </div>
           </div>
         )}
+
+        {/* Skill Tree */}
+        <div className="section">
+          <h3>Skill Tree</h3>
+          <SkillTree 
+            agentClass={agent.class}
+            agentLevel={agent.level}
+            agentSkills={agent.skills}
+          />
+        </div>
 
         {/* Quest History */}
         {quests.length > 0 && (
