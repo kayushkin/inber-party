@@ -5,6 +5,14 @@ export default defineConfig({
   timeout: 30 * 1000,
   expect: {
     timeout: 5000,
+    // Visual regression test configuration
+    toHaveScreenshot: {
+      threshold: 0.2,
+      mode: 'ci',
+    },
+    toMatchSnapshot: {
+      threshold: 0.2,
+    },
   },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -14,6 +22,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
+    // Visual regression specific settings
+    screenshot: 'only-on-failure',
   },
 
   projects: [
@@ -25,10 +35,11 @@ export default defineConfig({
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
     },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    // WebKit disabled for WSL compatibility - uncomment for full cross-browser testing
+    // {
+    //   name: 'webkit',
+    //   use: { ...devices['Desktop Safari'] },
+    // },
   ],
 
   webServer: {

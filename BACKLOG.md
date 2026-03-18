@@ -79,7 +79,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 - [x] Add Playwright E2E tests for core flows (load page, click agent, open chat, navigate rooms)
 - [x] Unit tests for RPG mapping logic (XP calculation, level thresholds, class assignment)
-- [ ] Visual regression tests — screenshot comparison for key pages
+- [x] Visual regression tests — screenshot comparison for key pages
 - [ ] Error boundary components — graceful error states instead of white/black screens
 - [ ] Accessibility audit — keyboard navigation, screen reader labels, contrast ratios
 - [ ] Performance profiling — ensure smooth 60fps with 25+ agent cards rendering
