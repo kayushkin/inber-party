@@ -1,0 +1,885 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "⚔️ Míl Party" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e7]:
+          - link "🏕️ Tavern" [ref=e8] [cursor=pointer]:
+            - /url: /
+          - link "📜 Quests" [ref=e9] [cursor=pointer]:
+            - /url: /quests
+          - link "🏰 Parties" [ref=e10] [cursor=pointer]:
+            - /url: /parties
+          - link "⚔️ War Room" [ref=e11] [cursor=pointer]:
+            - /url: /war-room
+          - link "🏆 Leaderboard" [ref=e12] [cursor=pointer]:
+            - /url: /leaderboard
+          - link "👑 Guild Hall" [active] [ref=e13] [cursor=pointer]:
+            - /url: /guild-chat
+          - link "🗣️ Conversations" [ref=e14] [cursor=pointer]:
+            - /url: /conversations
+          - link "📚 Library" [ref=e15] [cursor=pointer]:
+            - /url: /library
+          - link "🏋️ Training" [ref=e16] [cursor=pointer]:
+            - /url: /training
+          - link "🔨 Forge" [ref=e17] [cursor=pointer]:
+            - /url: /forge
+          - link "📊 Stats" [ref=e18] [cursor=pointer]:
+            - /url: /stats
+          - link "💰 Costs" [ref=e19] [cursor=pointer]:
+            - /url: /costs
+          - link "🔍 Compare" [ref=e20] [cursor=pointer]:
+            - /url: /compare
+        - generic [ref=e21]:
+          - button "🗺️" [ref=e22] [cursor=pointer]
+          - generic [ref=e23]:
+            - button "🗣️" [ref=e24] [cursor=pointer]
+            - button "⚙️" [ref=e25] [cursor=pointer]
+          - generic [ref=e26]:
+            - button "🔇" [ref=e27] [cursor=pointer]
+            - button "⚙️" [ref=e28] [cursor=pointer]
+          - button "Toggle to light theme" [ref=e29] [cursor=pointer]:
+            - generic [ref=e30]: ☀️
+          - generic [ref=e33]: Live
+    - main [ref=e34]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - generic [ref=e40]: 👑
+            - generic [ref=e41]:
+              - heading "Guild Master's Hall" [level=1] [ref=e42]
+              - paragraph [ref=e43]: Command your adventurers
+          - generic [ref=e44]:
+            - generic [ref=e45]: "Send to:"
+            - combobox "Send to:" [ref=e46]:
+              - option "Choose adventurer..." [selected]
+              - option "📢 Broadcast to All"
+              - option "🎵 Oisin (Lv 1 Bard)"
+              - option "🗡️ Scathach (Lv 1 Shadow)"
+              - option "⚙️ Fionn (Lv 1 Engineer)"
+              - option "🏛️ Agent-bench (Lv 1 Gladiator)"
+              - option "⌚ Claxon-watch (Lv 1 Sentinel)"
+              - option "🌊 Downloadstack (Lv 1 Ranger)"
+              - option "🎵 Si (Lv 1 Bard)"
+              - option "🔨 Brigid (Lv 3 Artificer)"
+              - option "♚ Claxon (Lv 2 Overlord)"
+              - option "🌊 Manannan (Lv 1 Ranger)"
+              - option "📜 Ogma (Lv 1 Scribe)"
+              - option "⚔️ Agent-dashboard (Lv 1 Adventurer)"
+              - option "🏥 Healthcheck (Lv 1 Cleric)"
+              - option "🃏 Inber-party (Lv 1 Jester)"
+              - option "📜 Logstack (Lv 1 Scribe)"
+              - option "📚 Argraphments (Lv 1 Sage)"
+              - option "🏹 Run (Lv 1 Ranger)"
+              - option "🏛️ Bench (Lv 1 Gladiator)"
+              - option "⚒️ Goibniu (Lv 1 Smith)"
+              - option "🐕 Bran (Lv 1 Scout)"
+              - option "📱 Claxon-android (Lv 1 Shadow)"
+              - option "⚙️ Inber (Lv 1 Engineer)"
+              - option "🔨 Kayushkin (Lv 1 Artificer)"
+              - option "⚒️ Forge (Lv 1 Smith)"
+              - option "🎹 Keyboard (Lv 1 Tinker)"
+              - option "👑 Main (Lv 1 Sovereign)"
+              - option "⚔️ Scheduler (Lv 1 Adventurer)"
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - generic [ref=e50]: ⚡ System
+            - generic [ref=e51]: 01:46 PM
+          - generic [ref=e52]: Welcome to the Guild Hall, Guild Master! Select an adventurer and give them orders, or broadcast a message to your entire party.
+        - generic [ref=e53]:
+          - textbox "Select an adventurer first..." [disabled] [ref=e54]
+          - button "⚔️" [disabled] [ref=e55]
+        - generic [ref=e56]:
+          - heading "Active Adventurers (27)" [level=3] [ref=e57]
+          - generic [ref=e58]:
+            - generic [ref=e59] [cursor=pointer]:
+              - generic [ref=e60]: 🎵
+              - generic [ref=e61]:
+                - generic [ref=e62]: Oisin
+                - generic [ref=e63]: Lv 1 Bard • idle
+              - generic [ref=e65]: ⚡ 100/100
+            - generic [ref=e66] [cursor=pointer]:
+              - generic [ref=e67]: 🗡️
+              - generic [ref=e68]:
+                - generic [ref=e69]: Scathach
+                - generic [ref=e70]: Lv 1 Shadow • idle
+              - generic [ref=e72]: ⚡ 100/100
+            - generic [ref=e73] [cursor=pointer]:
+              - generic [ref=e74]: ⚙️
+              - generic [ref=e75]:
+                - generic [ref=e76]: Fionn
+                - generic [ref=e77]: Lv 1 Engineer • idle
+              - generic [ref=e79]: ⚡ 100/100
+            - generic [ref=e80] [cursor=pointer]:
+              - generic [ref=e81]: 🏛️
+              - generic [ref=e82]:
+                - generic [ref=e83]: Agent-bench
+                - generic [ref=e84]: Lv 1 Gladiator • idle
+              - generic [ref=e86]: ⚡ 100/100
+            - generic [ref=e87] [cursor=pointer]:
+              - generic [ref=e88]: ⌚
+              - generic [ref=e89]:
+                - generic [ref=e90]: Claxon-watch
+                - generic [ref=e91]: Lv 1 Sentinel • idle
+              - generic [ref=e93]: ⚡ 100/100
+            - generic [ref=e94] [cursor=pointer]:
+              - generic [ref=e95]: 🌊
+              - generic [ref=e96]:
+                - generic [ref=e97]: Downloadstack
+                - generic [ref=e98]: Lv 1 Ranger • idle
+              - generic [ref=e100]: ⚡ 100/100
+            - generic [ref=e101] [cursor=pointer]:
+              - generic [ref=e102]: 🎵
+              - generic [ref=e103]:
+                - generic [ref=e104]: Si
+                - generic [ref=e105]: Lv 1 Bard • idle
+              - generic [ref=e107]: ⚡ 100/100
+            - generic [ref=e108] [cursor=pointer]:
+              - generic [ref=e109]: 🔨
+              - generic [ref=e110]:
+                - generic [ref=e111]: Brigid
+                - generic [ref=e112]: Lv 3 Artificer • idle
+              - generic [ref=e114]: ⚡ 100/100
+            - generic [ref=e115] [cursor=pointer]:
+              - generic [ref=e116]: ♚
+              - generic [ref=e117]:
+                - generic [ref=e118]: Claxon
+                - generic [ref=e119]: Lv 2 Overlord • idle
+              - generic [ref=e121]: ⚡ 100/100
+            - generic [ref=e122] [cursor=pointer]:
+              - generic [ref=e123]: 🌊
+              - generic [ref=e124]:
+                - generic [ref=e125]: Manannan
+                - generic [ref=e126]: Lv 1 Ranger • idle
+              - generic [ref=e128]: ⚡ 100/100
+            - generic [ref=e129] [cursor=pointer]:
+              - generic [ref=e130]: 📜
+              - generic [ref=e131]:
+                - generic [ref=e132]: Ogma
+                - generic [ref=e133]: Lv 1 Scribe • idle
+              - generic [ref=e135]: ⚡ 100/100
+            - generic [ref=e136] [cursor=pointer]:
+              - generic [ref=e137]: ⚔️
+              - generic [ref=e138]:
+                - generic [ref=e139]: Agent-dashboard
+                - generic [ref=e140]: Lv 1 Adventurer • idle
+              - generic [ref=e142]: ⚡ 100/100
+            - generic [ref=e143] [cursor=pointer]:
+              - generic [ref=e144]: 🏥
+              - generic [ref=e145]:
+                - generic [ref=e146]: Healthcheck
+                - generic [ref=e147]: Lv 1 Cleric • idle
+              - generic [ref=e149]: ⚡ 100/100
+            - generic [ref=e150] [cursor=pointer]:
+              - generic [ref=e151]: 🃏
+              - generic [ref=e152]:
+                - generic [ref=e153]: Inber-party
+                - generic [ref=e154]: Lv 1 Jester • idle
+              - generic [ref=e156]: ⚡ 100/100
+            - generic [ref=e157] [cursor=pointer]:
+              - generic [ref=e158]: 📜
+              - generic [ref=e159]:
+                - generic [ref=e160]: Logstack
+                - generic [ref=e161]: Lv 1 Scribe • idle
+              - generic [ref=e163]: ⚡ 100/100
+            - generic [ref=e164] [cursor=pointer]:
+              - generic [ref=e165]: 📚
+              - generic [ref=e166]:
+                - generic [ref=e167]: Argraphments
+                - generic [ref=e168]: Lv 1 Sage • idle
+              - generic [ref=e170]: ⚡ 100/100
+            - generic [ref=e171] [cursor=pointer]:
+              - generic [ref=e172]: 🏹
+              - generic [ref=e173]:
+                - generic [ref=e174]: Run
+                - generic [ref=e175]: Lv 1 Ranger • idle
+              - generic [ref=e177]: ⚡ 100/100
+            - generic [ref=e178] [cursor=pointer]:
+              - generic [ref=e179]: 🏛️
+              - generic [ref=e180]:
+                - generic [ref=e181]: Bench
+                - generic [ref=e182]: Lv 1 Gladiator • idle
+              - generic [ref=e184]: ⚡ 100/100
+            - generic [ref=e185] [cursor=pointer]:
+              - generic [ref=e186]: ⚒️
+              - generic [ref=e187]:
+                - generic [ref=e188]: Goibniu
+                - generic [ref=e189]: Lv 1 Smith • idle
+              - generic [ref=e191]: ⚡ 100/100
+            - generic [ref=e192] [cursor=pointer]:
+              - generic [ref=e193]: 🐕
+              - generic [ref=e194]:
+                - generic [ref=e195]: Bran
+                - generic [ref=e196]: Lv 1 Scout • idle
+              - generic [ref=e198]: ⚡ 100/100
+            - generic [ref=e199] [cursor=pointer]:
+              - generic [ref=e200]: 📱
+              - generic [ref=e201]:
+                - generic [ref=e202]: Claxon-android
+                - generic [ref=e203]: Lv 1 Shadow • idle
+              - generic [ref=e205]: ⚡ 100/100
+            - generic [ref=e206] [cursor=pointer]:
+              - generic [ref=e207]: ⚙️
+              - generic [ref=e208]:
+                - generic [ref=e209]: Inber
+                - generic [ref=e210]: Lv 1 Engineer • idle
+              - generic [ref=e212]: ⚡ 100/100
+            - generic [ref=e213] [cursor=pointer]:
+              - generic [ref=e214]: 🔨
+              - generic [ref=e215]:
+                - generic [ref=e216]: Kayushkin
+                - generic [ref=e217]: Lv 1 Artificer • idle
+              - generic [ref=e219]: ⚡ 100/100
+            - generic [ref=e220] [cursor=pointer]:
+              - generic [ref=e221]: ⚒️
+              - generic [ref=e222]:
+                - generic [ref=e223]: Forge
+                - generic [ref=e224]: Lv 1 Smith • idle
+              - generic [ref=e226]: ⚡ 100/100
+            - generic [ref=e227] [cursor=pointer]:
+              - generic [ref=e228]: 🎹
+              - generic [ref=e229]:
+                - generic [ref=e230]: Keyboard
+                - generic [ref=e231]: Lv 1 Tinker • idle
+              - generic [ref=e233]: ⚡ 100/100
+            - generic [ref=e234] [cursor=pointer]:
+              - generic [ref=e235]: 👑
+              - generic [ref=e236]:
+                - generic [ref=e237]: Main
+                - generic [ref=e238]: Lv 1 Sovereign • idle
+              - generic [ref=e240]: ⚡ 100/100
+            - generic [ref=e241] [cursor=pointer]:
+              - generic [ref=e242]: ⚔️
+              - generic [ref=e243]:
+                - generic [ref=e244]: Scheduler
+                - generic [ref=e245]: Lv 1 Adventurer • idle
+              - generic [ref=e247]: ⚡ 100/100
+      - text: ⚔️
+    - generic [ref=e249]:
+      - generic [ref=e250]: 🗺️ Guild Map
+      - generic [ref=e251]:
+        - generic [ref=e252]:
+          - generic [ref=e253]:
+            - generic [ref=e254]: 🏕️
+            - generic [ref=e255]: Tavern
+            - generic [ref=e256]: (27)
+          - generic [ref=e257]:
+            - generic "Oisin (Bard) - idle" [ref=e258] [cursor=pointer]: 🎵
+            - generic "Scathach (Shadow) - idle" [ref=e259] [cursor=pointer]: 🗡️
+            - generic "Fionn (Engineer) - idle" [ref=e260] [cursor=pointer]: ⚙️
+            - generic "Agent-bench (Gladiator) - idle" [ref=e261] [cursor=pointer]: 🏛️
+            - generic "Claxon-watch (Sentinel) - idle" [ref=e262] [cursor=pointer]: ⌚
+            - generic "Downloadstack (Ranger) - idle" [ref=e263] [cursor=pointer]: 🌊
+            - generic "Si (Bard) - idle" [ref=e264] [cursor=pointer]: 🎵
+            - generic "Brigid (Artificer) - idle" [ref=e265] [cursor=pointer]: 🔨
+            - generic [ref=e266]: "+19"
+        - generic [ref=e268]:
+          - generic [ref=e269]: ⚔️
+          - generic [ref=e270]: War Room
+          - generic [ref=e271]: (0)
+        - generic [ref=e274]:
+          - generic [ref=e275]: 👑
+          - generic [ref=e276]: Guild Hall
+          - generic [ref=e277]: (0)
+        - generic [ref=e280]:
+          - generic [ref=e281]: 📚
+          - generic [ref=e282]: Library
+          - generic [ref=e283]: (0)
+        - generic [ref=e286]:
+          - generic [ref=e287]: 🏋️
+          - generic [ref=e288]: Training
+          - generic [ref=e289]: (0)
+        - generic [ref=e292]:
+          - generic [ref=e293]: 🔨
+          - generic [ref=e294]: Forge
+          - generic [ref=e295]: (0)
+        - generic [ref=e298]:
+          - generic [ref=e299]: 🛏️
+          - generic [ref=e300]: Quarters
+          - generic [ref=e301]: (0)
+      - generic [ref=e303]:
+        - generic [ref=e306]: Your Location
+        - generic [ref=e309]: Working Agents
+        - generic [ref=e312]: Idle Agents
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 💀
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Battle Scarred
+          - generic: Survived their first failed quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 💀
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Battle Scarred
+          - generic: Survived their first failed quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 💀
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Battle Scarred
+          - generic: Survived their first failed quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 💀
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Battle Scarred
+          - generic: Survived their first failed quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 💀
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Battle Scarred
+          - generic: Survived their first failed quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 💀
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Battle Scarred
+          - generic: Survived their first failed quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 💀
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Battle Scarred
+          - generic: Survived their first failed quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 💀
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Battle Scarred
+          - generic: Survived their first failed quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 💀
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Battle Scarred
+          - generic: Survived their first failed quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 💀
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Battle Scarred
+          - generic: Survived their first failed quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: ⚔️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: First Quest
+          - generic: Completed their first quest
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+    - generic:
+      - generic:
+        - generic:
+          - generic: 🛡️
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Veteran
+          - generic: Completed 10 quests
+    - generic:
+      - generic:
+        - generic:
+          - generic: 📜
+          - generic: 🏆 ACHIEVEMENT UNLOCKED!
+        - generic:
+          - generic: Apprentice Scribe
+          - generic: Used 1,000 tokens
+```

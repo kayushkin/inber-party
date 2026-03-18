@@ -77,7 +77,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 🧪 Testing & Quality
 
-- [ ] Add Playwright E2E tests for core flows (load page, click agent, open chat, navigate rooms)
+- [x] Add Playwright E2E tests for core flows (load page, click agent, open chat, navigate rooms)
 - [ ] Unit tests for RPG mapping logic (XP calculation, level thresholds, class assignment)
 - [ ] Visual regression tests — screenshot comparison for key pages
 - [ ] Error boundary components — graceful error states instead of white/black screens
