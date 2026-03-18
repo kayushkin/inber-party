@@ -1,15 +1,18 @@
-import type { Equipment } from '../constants/equipment';
+import type { Equipment, HeldItem } from '../constants/equipment';
 import { RARITY_COLORS } from '../constants/equipment';
 import './Equipment.css';
 
 interface EquipmentProps {
   equipment: Equipment[];
+  heldItems?: HeldItem[];
   className?: string;
 }
 
-export default function EquipmentComponent({ equipment, className = '' }: EquipmentProps) {
+export default function EquipmentComponent({ equipment, heldItems, className = '' }: EquipmentProps) {
 
-  if (equipment.length === 0) {
+  const hasAnyEquipment = equipment.length > 0 || (heldItems && heldItems.length > 0);
+
+  if (!hasAnyEquipment) {
     return (
       <div className={`equipment-empty ${className}`}>
         <div className="equipment-slot empty">
@@ -38,6 +41,37 @@ export default function EquipmentComponent({ equipment, className = '' }: Equipm
 
   return (
     <div className={`equipment-grid ${className}`}>
+      {/* Held Items Section - Recent Activity */}
+      {heldItems && heldItems.length > 0 && (
+        <div className="equipment-category held-items">
+          <div className="equipment-category-header">
+            <h4 className="equipment-category-title">Currently Holding</h4>
+            <div className="equipment-category-count">({heldItems.length})</div>
+            <div className="equipment-category-subtitle">Based on recent activity</div>
+          </div>
+          <div className="equipment-items">
+            {heldItems.map(item => (
+              <div
+                key={item.id}
+                className="equipment-slot filled held-item"
+                title={`${item.name}: ${item.description}`}
+              >
+                <div className="equipment-icon held-item-icon">
+                  {item.icon}
+                </div>
+                <div className="equipment-info">
+                  <div className="equipment-name held-item-name">
+                    {item.name}
+                  </div>
+                  <div className="equipment-type">in use</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Regular Equipment */}
       {typeOrder.map(type => {
         const items = groupedEquipment[type];
         if (!items || items.length === 0) return null;

@@ -283,6 +283,7 @@ export default function CharacterSheet() {
           <h3>Equipment & Gear</h3>
           <EquipmentComponent 
             equipment={getAgentEquipment(agent, inferAvailableTools(agent))}
+            heldItems={agent.held_items}
           />
         </div>
 

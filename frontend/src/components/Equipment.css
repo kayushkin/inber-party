@@ -70,6 +70,13 @@
   border: 1px solid rgba(212, 175, 55, 0.3);
 }
 
+.equipment-category-subtitle {
+  font-size: 0.75rem;
+  color: #888;
+  font-style: italic;
+  margin-left: auto;
+}
+
 .equipment-items {
   display: grid;
   grid-template-columns: 1fr;
@@ -250,4 +257,80 @@
   .equipment-type {
     font-size: 0.75rem;
   }
+}
+
+/* Held Items Styles */
+.equipment-category.held-items {
+  order: -1; /* Show held items first */
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(255, 165, 0, 0.1), rgba(255, 140, 0, 0.05));
+  border: 1px solid rgba(255, 165, 0, 0.3);
+  border-radius: 8px;
+  position: relative;
+}
+
+.equipment-category.held-items::before {
+  content: '⚡';
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 1.2rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.equipment-category.held-items .equipment-category-title {
+  color: #ffa500;
+}
+
+.equipment-category.held-items .equipment-category-count {
+  background: rgba(255, 165, 0, 0.2);
+  border-color: rgba(255, 165, 0, 0.5);
+  color: #ffb84d;
+}
+
+.equipment-slot.held-item {
+  border-color: #ffa500;
+  background: rgba(255, 165, 0, 0.1);
+  animation: subtle-glow 3s ease-in-out infinite;
+}
+
+@keyframes subtle-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 165, 0, 0.2); }
+  50% { box-shadow: 0 0 15px rgba(255, 165, 0, 0.4); }
+}
+
+.equipment-slot.held-item:hover {
+  background: rgba(255, 165, 0, 0.2);
+  box-shadow: 0 4px 20px rgba(255, 165, 0, 0.4);
+}
+
+.held-item-icon {
+  background: rgba(255, 165, 0, 0.2);
+  border-color: #ffa500;
+  color: #ffa500;
+  animation: icon-bob 2s ease-in-out infinite;
+}
+
+@keyframes icon-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.held-item-name {
+  color: #ffa500;
+  text-shadow: 0 0 5px rgba(255, 165, 0, 0.3);
+}
+
+.equipment-slot.held-item .equipment-type {
+  color: #ffb84d;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
 }

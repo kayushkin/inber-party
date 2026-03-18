@@ -20,25 +20,35 @@ import (
 // RPG model types derived from inber data
 
 type RPGAgent struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	Title       string     `json:"title"`
-	Class       string     `json:"class"`
-	Level       int        `json:"level"`
-	XP          int        `json:"xp"`
-	XPToNext    int        `json:"xp_to_next"`
-	Energy      int        `json:"energy"`
-	MaxEnergy   int        `json:"max_energy"`
-	Status       string     `json:"status"` // idle, working, resting, stuck
-	Orchestrator string     `json:"orchestrator"`
-	AvatarEmoji  string     `json:"avatar_emoji"`
-	TotalTokens int        `json:"total_tokens"`
-	TotalCost   float64    `json:"total_cost"`
-	SessionCount int       `json:"session_count"`
-	QuestCount  int        `json:"quest_count"`
-	ErrorCount  int        `json:"error_count"`
-	Skills      []RPGSkill `json:"skills"`
-	LastActive  *time.Time `json:"last_active,omitempty"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Title       string         `json:"title"`
+	Class       string         `json:"class"`
+	Level       int            `json:"level"`
+	XP          int            `json:"xp"`
+	XPToNext    int            `json:"xp_to_next"`
+	Energy      int            `json:"energy"`
+	MaxEnergy   int            `json:"max_energy"`
+	Status       string         `json:"status"` // idle, working, resting, stuck
+	Orchestrator string         `json:"orchestrator"`
+	AvatarEmoji  string         `json:"avatar_emoji"`
+	TotalTokens int            `json:"total_tokens"`
+	TotalCost   float64        `json:"total_cost"`
+	SessionCount int           `json:"session_count"`
+	QuestCount  int            `json:"quest_count"`
+	ErrorCount  int            `json:"error_count"`
+	Skills      []RPGSkill     `json:"skills"`
+	LastActive  *time.Time     `json:"last_active,omitempty"`
+	HeldItems   []RPGHeldItem  `json:"held_items,omitempty"`
+}
+
+type RPGHeldItem struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Icon         string `json:"icon"`
+	ActivityType string `json:"activity_type"`
+	Priority     int    `json:"priority"`
 }
 
 type RPGSkill struct {
@@ -524,6 +534,9 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 
 	result := make([]RPGAgent, 0, len(agentMap))
 	for _, a := range agentMap {
+		// Analyze recent activity and add held items
+		analysis := s.analyzeRecentActivity(a.ID)
+		a.HeldItems = getHeldItemsForAgent(analysis)
 		result = append(result, *a)
 	}
 	return result, nil
@@ -1183,4 +1196,243 @@ func generateQuestName(input, status string) string {
 	default:
 		return "📋 " + text
 	}
+}
+
+// Activity analysis for held items
+type ActivityAnalysis struct {
+	EditCount     int
+	SpawnCount    int
+	SearchCount   int
+	DocWriting    int
+	InfraWork     int
+	DebugSessions int
+	CreateCount   int
+}
+
+// analyzeRecentActivity analyzes an agent's recent activity to determine held items
+func (s *Store) analyzeRecentActivity(agentID string) *ActivityAnalysis {
+	if s.sessionsDB == nil {
+		return &ActivityAnalysis{}
+	}
+	
+	analysis := &ActivityAnalysis{}
+	
+	// Look at the last 7 days of activity
+	rows, err := s.sessionsDB.Query(`
+		SELECT s.initial_message, t.tool_calls, t.content, s.status, s.started_at
+		FROM sessions s
+		LEFT JOIN turns t ON t.session_id = s.id
+		WHERE s.agent = ? AND s.started_at > datetime('now', '-7 days')
+		ORDER BY s.started_at DESC
+		LIMIT 100
+	`, agentID)
+	if err != nil {
+		return analysis
+	}
+	defer rows.Close()
+	
+	for rows.Next() {
+		var initialMessage, content, status sql.NullString
+		var toolCalls sql.NullInt64
+		var startedAt sql.NullString
+		
+		if err := rows.Scan(&initialMessage, &toolCalls, &content, &status, &startedAt); err != nil {
+			continue
+		}
+		
+		// Analyze initial messages and content for activity patterns
+		textToAnalyze := ""
+		if initialMessage.Valid {
+			textToAnalyze += initialMessage.String + " "
+		}
+		if content.Valid {
+			textToAnalyze += content.String + " "
+		}
+		
+		lowerText := strings.ToLower(textToAnalyze)
+		
+		// Count edit operations
+		editKeywords := []string{"edit", "modify", "change", "update", "refactor", "rewrite"}
+		for _, keyword := range editKeywords {
+			analysis.EditCount += strings.Count(lowerText, keyword)
+		}
+		
+		// Count spawn operations
+		spawnKeywords := []string{"spawn", "delegate", "session", "sub-agent"}
+		for _, keyword := range spawnKeywords {
+			analysis.SpawnCount += strings.Count(lowerText, keyword)
+		}
+		
+		// Count search operations
+		searchKeywords := []string{"search", "find", "lookup", "browse", "web", "fetch"}
+		for _, keyword := range searchKeywords {
+			analysis.SearchCount += strings.Count(lowerText, keyword)
+		}
+		
+		// Count documentation work
+		docKeywords := []string{"document", "readme", "guide", "manual", "write", "explain"}
+		for _, keyword := range docKeywords {
+			analysis.DocWriting += strings.Count(lowerText, keyword)
+		}
+		
+		// Count infrastructure work
+		infraKeywords := []string{"deploy", "build", "install", "configure", "setup", "gateway", "system"}
+		for _, keyword := range infraKeywords {
+			analysis.InfraWork += strings.Count(lowerText, keyword)
+		}
+		
+		// Count debugging sessions
+		debugKeywords := []string{"debug", "error", "fix", "bug", "issue", "problem", "troubleshoot"}
+		for _, keyword := range debugKeywords {
+			analysis.DebugSessions += strings.Count(lowerText, keyword)
+		}
+		
+		// Count creation work
+		createKeywords := []string{"create", "build", "make", "develop", "implement", "add", "new"}
+		for _, keyword := range createKeywords {
+			analysis.CreateCount += strings.Count(lowerText, keyword)
+		}
+		
+		// High tool usage indicates heavy work
+		if toolCalls.Valid && toolCalls.Int64 > 10 {
+			analysis.EditCount += int(toolCalls.Int64 / 5) // Convert tool calls to edit activity
+		}
+	}
+	
+	return analysis
+}
+
+// getHeldItemsForAgent determines held items based on recent activity analysis
+func getHeldItemsForAgent(analysis *ActivityAnalysis) []RPGHeldItem {
+	var heldItems []RPGHeldItem
+	
+	// Define held items catalog
+	heldItemsCatalog := map[string]RPGHeldItem{
+		"smithing_hammer": {
+			ID:           "smithing_hammer",
+			Name:         "Smithing Hammer",
+			Description:  "Wielded by agents who have been forging code with heavy edits and refactoring.",
+			Icon:         "🔨",
+			ActivityType: "edit",
+			Priority:     10,
+		},
+		"claxon_horn": {
+			ID:           "claxon_horn",
+			Name:         "Claxon Horn",
+			Description:  "Blown by commanders who have been summoning and directing sub-agents.",
+			Icon:         "📯",
+			ActivityType: "spawn",
+			Priority:     15,
+		},
+		"magnifying_glass": {
+			ID:           "magnifying_glass",
+			Name:         "Investigator's Glass",
+			Description:  "Used by agents who have been searching and investigating across the web.",
+			Icon:         "🔍",
+			ActivityType: "search",
+			Priority:     8,
+		},
+		"scribes_scroll": {
+			ID:           "scribes_scroll",
+			Name:         "Scribe's Scroll",
+			Description:  "Carried by agents who have been documenting knowledge and writing guides.",
+			Icon:         "📜",
+			ActivityType: "docs",
+			Priority:     7,
+		},
+		"engineers_wrench": {
+			ID:           "engineers_wrench",
+			Name:         "Engineer's Wrench",
+			Description:  "Gripped by agents who have been maintaining infrastructure and deployments.",
+			Icon:         "🔧",
+			ActivityType: "infra",
+			Priority:     12,
+		},
+		"debugging_probe": {
+			ID:           "debugging_probe",
+			Name:         "Debugging Probe",
+			Description:  "Wielded by agents who have been hunting down bugs and solving problems.",
+			Icon:         "🔬",
+			ActivityType: "debug",
+			Priority:     9,
+		},
+		"builders_trowel": {
+			ID:           "builders_trowel",
+			Name:         "Builder's Trowel",
+			Description:  "Used by agents who have been constructing new features and components.",
+			Icon:         "🧱",
+			ActivityType: "create",
+			Priority:     11,
+		},
+	}
+	
+	// Determine which items to show based on activity thresholds
+	activityMap := map[string]int{
+		"edit":   analysis.EditCount,
+		"spawn":  analysis.SpawnCount,
+		"search": analysis.SearchCount,
+		"docs":   analysis.DocWriting,
+		"infra":  analysis.InfraWork,
+		"debug":  analysis.DebugSessions,
+		"create": analysis.CreateCount,
+	}
+	
+	// Get the top 2 most active categories above threshold
+	type activityScore struct {
+		activityType string
+		score        int
+	}
+	
+	var scores []activityScore
+	for activityType, count := range activityMap {
+		// Set thresholds for each activity type
+		threshold := 0
+		switch activityType {
+		case "spawn":
+			threshold = 2 // Lower threshold for spawning
+		case "infra":
+			threshold = 2 // Lower threshold for infra work
+		default:
+			threshold = 5 // Default threshold
+		}
+		
+		if count >= threshold {
+			scores = append(scores, activityScore{activityType, count})
+		}
+	}
+	
+	// Sort by score descending
+	for i := 0; i < len(scores)-1; i++ {
+		for j := i + 1; j < len(scores); j++ {
+			if scores[j].score > scores[i].score {
+				scores[i], scores[j] = scores[j], scores[i]
+			}
+		}
+	}
+	
+	// Take top 2 activities and find matching held items
+	maxItems := 2
+	for i, score := range scores {
+		if i >= maxItems {
+			break
+		}
+		
+		for _, item := range heldItemsCatalog {
+			if item.ActivityType == score.activityType {
+				heldItems = append(heldItems, item)
+				break
+			}
+		}
+	}
+	
+	// Sort held items by priority (highest first)
+	for i := 0; i < len(heldItems)-1; i++ {
+		for j := i + 1; j < len(heldItems); j++ {
+			if heldItems[j].Priority > heldItems[i].Priority {
+				heldItems[i], heldItems[j] = heldItems[j], heldItems[i]
+			}
+		}
+	}
+	
+	return heldItems
 }

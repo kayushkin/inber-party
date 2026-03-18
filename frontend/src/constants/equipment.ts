@@ -424,6 +424,120 @@ function determineIfOrchestrator(agent: any): boolean {
   return false;
 }
 
+// Action-based held items that reflect recent agent activity
+export interface HeldItem {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  activity_type: 'edit' | 'spawn' | 'search' | 'docs' | 'infra' | 'debug' | 'create';
+  priority: number; // Higher priority items shown first
+}
+
+export const HELD_ITEMS_CATALOG: HeldItem[] = [
+  // Heavy editing activity
+  {
+    id: 'smithing_hammer',
+    name: 'Smithing Hammer',
+    description: 'Wielded by agents who have been forging code with heavy edits and refactoring.',
+    icon: '🔨',
+    activity_type: 'edit',
+    priority: 10
+  },
+  // Spawning/delegation activity
+  {
+    id: 'claxon_horn',
+    name: 'Claxon Horn',
+    description: 'Blown by commanders who have been summoning and directing sub-agents.',
+    icon: '📯',
+    activity_type: 'spawn',
+    priority: 15
+  },
+  // Search-heavy work
+  {
+    id: 'magnifying_glass',
+    name: 'Investigator\'s Glass',
+    description: 'Used by agents who have been searching and investigating across the web.',
+    icon: '🔍',
+    activity_type: 'search',
+    priority: 8
+  },
+  // Documentation work
+  {
+    id: 'scribes_scroll',
+    name: 'Scribe\'s Scroll',
+    description: 'Carried by agents who have been documenting knowledge and writing guides.',
+    icon: '📜',
+    activity_type: 'docs',
+    priority: 7
+  },
+  // Infrastructure/deployment work
+  {
+    id: 'engineers_wrench',
+    name: 'Engineer\'s Wrench',
+    description: 'Gripped by agents who have been maintaining infrastructure and deployments.',
+    icon: '🔧',
+    activity_type: 'infra',
+    priority: 12
+  },
+  // Debugging activity
+  {
+    id: 'debugging_probe',
+    name: 'Debugging Probe',
+    description: 'Wielded by agents who have been hunting down bugs and solving problems.',
+    icon: '🔬',
+    activity_type: 'debug',
+    priority: 9
+  },
+  // Creation/building activity
+  {
+    id: 'builders_trowel',
+    name: 'Builder\'s Trowel',
+    description: 'Used by agents who have been constructing new features and components.',
+    icon: '🧱',
+    activity_type: 'create',
+    priority: 11
+  }
+];
+
+// Analyze recent activity to determine held items
+export function getHeldItems(recentActivity: any): HeldItem[] {
+  if (!recentActivity) return [];
+  
+  const activityCounts: Record<string, number> = {
+    edit: 0,
+    spawn: 0,
+    search: 0,
+    docs: 0,
+    infra: 0,
+    debug: 0,
+    create: 0
+  };
+  
+  // Analyze tool usage patterns (this would come from recent session data)
+  if (recentActivity.editCount > 10) activityCounts.edit = recentActivity.editCount;
+  if (recentActivity.spawnCount > 2) activityCounts.spawn = recentActivity.spawnCount;
+  if (recentActivity.searchCount > 5) activityCounts.search = recentActivity.searchCount;
+  if (recentActivity.docWriting > 3) activityCounts.docs = recentActivity.docWriting;
+  if (recentActivity.infraWork > 2) activityCounts.infra = recentActivity.infraWork;
+  if (recentActivity.debugSessions > 3) activityCounts.debug = recentActivity.debugSessions;
+  if (recentActivity.createCount > 5) activityCounts.create = recentActivity.createCount;
+  
+  // Get top 2 most active categories
+  const topActivities = Object.entries(activityCounts)
+    .filter(([_, count]) => count > 0)
+    .sort(([_, a], [__, b]) => b - a)
+    .slice(0, 2)
+    .map(([activity, _]) => activity);
+  
+  // Find matching held items
+  const heldItems = HELD_ITEMS_CATALOG
+    .filter(item => topActivities.includes(item.activity_type))
+    .sort((a, b) => b.priority - a.priority);
+  
+  return heldItems;
+}
+
 // Get available tools for an agent (this would normally come from API)
 // For now, we'll infer from agent class and skills
 export function inferAvailableTools(agent: any): string[] {

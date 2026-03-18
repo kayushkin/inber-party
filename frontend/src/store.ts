@@ -3,6 +3,15 @@ import { loadChatHistory, saveChatHistoryForAgent, saveChatHistory } from './uti
 
 // ── Types ──────────────────────────────────────────────────
 
+export interface RPGHeldItem {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  activity_type: 'edit' | 'spawn' | 'search' | 'docs' | 'infra' | 'debug' | 'create';
+  priority: number;
+}
+
 export interface RPGAgent {
   id: string;
   name: string;
@@ -23,6 +32,7 @@ export interface RPGAgent {
   error_count: number;
   skills: { skill_name: string; level: number; task_count: number }[];
   last_active?: string;
+  held_items?: RPGHeldItem[];
 }
 
 export interface RPGQuest {
