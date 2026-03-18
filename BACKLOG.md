@@ -58,7 +58,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Action-based held items — reflect recent activity: hammer for heavy edits, claxon horn for agents delegating/spawning, magnifying glass for search-heavy work, scroll for documentation, wrench for infra/deploy. Pull from recent session data.
 - [x] Daily quests — auto-generated small tasks for agents to level up
 - [x] Achievement notifications — toast popups when achievements are earned
-- [ ] Leaderboard — ranked agent stats (XP, quests completed, efficiency score)
+- [~] Leaderboard — ranked agent stats (XP, quests completed, efficiency score)
 - [ ] Agent mood/morale system — based on error rate, workload, rest time
 - [ ] Boss battles — complex multi-agent tasks displayed as boss encounters with health bars
 - [ ] Reputation system — agents build reputation in their domains over time

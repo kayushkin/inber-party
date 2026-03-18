@@ -1,0 +1,369 @@
+.leaderboard {
+  min-height: 100vh;
+  background: var(--bg-darker);
+  padding: 2rem;
+  color: var(--text-primary);
+}
+
+.leaderboard-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.leaderboard-header h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(45deg, #ffd700, #ffed4a, #ffd700);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.leaderboard-header p {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sort-controls label {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sort-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sort-btn {
+  background: var(--bg-light);
+  border: 2px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.sort-btn:hover {
+  background: var(--bg-lighter);
+  transform: translateY(-2px);
+}
+
+.sort-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.leaderboard-list {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.leaderboard-entry {
+  display: flex;
+  align-items: center;
+  background: var(--bg-light);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.leaderboard-entry::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.leaderboard-entry:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border-color: var(--accent);
+}
+
+.leaderboard-entry:hover::before {
+  transform: translateX(100%);
+}
+
+.leaderboard-entry.podium {
+  border-color: #ffd700;
+  box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
+}
+
+.leaderboard-entry.podium:nth-child(1) {
+  border-color: #ffd700;
+  box-shadow: 0 6px 24px rgba(255, 215, 0, 0.4);
+}
+
+.leaderboard-entry.podium:nth-child(2) {
+  border-color: #c0c0c0;
+  box-shadow: 0 4px 20px rgba(192, 192, 192, 0.3);
+}
+
+.leaderboard-entry.podium:nth-child(3) {
+  border-color: #cd7f32;
+  box-shadow: 0 4px 20px rgba(205, 127, 50, 0.3);
+}
+
+.rank-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  margin-right: 1rem;
+}
+
+.rank {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.agent-section {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.agent-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-darker);
+  border: 2px solid var(--border-color);
+  font-size: 1.5rem;
+  margin-right: 1rem;
+}
+
+.agent-info {
+  flex: 1;
+}
+
+.agent-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 0 0 0.25rem 0;
+  color: var(--text-primary);
+}
+
+.agent-title {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.agent-class {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.agent-title-text {
+  opacity: 0.8;
+}
+
+.stats-section {
+  display: flex;
+  gap: 2rem;
+  margin-right: 1rem;
+}
+
+.stat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.stat-secondary {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: normal;
+}
+
+.status-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 60px;
+}
+
+.status-indicator {
+  font-size: 1.2rem;
+  padding: 0.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.energy-bar {
+  width: 40px;
+  height: 4px;
+  background: var(--bg-darker);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.energy-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #06ffa5, #00d084);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.leaderboard-footer {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.leaderboard-footer p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  background: var(--bg-light);
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+}
+
+.empty-state p {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.error-state {
+  text-align: center;
+  padding: 2rem;
+}
+
+.error-state p {
+  color: #ff6b6b;
+  margin-bottom: 1rem;
+}
+
+.retry-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  background: var(--accent-dark);
+  transform: translateY(-2px);
+}
+
+.leaderboard-skeleton {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .leaderboard {
+    padding: 1rem;
+  }
+  
+  .leaderboard-header h1 {
+    font-size: 2rem;
+  }
+  
+  .sort-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .leaderboard-entry {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem 0.75rem;
+  }
+  
+  .rank-section {
+    margin-right: 0;
+    min-width: auto;
+    justify-content: flex-start;
+  }
+  
+  .agent-section {
+    margin-right: 0;
+  }
+  
+  .stats-section {
+    justify-content: space-around;
+    margin-right: 0;
+  }
+  
+  .status-section {
+    flex-direction: row;
+    justify-content: center;
+    min-width: auto;
+  }
+}

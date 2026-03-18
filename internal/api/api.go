@@ -32,6 +32,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/tasks", s.handleTasks)
 	mux.HandleFunc("/api/tasks/", s.handleTaskDetail)
 	mux.HandleFunc("/api/stats", s.handleStats)
+	mux.HandleFunc("/api/leaderboard", s.handleLeaderboard)
 	mux.HandleFunc("/api/quest-giver/analyze", s.handleQuestAnalyze)
 	mux.HandleFunc("/api/quest-giver/recommendations", s.handleQuestRecommendations)
 	mux.HandleFunc("/api/quest-giver/assign", s.handleQuestAssign)
@@ -422,6 +423,101 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
+}
+
+func (s *Server) handleLeaderboard(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+
+	// Get comprehensive agent stats including quest completion and efficiency
+	query := `
+		WITH agent_quest_stats AS (
+			SELECT 
+				a.id,
+				COUNT(CASE WHEN t.status = 'completed' THEN 1 END) as quests_completed,
+				COUNT(CASE WHEN t.status IN ('completed', 'failed') THEN 1 END) as quests_attempted,
+				AVG(CASE WHEN t.status = 'completed' THEN t.xp_reward END) as avg_quest_xp,
+				SUM(CASE WHEN t.status = 'completed' THEN t.xp_reward ELSE 0 END) as total_quest_xp
+			FROM agents a
+			LEFT JOIN tasks t ON a.id = t.assigned_agent_id
+			GROUP BY a.id
+		)
+		SELECT 
+			a.id, a.name, a.title, a.class, a.level, a.xp, a.energy, 
+			a.status, a.avatar_emoji, a.created_at,
+			COALESCE(aqs.quests_completed, 0) as quests_completed,
+			COALESCE(aqs.quests_attempted, 0) as quests_attempted,
+			COALESCE(aqs.avg_quest_xp, 0) as avg_quest_xp,
+			COALESCE(aqs.total_quest_xp, 0) as total_quest_xp,
+			-- Efficiency score: (quests_completed / max(quests_attempted, 1)) * 100
+			CASE 
+				WHEN aqs.quests_attempted > 0 
+				THEN ROUND((aqs.quests_completed::float / aqs.quests_attempted * 100), 2)
+				ELSE 0 
+			END as efficiency_score
+		FROM agents a
+		LEFT JOIN agent_quest_stats aqs ON a.id = aqs.id
+		ORDER BY 
+			a.xp DESC, 
+			aqs.quests_completed DESC, 
+			CASE 
+				WHEN aqs.quests_attempted > 0 
+				THEN aqs.quests_completed::float / aqs.quests_attempted
+				ELSE 0 
+			END DESC,
+			a.level DESC
+	`
+
+	rows, err := s.DB.Query(query)
+	if err != nil {
+		log.Printf("Error fetching leaderboard: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type LeaderboardEntry struct {
+		Agent           db.Agent `json:"agent"`
+		QuestsCompleted int      `json:"quests_completed"`
+		QuestsAttempted int      `json:"quests_attempted"`
+		AvgQuestXP      float64  `json:"avg_quest_xp"`
+		TotalQuestXP    int      `json:"total_quest_xp"`
+		EfficiencyScore float64  `json:"efficiency_score"`
+		Rank            int      `json:"rank"`
+	}
+
+	leaderboard := []LeaderboardEntry{}
+	rank := 1
+	for rows.Next() {
+		var entry LeaderboardEntry
+		var a = &entry.Agent
+		
+		err := rows.Scan(
+			&a.ID, &a.Name, &a.Title, &a.Class, &a.Level, &a.XP, &a.Energy,
+			&a.Status, &a.AvatarEmoji, &a.CreatedAt,
+			&entry.QuestsCompleted, &entry.QuestsAttempted, &entry.AvgQuestXP,
+			&entry.TotalQuestXP, &entry.EfficiencyScore,
+		)
+		if err != nil {
+			log.Printf("Error scanning leaderboard entry: %v", err)
+			continue
+		}
+		
+		entry.Rank = rank
+		leaderboard = append(leaderboard, entry)
+		rank++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(leaderboard)
 }
 
 func (s *Server) handleParties(w http.ResponseWriter, r *http.Request) {
