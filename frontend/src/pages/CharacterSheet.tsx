@@ -6,7 +6,9 @@ import ChatPanel from '../components/ChatPanel';
 import LevelUpAnimation from '../components/LevelUpAnimation';
 import Tooltip from '../components/Tooltip';
 import SkillTree from '../components/SkillTree';
+import EquipmentComponent from '../components/Equipment';
 import { STAT_TOOLTIPS, ACHIEVEMENT_TOOLTIPS, getSkillTooltip } from '../constants/tooltips';
+import { getAgentEquipment, inferAvailableTools } from '../constants/equipment';
 import './CharacterSheet.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -273,6 +275,14 @@ export default function CharacterSheet() {
             agentClass={agent.class}
             agentLevel={agent.level}
             agentSkills={agent.skills}
+          />
+        </div>
+
+        {/* Equipment */}
+        <div className="section">
+          <h3>Equipment & Gear</h3>
+          <EquipmentComponent 
+            equipment={getAgentEquipment(agent, inferAvailableTools(agent))}
           />
         </div>
 
