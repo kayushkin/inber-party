@@ -67,7 +67,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 ## 🔌 Backend & Integration
 
 - [x] WebSocket real-time quest progress from inber (subscribe to bus events)
-- [ ] Pull conversation history from logstack for chat display
+- [x] Pull conversation history from logstack for chat display
 - [ ] Webhook for spawn events — update quest board in real-time when spawns start/complete
 - [ ] Agent registry sync — auto-discover new agents when they're added to inber/openclaw
 - [ ] Health check dashboard — show which backend services are up/down

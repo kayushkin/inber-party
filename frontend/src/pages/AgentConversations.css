@@ -266,6 +266,85 @@
   color: var(--text-secondary);
 }
 
+/* Conversation Tabs */
+.conversation-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+}
+
+.tab-button {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background: var(--hover-background, rgba(255, 255, 255, 0.05));
+  color: var(--text-color);
+}
+
+.tab-button.active {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+/* Source Badges and Labels */
+.source-badge {
+  font-size: 0.8rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.source-badge.logstack {
+  background: var(--success-color, #10b981);
+  color: white;
+}
+
+.source-badge.inber {
+  background: var(--accent-color);
+  color: white;
+}
+
+.source-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.source-label.logstack {
+  color: var(--success-color, #10b981);
+}
+
+.source-label.inber {
+  color: var(--accent-color);
+}
+
+/* Message Types */
+.message.user-message {
+  border-left-color: var(--success-color, #10b981);
+  background: var(--success-background, rgba(16, 185, 129, 0.1));
+}
+
+.tools-indicator {
+  background: var(--warning-color, #fbbf24);
+  color: black;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
 /* Loading and Error States */
 .loading-state,
 .error-state {

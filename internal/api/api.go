@@ -9,6 +9,7 @@ import (
 
 	"github.com/kayushkin/inber-party/internal/dailyquests"
 	"github.com/kayushkin/inber-party/internal/db"
+	"github.com/kayushkin/inber-party/internal/logstack"
 	"github.com/kayushkin/inber-party/internal/mood"
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/ws"
@@ -20,11 +21,20 @@ type Server struct {
 	QuestGiver       *questgiver.QuestGiver
 	DailyQuestMgr    *dailyquests.DailyQuestManager
 	MoodCalc         *mood.MoodCalculator
+	LogstackClient   *logstack.LogstackClient
 }
 
 func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dailyquests.DailyQuestManager) *Server {
 	moodCalc := mood.NewMoodCalculator(database)
-	return &Server{DB: database, Hub: hub, QuestGiver: qg, DailyQuestMgr: dqm, MoodCalc: moodCalc}
+	logstackClient := logstack.NewLogstackClient()
+	return &Server{
+		DB:             database, 
+		Hub:            hub, 
+		QuestGiver:     qg, 
+		DailyQuestMgr:  dqm, 
+		MoodCalc:       moodCalc,
+		LogstackClient: logstackClient,
+	}
 }
 
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
@@ -45,6 +55,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/mood/update", s.handleMoodUpdate)
 	mux.HandleFunc("/api/mood/levels", s.handleMoodLevels)
 	mux.HandleFunc("/api/reputation/rankings", s.handleReputationRankings)
+	mux.HandleFunc("/api/conversations", s.handleConversations)
+	mux.HandleFunc("/api/conversations/", s.handleConversationDetail)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -1191,6 +1203,101 @@ func (s *Server) handleReputationRankings(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(rankings)
+}
+
+// Conversation handlers
+func (s *Server) handleConversations(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	// Get query parameters
+	agentID := r.URL.Query().Get("agent")
+	limitStr := r.URL.Query().Get("limit")
+	
+	limit := 20
+	if limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+			if limit > 100 { // Cap at 100
+				limit = 100
+			}
+		}
+	}
+	
+	var conversations []logstack.Conversation
+	var err error
+	
+	if agentID != "" {
+		// Get conversations for specific agent
+		conversations, err = s.LogstackClient.GetAgentConversations(agentID, limit)
+	} else {
+		// Get conversations from all agents
+		conversations, err = s.LogstackClient.GetAllConversations(limit)
+	}
+	
+	if err != nil {
+		log.Printf("Error getting conversations: %v", err)
+		// Return empty array instead of error - logstack may not be available
+		conversations = []logstack.Conversation{}
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(conversations)
+}
+
+func (s *Server) handleConversationDetail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	// Extract conversation ID from path
+	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/conversations/"), "/")
+	if len(pathParts) == 0 || pathParts[0] == "" {
+		http.Error(w, "Conversation ID required", http.StatusBadRequest)
+		return
+	}
+	
+	conversationID := pathParts[0]
+	
+	// For now, we'll need to search through all agents to find the conversation
+	// This could be optimized with an index in the future
+	agents, err := s.LogstackClient.GetAgentList()
+	if err != nil {
+		log.Printf("Error getting agent list: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	
+	var foundConversation *logstack.Conversation
+	
+	for _, agentID := range agents {
+		conversations, err := s.LogstackClient.GetAgentConversations(agentID, 100) // Check more conversations
+		if err != nil {
+			continue
+		}
+		
+		for _, conv := range conversations {
+			if conv.ID == conversationID {
+				foundConversation = &conv
+				break
+			}
+		}
+		
+		if foundConversation != nil {
+			break
+		}
+	}
+	
+	if foundConversation == nil {
+		http.Error(w, "Conversation not found", http.StatusNotFound)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(foundConversation)
 }
 
 // calculateGoldReward computes gold reward based on XP and difficulty
