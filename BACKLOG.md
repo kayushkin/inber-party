@@ -81,7 +81,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Unit tests for RPG mapping logic (XP calculation, level thresholds, class assignment)
 - [x] Visual regression tests — screenshot comparison for key pages
 - [x] Error boundary components — graceful error states instead of white/black screens
-- [ ] Accessibility audit — keyboard navigation, screen reader labels, contrast ratios
+- [x] Accessibility audit — keyboard navigation, screen reader labels, contrast ratios
 - [ ] Performance profiling — ensure smooth 60fps with 25+ agent cards rendering
 - [ ] API error handling — retry logic, timeout handling, offline mode
 
