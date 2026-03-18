@@ -16,6 +16,7 @@ import Forge from './pages/Forge';
 import AgentQuarters from './pages/AgentQuarters';
 import CreateAdventurer from './pages/CreateAdventurer';
 import Parties from './pages/Parties';
+import { AchievementToastContainer } from './components/AchievementToast';
 import './App.css';
 
 function App() {
@@ -24,6 +25,8 @@ function App() {
   const startPolling = useStore((s) => s.startPolling);
   const stopPolling = useStore((s) => s.stopPolling);
   const theme = useStore((s) => s.theme);
+  const achievementToasts = useStore((s) => s.achievementToasts);
+  const removeAchievementToast = useStore((s) => s.removeAchievementToast);
 
   useEffect(() => {
     connectWebSocket();
@@ -59,6 +62,11 @@ function App() {
           <Route path="create-adventurer" element={<CreateAdventurer />} />
         </Route>
       </Routes>
+      
+      <AchievementToastContainer
+        achievements={achievementToasts}
+        onRemove={removeAchievementToast}
+      />
     </BrowserRouter>
   );
 }

@@ -156,6 +156,19 @@ interface StoreState {
   questCompletionTriggers: Record<number, { trigger: number; questName: string; xpReward: number; agentName: string }>;
   triggerQuestCompletion: (questId: number, questName: string, xpReward: number, agentName: string) => void;
 
+  // Achievement notifications
+  achievementToasts: Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    timestamp: number;
+  }>;
+  previousAgentAchievements: Record<string, Set<string>>; // agentId -> Set of achievement IDs
+  addAchievementToast: (achievement: { id: string; name: string; description: string; icon: string }) => void;
+  removeAchievementToast: (timestamp: number) => void;
+  checkForNewAchievements: () => Promise<void>;
+
   // Actions
   fetchAll: () => Promise<void>;
   connectWebSocket: () => void;
@@ -186,6 +199,10 @@ export const useStore = create<StoreState>((set, get) => ({
   levelUpTriggers: {},
   previousQuestStatuses: {},
   questCompletionTriggers: {},
+  
+  // Achievement notification state defaults
+  achievementToasts: [],
+  previousAgentAchievements: {},
   
   // Loading state defaults
   isLoadingAgents: false,
@@ -221,6 +238,60 @@ export const useStore = create<StoreState>((set, get) => ({
       [questId]: { trigger: Date.now(), questName, xpReward, agentName }
     }
   })),
+
+  addAchievementToast: (achievement) => set((state) => ({
+    achievementToasts: [...state.achievementToasts, {
+      ...achievement,
+      timestamp: Date.now()
+    }]
+  })),
+
+  removeAchievementToast: (timestamp) => set((state) => ({
+    achievementToasts: state.achievementToasts.filter(toast => toast.timestamp !== timestamp)
+  })),
+
+  checkForNewAchievements: async () => {
+    const { agents, previousAgentAchievements, addAchievementToast } = get();
+    
+    // Check achievements for each agent
+    for (const agent of agents) {
+      try {
+        const achievementsRes = await fetch(`${API_URL}/api/inber/achievements?agent=${encodeURIComponent(agent.id)}`);
+        if (!achievementsRes.ok) continue;
+        
+        const currentAchievements: RPGAchievement[] = await achievementsRes.json();
+        const currentAchievementIds = new Set(currentAchievements.map(a => a.id));
+        const previousAchievementIds = previousAgentAchievements[agent.id] || new Set();
+        
+        // Find newly unlocked achievements
+        const newAchievements = currentAchievements.filter(achievement => 
+          !previousAchievementIds.has(achievement.id)
+        );
+        
+        // Show toast for each new achievement
+        newAchievements.forEach(achievement => {
+          console.log(`${agent.name} unlocked achievement: ${achievement.name}`);
+          addAchievementToast({
+            id: achievement.id,
+            name: achievement.name,
+            description: achievement.description,
+            icon: achievement.icon
+          });
+        });
+        
+        // Update the stored achievements for this agent
+        set((state) => ({
+          previousAgentAchievements: {
+            ...state.previousAgentAchievements,
+            [agent.id]: currentAchievementIds
+          }
+        }));
+        
+      } catch (error) {
+        console.warn(`Failed to check achievements for agent ${agent.id}:`, error);
+      }
+    }
+  },
 
   fetchAll: async () => {
     const { hasInitialLoad } = get();
@@ -267,6 +338,9 @@ export const useStore = create<StoreState>((set, get) => ({
           previousAgentLevels: newLevels,
           isLoadingAgents: false
         });
+        
+        // Check for new achievements after agents are updated
+        get().checkForNewAchievements();
       } else {
         set({ isLoadingAgents: false });
       }
@@ -365,6 +439,9 @@ export const useStore = create<StoreState>((set, get) => ({
               agents,
               previousAgentLevels: newLevels
             });
+            
+            // Check for new achievements after agents are updated via WebSocket
+            get().checkForNewAchievements();
           }
           if (quests) {
             const { previousQuestStatuses, triggerQuestCompletion } = get();
