@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore, formatTokens, formatCost, timeAgo, getDifficultyStars, calculateQuestDifficulty, getDifficultyName } from '../store';
 import QuestCompletionAnimation from '../components/QuestCompletionAnimation';
+import QuestCreationForm from '../components/QuestCreationForm';
 import { SkeletonQuestCard } from '../components/SkeletonLoader';
 import './QuestBoard.css';
 
@@ -9,7 +10,9 @@ export default function QuestBoard() {
   const questCompletionTriggers = useStore((s) => s.questCompletionTriggers);
   const isLoadingQuests = useStore((s) => s.isLoadingQuests);
   const hasInitialLoad = useStore((s) => s.hasInitialLoad);
+  const fetchAll = useStore((s) => s.fetchAll);
   const [filter, setFilter] = useState<string>('all');
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const filtered = filter === 'all' ? quests : quests.filter((q) => q.status === filter);
 
@@ -23,7 +26,16 @@ export default function QuestBoard() {
   return (
     <div className="quest-board">
       <div className="quest-board-header">
-        <h1>📜 Quest Board</h1>
+        <div className="quest-board-title">
+          <h1>📜 Quest Board</h1>
+          <button 
+            className="create-quest-btn"
+            onClick={() => setShowCreateForm(true)}
+            title="Create a new quest"
+          >
+            ➕ Create Quest
+          </button>
+        </div>
         <div className="quest-filters">
           {(['all', 'in_progress', 'completed', 'failed'] as const).map((s) => (
             <button
@@ -92,6 +104,15 @@ export default function QuestBoard() {
           agentName={data.agentName}
         />
       ))}
+
+      {/* Quest creation form */}
+      <QuestCreationForm
+        isOpen={showCreateForm}
+        onClose={() => setShowCreateForm(false)}
+        onQuestCreated={() => {
+          fetchAll(); // Refresh the quest list
+        }}
+      />
     </div>
   );
 }
