@@ -25,6 +25,7 @@ type AgentDetail struct {
 	Skills       []Skill       `json:"skills"`
 	Achievements []Achievement `json:"achievements"`
 	Tasks        []Task        `json:"tasks"`
+	Reputation   []Reputation  `json:"reputation"`
 }
 
 type Task struct {
@@ -80,6 +81,16 @@ type PartyMember struct {
 	AgentID  int       `json:"agent_id"`
 	Role     string    `json:"role"` // "leader", "member", "support"
 	JoinedAt time.Time `json:"joined_at"`
+}
+
+type Reputation struct {
+	ID         int       `json:"id"`
+	AgentID    int       `json:"agent_id"`
+	Domain     string    `json:"domain"`     // "coding", "testing", "documentation", "devops", "design", etc.
+	Score      int       `json:"score"`      // 0-1000, starts at 100
+	TaskCount  int       `json:"task_count"` // number of tasks completed in this domain
+	SuccessRate float64  `json:"success_rate"` // percentage of successful tasks (0.0-1.0)
+	LastUpdate time.Time `json:"last_update"`
 }
 
 type Stats struct {

@@ -94,6 +94,17 @@ func (db *DB) Migrate() error {
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS mood_score INTEGER DEFAULT 75`,
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS workload INTEGER DEFAULT 0`,
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_active TIMESTAMP`,
+		// Add reputation system
+		`CREATE TABLE IF NOT EXISTS reputation (
+			id SERIAL PRIMARY KEY,
+			agent_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
+			domain VARCHAR(100) NOT NULL,
+			score INTEGER DEFAULT 100,
+			task_count INTEGER DEFAULT 0,
+			success_rate DECIMAL(5,4) DEFAULT 1.0,
+			last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(agent_id, domain)
+		)`,
 	}
 
 	for i, migration := range migrations {

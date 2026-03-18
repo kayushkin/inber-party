@@ -7,6 +7,7 @@ import LevelUpAnimation from '../components/LevelUpAnimation';
 import Tooltip from '../components/Tooltip';
 import SkillTree from '../components/SkillTree';
 import EquipmentComponent from '../components/Equipment';
+import Reputation from '../components/Reputation';
 import { STAT_TOOLTIPS, ACHIEVEMENT_TOOLTIPS, getSkillTooltip } from '../constants/tooltips';
 import { getAgentEquipment, inferAvailableTools } from '../constants/equipment';
 import './CharacterSheet.css';
@@ -306,6 +307,13 @@ export default function CharacterSheet() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Reputation */}
+        {agent.reputation && (
+          <div className="section">
+            <Reputation reputation={agent.reputation} />
           </div>
         )}
 

@@ -44,6 +44,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/daily-quests/stats", s.handleDailyQuestStats)
 	mux.HandleFunc("/api/mood/update", s.handleMoodUpdate)
 	mux.HandleFunc("/api/mood/levels", s.handleMoodLevels)
+	mux.HandleFunc("/api/reputation/rankings", s.handleReputationRankings)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -156,11 +157,15 @@ func (s *Server) getAgentDetail(w http.ResponseWriter, r *http.Request, id int) 
 		tasks = append(tasks, task)
 	}
 
+	// Get reputation
+	reputation, _ := s.DB.GetAgentReputation(id)
+
 	detail := db.AgentDetail{
 		Agent:        agent,
 		Skills:       skills,
 		Achievements: achievements,
 		Tasks:        tasks,
+		Reputation:   reputation,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -1123,4 +1128,28 @@ func (s *Server) handleMoodLevels(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(mood.MoodLevels)
+}
+
+func (s *Server) handleReputationRankings(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string][]struct{}{})
+		return
+	}
+
+	// Get top 5 agents per domain by default
+	rankings, err := s.DB.GetTopReputationByDomain(5)
+	if err != nil {
+		log.Printf("Error getting reputation rankings: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(rankings)
 }

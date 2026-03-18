@@ -12,6 +12,16 @@ export interface RPGHeldItem {
   priority: number;
 }
 
+export interface RPGReputation {
+  id: number;
+  agent_id: number;
+  domain: string;
+  score: number;
+  task_count: number;
+  success_rate: number;
+  last_update: string;
+}
+
 export interface RPGAgent {
   id: string;
   name: string;
@@ -36,6 +46,7 @@ export interface RPGAgent {
   mood?: string;
   mood_score?: number;
   workload?: number;
+  reputation?: RPGReputation[];
 }
 
 export interface RPGQuest {
