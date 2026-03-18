@@ -27,6 +27,7 @@ export default function Layout() {
     { to: '/training', label: '🏋️ Training', match: '/training' },
     { to: '/forge', label: '🔨 Forge', match: '/forge' },
     { to: '/stats', label: '📊 Stats', match: '/stats' },
+    { to: '/costs', label: '💰 Costs', match: '/costs' },
     { to: '/compare', label: '🔍 Compare', match: '/compare' },
   ];
 
@@ -44,6 +45,7 @@ export default function Layout() {
     if (path === '/training') return 'room-training';
     if (path === '/forge') return 'room-forge';
     if (path === '/stats') return 'room-stats';
+    if (path === '/costs') return 'room-costs';
     if (path === '/compare') return 'room-compare';
     return 'room-default';
   };

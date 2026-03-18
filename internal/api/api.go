@@ -65,6 +65,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/conversations/", s.handleConversationDetail)
 	mux.HandleFunc("/api/webhooks/spawn", s.handleSpawnWebhook)
 	mux.HandleFunc("/api/health", s.handleHealthCheck)
+	mux.HandleFunc("/api/costs", s.handleCosts)
+	mux.HandleFunc("/api/costs/summary", s.handleCostsSummary)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -519,6 +521,10 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	s.DB.QueryRow("SELECT COALESCE(AVG(level), 0) FROM agents").Scan(&stats.AverageAgentLevel)
 	s.DB.QueryRow("SELECT COUNT(*) FROM parties").Scan(&stats.TotalParties)
 	s.DB.QueryRow("SELECT COUNT(*) FROM parties WHERE status = 'active' OR status = 'on_quest'").Scan(&stats.ActiveParties)
+	
+	// Add cost tracking to stats
+	s.DB.QueryRow("SELECT COALESCE(SUM(cost_usd), 0) FROM cost_entries").Scan(&stats.TotalCostUSD)
+	s.DB.QueryRow("SELECT COALESCE(SUM(tokens_used), 0) FROM cost_entries").Scan(&stats.TotalTokensUsed)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
@@ -1640,4 +1646,221 @@ func (s *Server) handleManagedAgents(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(agents)
+}
+
+// handleCosts manages cost entries (GET for retrieving, POST for adding)
+func (s *Server) handleCosts(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.listCosts(w, r)
+	case http.MethodPost:
+		s.createCostEntry(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// listCosts retrieves cost entries with optional filters
+func (s *Server) listCosts(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+
+	// Parse query parameters for filtering
+	agentID := r.URL.Query().Get("agent_id")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+	limit := r.URL.Query().Get("limit")
+
+	if limit == "" {
+		limit = "100" // Default limit
+	}
+
+	query := `
+		SELECT ce.id, ce.agent_id, ce.task_id, ce.session_id, ce.tokens_used, 
+			   ce.cost_usd, ce.model_name, ce.operation_type, ce.date, ce.created_at, ce.metadata
+		FROM cost_entries ce
+		WHERE 1=1
+	`
+	args := []interface{}{}
+	argCount := 0
+
+	if agentID != "" {
+		argCount++
+		query += " AND ce.agent_id = $" + strconv.Itoa(argCount)
+		agentIDInt, _ := strconv.Atoi(agentID)
+		args = append(args, agentIDInt)
+	}
+
+	if startDate != "" {
+		argCount++
+		query += " AND ce.date >= $" + strconv.Itoa(argCount)
+		args = append(args, startDate)
+	}
+
+	if endDate != "" {
+		argCount++
+		query += " AND ce.date <= $" + strconv.Itoa(argCount)
+		args = append(args, endDate)
+	}
+
+	argCount++
+	query += " ORDER BY ce.created_at DESC LIMIT $" + strconv.Itoa(argCount)
+	limitInt, _ := strconv.Atoi(limit)
+	args = append(args, limitInt)
+
+	rows, err := s.DB.Query(query, args...)
+	if err != nil {
+		log.Printf("Error listing costs: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	costs := []db.CostEntry{}
+	for rows.Next() {
+		var c db.CostEntry
+		if err := rows.Scan(&c.ID, &c.AgentID, &c.TaskID, &c.SessionID, &c.TokensUsed, 
+			&c.CostUSD, &c.ModelName, &c.OperationType, &c.Date, &c.CreatedAt, &c.Metadata); err != nil {
+			log.Printf("Error scanning cost entry: %v", err)
+			continue
+		}
+		costs = append(costs, c)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(costs)
+}
+
+// createCostEntry adds a new cost entry
+func (s *Server) createCostEntry(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var cost db.CostEntry
+	if err := json.NewDecoder(r.Body).Decode(&cost); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Set current date if not provided
+	if cost.Date == "" {
+		cost.Date = time.Now().Format("2006-01-02")
+	}
+
+	err := s.DB.QueryRow(`
+		INSERT INTO cost_entries (agent_id, task_id, session_id, tokens_used, cost_usd, model_name, operation_type, date, metadata)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, created_at
+	`, cost.AgentID, cost.TaskID, cost.SessionID, cost.TokensUsed, cost.CostUSD, 
+	   cost.ModelName, cost.OperationType, cost.Date, cost.Metadata).Scan(&cost.ID, &cost.CreatedAt)
+	
+	if err != nil {
+		log.Printf("Error creating cost entry: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(cost)
+}
+
+// handleCostsSummary provides aggregated cost data for dashboards
+func (s *Server) handleCostsSummary(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+
+	// Parse query parameters
+	period := r.URL.Query().Get("period") // "daily", "weekly", "monthly"
+	if period == "" {
+		period = "daily"
+	}
+
+	agentID := r.URL.Query().Get("agent_id")
+	days := r.URL.Query().Get("days") // Number of periods to include
+	if days == "" {
+		days = "7" // Default to last 7 periods
+	}
+
+	var dateGrouping string
+	var dateRange string
+	switch period {
+	case "weekly":
+		dateGrouping = "DATE_TRUNC('week', ce.date)"
+		dateRange = "ce.date >= CURRENT_DATE - INTERVAL '" + days + " weeks'"
+	case "monthly":
+		dateGrouping = "DATE_TRUNC('month', ce.date)"
+		dateRange = "ce.date >= CURRENT_DATE - INTERVAL '" + days + " months'"
+	default: // daily
+		dateGrouping = "ce.date"
+		dateRange = "ce.date >= CURRENT_DATE - INTERVAL '" + days + " days'"
+	}
+
+	query := `
+		SELECT 
+			$1 as period,
+			ce.agent_id,
+			COALESCE(a.name, 'Unknown') as agent_name,
+			SUM(ce.cost_usd) as total_cost,
+			SUM(ce.tokens_used) as total_tokens,
+			COUNT(DISTINCT ce.task_id) as task_count,
+			CASE 
+				WHEN COUNT(DISTINCT ce.task_id) > 0 
+				THEN SUM(ce.cost_usd) / COUNT(DISTINCT ce.task_id) 
+				ELSE 0 
+			END as avg_cost_per_task,
+			TO_CHAR(` + dateGrouping + `, 'YYYY-MM-DD') as date_range
+		FROM cost_entries ce
+		LEFT JOIN agents a ON ce.agent_id = a.id
+		WHERE ` + dateRange
+	
+	args := []interface{}{period}
+	argCount := 1
+
+	if agentID != "" {
+		argCount++
+		query += " AND ce.agent_id = $" + strconv.Itoa(argCount)
+		agentIDInt, _ := strconv.Atoi(agentID)
+		args = append(args, agentIDInt)
+	}
+
+	query += `
+		GROUP BY ce.agent_id, a.name, ` + dateGrouping + `
+		ORDER BY date_range DESC, total_cost DESC
+	`
+
+	rows, err := s.DB.Query(query, args...)
+	if err != nil {
+		log.Printf("Error getting cost summary: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	summaries := []db.CostSummary{}
+	for rows.Next() {
+		var s db.CostSummary
+		if err := rows.Scan(&s.Period, &s.AgentID, &s.AgentName, &s.TotalCost, 
+			&s.TotalTokens, &s.TaskCount, &s.AvgCostPerTask, &s.DateRange); err != nil {
+			log.Printf("Error scanning cost summary: %v", err)
+			continue
+		}
+		summaries = append(summaries, s)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(summaries)
 }

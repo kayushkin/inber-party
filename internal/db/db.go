@@ -113,6 +113,23 @@ func (db *DB) Migrate() error {
 		// Add gold/currency system
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS gold INTEGER DEFAULT 0`,
 		`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS gold_reward INTEGER DEFAULT 0`,
+		// Add cost tracking system
+		`CREATE TABLE IF NOT EXISTS cost_entries (
+			id SERIAL PRIMARY KEY,
+			agent_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
+			task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+			session_id VARCHAR(255) NOT NULL,
+			tokens_used INTEGER NOT NULL DEFAULT 0,
+			cost_usd DECIMAL(10,6) NOT NULL DEFAULT 0,
+			model_name VARCHAR(100) NOT NULL,
+			operation_type VARCHAR(50) NOT NULL DEFAULT 'task',
+			date DATE NOT NULL DEFAULT CURRENT_DATE,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			metadata JSONB
+		)`,
+		`CREATE INDEX IF NOT EXISTS cost_entries_agent_date_idx ON cost_entries(agent_id, date)`,
+		`CREATE INDEX IF NOT EXISTS cost_entries_date_idx ON cost_entries(date)`,
+		`CREATE INDEX IF NOT EXISTS cost_entries_session_idx ON cost_entries(session_id)`,
 	}
 
 	for i, migration := range migrations {
