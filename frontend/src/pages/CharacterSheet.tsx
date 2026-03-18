@@ -140,6 +140,79 @@ export default function CharacterSheet() {
           </div>
         </div>
 
+        {/* Quick Actions */}
+        <div className="section">
+          <h3>Quick Actions</h3>
+          <div className="quick-actions-grid">
+            <button 
+              className="quick-action-btn" 
+              onClick={() => {
+                setSelectedAgent(agent.id);
+                const sendMessage = useStore.getState().sendMessage;
+                sendMessage(agent.id, "Scout this repo - analyze the codebase structure, recent changes, and identify any immediate issues or opportunities for improvement.");
+              }}
+              style={{ borderColor: cc }}
+            >
+              🔍 Scout Repo
+            </button>
+            <button 
+              className="quick-action-btn" 
+              onClick={() => {
+                setSelectedAgent(agent.id);
+                const sendMessage = useStore.getState().sendMessage;
+                sendMessage(agent.id, "Fix bugs - scan the codebase for any obvious bugs, linting errors, or issues that need immediate attention and fix them.");
+              }}
+              style={{ borderColor: cc }}
+            >
+              🐛 Fix Bugs
+            </button>
+            <button 
+              className="quick-action-btn" 
+              onClick={() => {
+                setSelectedAgent(agent.id);
+                const sendMessage = useStore.getState().sendMessage;
+                sendMessage(agent.id, "Write tests - identify areas of the codebase that need better test coverage and write comprehensive unit tests.");
+              }}
+              style={{ borderColor: cc }}
+            >
+              🧪 Write Tests
+            </button>
+            <button 
+              className="quick-action-btn" 
+              onClick={() => {
+                setSelectedAgent(agent.id);
+                const sendMessage = useStore.getState().sendMessage;
+                sendMessage(agent.id, "Review documentation - check if README, docs, and code comments are up to date and comprehensive. Improve where needed.");
+              }}
+              style={{ borderColor: cc }}
+            >
+              📚 Review Docs
+            </button>
+            <button 
+              className="quick-action-btn" 
+              onClick={() => {
+                setSelectedAgent(agent.id);
+                const sendMessage = useStore.getState().sendMessage;
+                sendMessage(agent.id, "Refactor code - identify areas where code can be simplified, optimized, or made more maintainable without changing functionality.");
+              }}
+              style={{ borderColor: cc }}
+            >
+              🔧 Refactor
+            </button>
+            <button 
+              className="quick-action-btn" 
+              onClick={() => {
+                setSelectedAgent(agent.id);
+                const sendMessage = useStore.getState().sendMessage;
+                sendMessage(agent.id, "Security audit - scan for potential security vulnerabilities, unsafe practices, or areas that need security hardening.");
+              }}
+              style={{ borderColor: cc }}
+            >
+              🛡️ Security Check
+            </button>
+          </div>
+        </div>
+
         {/* Achievements */}
         {achievements.length > 0 && (
           <div className="section">
