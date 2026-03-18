@@ -4,6 +4,115 @@ import Tooltip from '../components/Tooltip';
 import { STAT_TOOLTIPS } from '../constants/tooltips';
 import './StatsView.css';
 
+// Export utility functions
+function exportAsJSON(agents: any[], stats: any) {
+  const exportData = {
+    exported_at: new Date().toISOString(),
+    guild_stats: stats,
+    agent_stats: agents.map(agent => ({
+      id: agent.id,
+      name: agent.name,
+      title: agent.title,
+      class: agent.class,
+      level: agent.level,
+      xp: agent.xp,
+      gold: agent.gold,
+      total_tokens: agent.total_tokens,
+      total_cost: agent.total_cost,
+      session_count: agent.session_count,
+      quest_count: agent.quest_count,
+      error_count: agent.error_count,
+      last_active: agent.last_active,
+      skills: agent.skills,
+      reputation: agent.reputation,
+      mood: agent.mood,
+      mood_score: agent.mood_score,
+      workload: agent.workload
+    }))
+  };
+  
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `guild-stats-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportAsCSV(agents: any[], stats: any) {
+  // Guild stats header
+  const guildData = [
+    'Guild Statistics',
+    '',
+    'Total Adventurers,' + stats?.total_agents,
+    'Total Sessions,' + stats?.total_sessions, 
+    'Total Tokens,' + stats?.total_tokens,
+    'Total Cost,$' + stats?.total_cost?.toFixed(4),
+    'Completed Quests,' + stats?.completed_quests,
+    'Failed Quests,' + stats?.failed_quests,
+    'Active Quests,' + stats?.active_quests,
+    'Uptime,' + stats?.uptime,
+    '',
+    'Agent Statistics',
+    ''
+  ];
+  
+  // CSV headers for agents
+  const headers = [
+    'Name',
+    'Title', 
+    'Class',
+    'Level',
+    'XP',
+    'Gold',
+    'Total Tokens',
+    'Total Cost',
+    'Sessions',
+    'Quests',
+    'Errors',
+    'Last Active',
+    'Mood',
+    'Mood Score',
+    'Workload',
+    'Top Skills'
+  ];
+  
+  // Agent data rows
+  const rows = agents.map(agent => [
+    agent.name,
+    agent.title,
+    agent.class,
+    agent.level,
+    agent.xp,
+    agent.gold,
+    agent.total_tokens,
+    '$' + agent.total_cost?.toFixed(4),
+    agent.session_count,
+    agent.quest_count,
+    agent.error_count,
+    agent.last_active || '',
+    agent.mood || '',
+    agent.mood_score || '',
+    agent.workload || '',
+    agent.skills?.slice(0, 3).map((s: any) => `${s.skill_name}(${s.level})`).join('; ') || ''
+  ]);
+  
+  const csvContent = [...guildData, headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+  
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `guild-stats-${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export default function StatsView() {
   const agents = useStore((s) => s.agents);
   const stats = useStore((s) => s.stats);
@@ -63,6 +172,26 @@ export default function StatsView() {
         <div className="ov-card"><div className="ov-val">{stats.failed_quests}</div><Tooltip content={STAT_TOOLTIPS.quests_failed}><div className="ov-lbl">Quests Failed</div></Tooltip></div>
         <div className="ov-card"><div className="ov-val">{stats.active_quests}</div><Tooltip content={STAT_TOOLTIPS.active}><div className="ov-lbl">Active</div></Tooltip></div>
         <div className="ov-card"><div className="ov-val">{stats.uptime || '—'}</div><Tooltip content={STAT_TOOLTIPS.uptime}><div className="ov-lbl">Uptime</div></Tooltip></div>
+      </div>
+
+      <div className="export-controls">
+        <h3>📁 Export Guild Data</h3>
+        <div className="export-buttons">
+          <button 
+            className="btn-export btn-json" 
+            onClick={() => exportAsJSON(agents, stats)}
+            title="Download comprehensive guild and agent data as JSON"
+          >
+            📋 Export JSON
+          </button>
+          <button 
+            className="btn-export btn-csv" 
+            onClick={() => exportAsCSV(agents, stats)}
+            title="Download agent statistics as CSV spreadsheet"
+          >
+            📊 Export CSV
+          </button>
+        </div>
       </div>
 
       <h2>Agent Leaderboard</h2>
