@@ -80,6 +80,7 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   streaming?: boolean;
+  reactions?: Record<string, number>; // emoji -> count
 }
 
 // ── Store ──────────────────────────────────────────────────
@@ -130,6 +131,7 @@ interface StoreState {
   sendMessage: (agentId: string, message: string) => Promise<void>;
   addChatMessage: (agentId: string, msg: ChatMessage) => void;
   clearChatHistory: (agentId?: string) => void;
+  addReaction: (agentId: string, messageIndex: number, emoji: string) => void;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -490,6 +492,42 @@ export const useStore = create<StoreState>((set, get) => ({
       saveChatHistory({});
       return { chatMessages: {} };
     }
+  }),
+
+  addReaction: (agentId, messageIndex, emoji) => set((state) => {
+    const messages = [...(state.chatMessages[agentId] || [])];
+    const message = messages[messageIndex];
+    
+    if (message && !message.streaming) {
+      const reactions = message.reactions || {};
+      const newCount = (reactions[emoji] || 0) + 1;
+      
+      // Toggle reaction: if count is 1, remove it; otherwise increment
+      const newReactions = { ...reactions };
+      if (newCount === 1) {
+        newReactions[emoji] = 1;
+      } else {
+        // Remove reaction when clicking again
+        delete newReactions[emoji];
+      }
+      
+      messages[messageIndex] = { 
+        ...message, 
+        reactions: Object.keys(newReactions).length > 0 ? newReactions : undefined
+      };
+      
+      const updatedChatMessages = {
+        ...state.chatMessages,
+        [agentId]: messages,
+      };
+      
+      // Persist to localStorage
+      saveChatHistoryForAgent(agentId, messages);
+      
+      return { chatMessages: updatedChatMessages };
+    }
+    
+    return state;
   }),
 }));
 

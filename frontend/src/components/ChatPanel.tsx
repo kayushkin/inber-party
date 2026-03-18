@@ -15,6 +15,7 @@ export default function ChatPanel({ agentId, agent, onClose }: Props) {
   const loading = useStore((s) => s.chatLoading[agentId] || false);
   const sendMessage = useStore((s) => s.sendMessage);
   const clearChatHistory = useStore((s) => s.clearChatHistory);
+  const addReaction = useStore((s) => s.addReaction);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,9 +71,41 @@ export default function ChatPanel({ agentId, agent, onClose }: Props) {
         )}
         {messages.map((msg, i) => (
           <div key={i} className={`chat-msg chat-msg-${msg.role}`}>
-            <div className="chat-bubble">
-              {msg.content || (msg.streaming ? '...' : '')}
-              {msg.streaming && <span className="chat-typing">▋</span>}
+            <div className="chat-message-container">
+              <div className="chat-bubble">
+                {msg.content || (msg.streaming ? '...' : '')}
+                {msg.streaming && <span className="chat-typing">▋</span>}
+              </div>
+              {!msg.streaming && msg.role === 'assistant' && (
+                <div className="chat-reactions-container">
+                  {msg.reactions && Object.entries(msg.reactions).length > 0 && (
+                    <div className="chat-reactions">
+                      {Object.entries(msg.reactions).map(([emoji, count]) => (
+                        <button
+                          key={emoji}
+                          className="chat-reaction"
+                          onClick={() => addReaction(agentId, i, emoji)}
+                          title={`React with ${emoji}`}
+                        >
+                          {emoji} {count}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="chat-reaction-picker">
+                    {['👍', '❤️', '😂', '🤔', '🎉', '🔥'].map((emoji) => (
+                      <button
+                        key={emoji}
+                        className="chat-reaction-btn"
+                        onClick={() => addReaction(agentId, i, emoji)}
+                        title={`React with ${emoji}`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
