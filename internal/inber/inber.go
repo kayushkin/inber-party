@@ -98,6 +98,28 @@ type QuestHistoryEntry struct {
 	CompletedAt string `json:"completed_at,omitempty"`
 }
 
+// RPGConversation represents a conversation thread between agents.
+type RPGConversation struct {
+	ID           string             `json:"id"`
+	ParticipantIDs []string         `json:"participant_ids"`
+	Participants []string           `json:"participants"`
+	Title        string             `json:"title"`
+	Messages     []RPGMessage       `json:"messages"`
+	StartedAt    string             `json:"started_at"`
+	LastActive   string             `json:"last_active"`
+	Type         string             `json:"type"` // "spawn_chain", "session_chat", "inter_agent"
+}
+
+// RPGMessage represents a single message in an agent conversation.
+type RPGMessage struct {
+	ID        string `json:"id"`
+	FromAgent string `json:"from_agent"`
+	ToAgent   string `json:"to_agent,omitempty"`
+	Content   string `json:"content"`
+	Timestamp string `json:"timestamp"`
+	Type      string `json:"type"` // "message", "spawn", "task", "result"
+}
+
 // Agent class assignments based on agent name patterns
 var agentClasses = map[string]struct{ class, emoji, title string }{
 	// Inber agents
@@ -894,6 +916,226 @@ func (s *Store) GetQuestHistory(agentID string, limit int) ([]QuestHistoryEntry,
 		entries = []QuestHistoryEntry{}
 	}
 	return entries, nil
+}
+
+// GetConversations returns inter-agent conversations from session data.
+func (s *Store) GetConversations(limit int) ([]RPGConversation, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	var conversations []RPGConversation
+
+	if s.sessionsDB != nil {
+		// Query for sessions that involve spawned agents or inter-agent communication
+		rows, err := s.sessionsDB.Query(`
+			SELECT DISTINCT 
+				s1.id as session_id,
+				s1.agent as main_agent,
+				s2.agent as spawned_agent,
+				s1.started_at,
+				s1.last_message_at,
+				s1.initial_message
+			FROM sessions s1
+			LEFT JOIN sessions s2 ON s2.parent_session_id = s1.id
+			WHERE s2.agent IS NOT NULL OR s1.initial_message LIKE '%spawn%' OR s1.initial_message LIKE '%session%'
+			ORDER BY s1.started_at DESC
+			LIMIT ?
+		`, limit)
+		
+		if err != nil {
+			return nil, fmt.Errorf("query conversations: %w", err)
+		}
+		defer rows.Close()
+
+		conversationMap := make(map[string]*RPGConversation)
+
+		for rows.Next() {
+			var (
+				sessionID      string
+				mainAgent      sql.NullString
+				spawnedAgent   sql.NullString
+				startedAt      sql.NullString
+				lastMessageAt  sql.NullString
+				initialMessage sql.NullString
+			)
+			if err := rows.Scan(&sessionID, &mainAgent, &spawnedAgent, &startedAt, &lastMessageAt, &initialMessage); err != nil {
+				continue
+			}
+
+			conversationKey := sessionID
+			if spawnedAgent.Valid && mainAgent.Valid {
+				// Group by main agent
+				conversationKey = mainAgent.String
+			}
+
+			conv, exists := conversationMap[conversationKey]
+			if !exists {
+				conv = &RPGConversation{
+					ID:           conversationKey,
+					ParticipantIDs: []string{},
+					Participants: []string{},
+					Messages:     []RPGMessage{},
+					Type:         "spawn_chain",
+				}
+				if startedAt.Valid {
+					conv.StartedAt = startedAt.String
+				}
+				if lastMessageAt.Valid {
+					conv.LastActive = lastMessageAt.String
+				}
+				conversationMap[conversationKey] = conv
+			}
+
+			// Add participants
+			if mainAgent.Valid && !contains(conv.ParticipantIDs, mainAgent.String) {
+				conv.ParticipantIDs = append(conv.ParticipantIDs, mainAgent.String)
+				conv.Participants = append(conv.Participants, titleCase(mainAgent.String))
+			}
+			if spawnedAgent.Valid && !contains(conv.ParticipantIDs, spawnedAgent.String) {
+				conv.ParticipantIDs = append(conv.ParticipantIDs, spawnedAgent.String)
+				conv.Participants = append(conv.Participants, titleCase(spawnedAgent.String))
+			}
+
+			// Create initial message from spawn action
+			if initialMessage.Valid && spawnedAgent.Valid && mainAgent.Valid {
+				msgContent := initialMessage.String
+				if len(msgContent) > 100 {
+					msgContent = msgContent[:100] + "..."
+				}
+				
+				msg := RPGMessage{
+					ID:        fmt.Sprintf("%s-spawn-%s", sessionID, spawnedAgent.String),
+					FromAgent: titleCase(mainAgent.String),
+					ToAgent:   titleCase(spawnedAgent.String),
+					Content:   fmt.Sprintf("🎯 Spawned %s: %s", titleCase(spawnedAgent.String), msgContent),
+					Type:      "spawn",
+				}
+				if startedAt.Valid {
+					msg.Timestamp = startedAt.String
+				}
+				
+				// Add if not already exists
+				msgExists := false
+				for _, existingMsg := range conv.Messages {
+					if existingMsg.ID == msg.ID {
+						msgExists = true
+						break
+					}
+				}
+				if !msgExists {
+					conv.Messages = append(conv.Messages, msg)
+				}
+			}
+		}
+
+		// Now get turn messages for each conversation
+		for _, conv := range conversationMap {
+			turnRows, err := s.sessionsDB.Query(`
+				SELECT t.id, s.agent, t.role, t.content, t.timestamp
+				FROM turns t
+				JOIN sessions s ON s.id = t.session_id
+				WHERE s.agent IN (` + generateInClause(len(conv.ParticipantIDs)) + `)
+				ORDER BY t.timestamp ASC
+			`, stringSliceToInterfaceSlice(conv.ParticipantIDs)...)
+			
+			if err != nil {
+				continue
+			}
+			defer turnRows.Close()
+
+			for turnRows.Next() {
+				var (
+					turnID    string
+					agent     string
+					role      string
+					content   sql.NullString
+					timestamp sql.NullString
+				)
+				if err := turnRows.Scan(&turnID, &agent, &role, &content, &timestamp); err != nil {
+					continue
+				}
+
+				// Only include assistant messages (agent responses) and system messages about inter-agent activity
+				if role == "assistant" || (role == "system" && content.Valid && 
+					(strings.Contains(content.String, "spawn") || strings.Contains(content.String, "session"))) {
+					
+					msgContent := "No content"
+					if content.Valid && content.String != "" {
+						msgContent = content.String
+						if len(msgContent) > 200 {
+							msgContent = msgContent[:200] + "..."
+						}
+					}
+
+					msgType := "message"
+					if role == "system" {
+						msgType = "system"
+					}
+
+					msg := RPGMessage{
+						ID:        fmt.Sprintf("%s-%s", turnID, agent),
+						FromAgent: titleCase(agent),
+						Content:   msgContent,
+						Type:      msgType,
+					}
+					if timestamp.Valid {
+						msg.Timestamp = timestamp.String
+					}
+
+					conv.Messages = append(conv.Messages, msg)
+				}
+			}
+		}
+
+		// Generate conversation titles and convert to slice
+		for _, conv := range conversationMap {
+			if len(conv.Participants) > 0 {
+				if len(conv.Participants) == 1 {
+					conv.Title = fmt.Sprintf("%s's Work", conv.Participants[0])
+				} else {
+					conv.Title = fmt.Sprintf("Collaboration: %s", strings.Join(conv.Participants, ", "))
+				}
+			} else {
+				conv.Title = "Unknown Conversation"
+			}
+			conversations = append(conversations, *conv)
+		}
+	}
+
+	if conversations == nil {
+		conversations = []RPGConversation{}
+	}
+	return conversations, nil
+}
+
+// Helper functions
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+func generateInClause(count int) string {
+	if count == 0 {
+		return "''"
+	}
+	placeholders := make([]string, count)
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+	return strings.Join(placeholders, ", ")
+}
+
+func stringSliceToInterfaceSlice(strs []string) []interface{} {
+	result := make([]interface{}, len(strs))
+	for i, s := range strs {
+		result[i] = s
+	}
+	return result
 }
 
 func titleCase(s string) string {

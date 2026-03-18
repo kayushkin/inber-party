@@ -400,3 +400,9 @@ func computeAchievements(agent *RPGAgent, allQuests []RPGQuest) []RPGAchievement
 
 	return achievements
 }
+
+// GetConversations returns empty conversations for HTTP client since this data is not available via API.
+func (c *HTTPClient) GetConversations(limit int) ([]RPGConversation, error) {
+	// HTTP API doesn't expose session conversation details
+	return []RPGConversation{}, nil
+}

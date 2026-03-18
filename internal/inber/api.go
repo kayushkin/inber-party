@@ -14,6 +14,7 @@ type DataSource interface {
 	GetStats() (*RPGStats, error)
 	GetAchievements(agentID string) ([]RPGAchievement, error)
 	GetQuestHistory(agentID string, limit int) ([]QuestHistoryEntry, error)
+	GetConversations(limit int) ([]RPGConversation, error)
 }
 
 // Ensure both implement DataSource
@@ -37,6 +38,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/inber/stats", h.handleStats)
 	mux.HandleFunc("/api/inber/achievements", h.handleAchievements)
 	mux.HandleFunc("/api/inber/quest-history", h.handleQuestHistory)
+	mux.HandleFunc("/api/inber/conversations", h.handleConversations)
 }
 
 func (h *Handler) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -152,4 +154,28 @@ func (h *Handler) handleStats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
+}
+
+func (h *Handler) handleConversations(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	conversations, err := h.source.GetConversations(limit)
+	if err != nil {
+		log.Printf("Error getting conversations: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(conversations)
 }
