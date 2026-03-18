@@ -219,6 +219,11 @@
   font-size: 0.8rem;
 }
 
+.session-stats {
+  display: flex;
+  gap: 1rem;
+}
+
 .session-messages,
 .session-tokens,
 .session-cost {
@@ -226,6 +231,24 @@
   align-items: center;
   gap: 0.2rem;
   opacity: 0.8;
+}
+
+.replay-button {
+  background: linear-gradient(135deg, #8b5a2b, #d4af37);
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.replay-button:hover {
+  background: linear-gradient(135deg, #d4af37, #ffd700);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .detail-header {

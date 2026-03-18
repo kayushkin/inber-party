@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { timeAgo, formatTokens, formatCost } from '../store';
+import SessionReplay from '../components/SessionReplay';
 import './Library.css';
 
 interface SessionLog {
@@ -43,6 +44,7 @@ export default function Library() {
   const [loading, setLoading] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [replaySessionId, setReplaySessionId] = useState<string | null>(null);
 
   // Fetch sessions list
   useEffect(() => {
@@ -262,9 +264,21 @@ export default function Library() {
                   </div>
                   
                   <div className="session-card-footer">
-                    <span className="session-messages">💬 {session.messageCount}</span>
-                    <span className="session-tokens">🔮 {formatTokens(session.totalTokens)}</span>
-                    <span className="session-cost">{formatCost(session.totalCost)}</span>
+                    <div className="session-stats">
+                      <span className="session-messages">💬 {session.messageCount}</span>
+                      <span className="session-tokens">🔮 {formatTokens(session.totalTokens)}</span>
+                      <span className="session-cost">{formatCost(session.totalCost)}</span>
+                    </div>
+                    <button 
+                      className="replay-button"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card selection
+                        setReplaySessionId(session.sessionKey);
+                      }}
+                      title="View Session Replay"
+                    >
+                      🎬 Replay
+                    </button>
                   </div>
                 </div>
               ))}
@@ -359,6 +373,13 @@ export default function Library() {
           )}
         </div>
       </div>
+
+      {replaySessionId && (
+        <SessionReplay
+          sessionId={replaySessionId}
+          onClose={() => setReplaySessionId(null)}
+        />
+      )}
     </div>
   );
 }

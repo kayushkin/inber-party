@@ -1436,3 +1436,157 @@ func getHeldItemsForAgent(analysis *ActivityAnalysis) []RPGHeldItem {
 	
 	return heldItems
 }
+
+// SessionReplay represents a complete session replay with all tool calls and turns
+type SessionReplay struct {
+	SessionID    string           `json:"session_id"`
+	AgentID      string           `json:"agent_id"`
+	Status       string           `json:"status"`
+	StartedAt    string           `json:"started_at"`
+	CompletedAt  string           `json:"completed_at,omitempty"`
+	InitialTask  string           `json:"initial_task"`
+	TotalTurns   int              `json:"total_turns"`
+	TotalTokens  int              `json:"total_tokens"`
+	TotalCost    float64          `json:"total_cost"`
+	Turns        []ReplayTurn     `json:"turns"`
+}
+
+// ReplayTurn represents a single turn in the session replay
+type ReplayTurn struct {
+	TurnNumber   int              `json:"turn_number"`
+	Timestamp    string           `json:"timestamp"`
+	Input        string           `json:"input"`
+	Output       string           `json:"output"`
+	ToolCalls    []ReplayToolCall `json:"tool_calls"`
+	InputTokens  int              `json:"input_tokens"`
+	OutputTokens int              `json:"output_tokens"`
+	Cost         float64          `json:"cost"`
+	Duration     float64          `json:"duration"` // seconds
+}
+
+// ReplayToolCall represents a single tool call in the replay
+type ReplayToolCall struct {
+	Name        string      `json:"name"`
+	Parameters  interface{} `json:"parameters"`
+	Result      string      `json:"result"`
+	Success     bool        `json:"success"`
+	Duration    float64     `json:"duration"` // seconds
+	Timestamp   string      `json:"timestamp"`
+}
+
+// GetSessionReplay returns detailed session data for replay visualization
+func (s *Store) GetSessionReplay(sessionID string) (*SessionReplay, error) {
+	if s.gatewayDB == nil {
+		return nil, fmt.Errorf("gateway database not available")
+	}
+
+	// Get basic session information
+	var replay SessionReplay
+	var completedAt sql.NullString
+	
+	err := s.gatewayDB.QueryRow(`
+		SELECT s.key, s.agent, s.status, s.started_at, s.completed_at, 
+			   s.initial_message, s.total_turns, 
+			   COALESCE((SELECT SUM(input_tokens + output_tokens) FROM requests WHERE session_key = s.key), 0) as total_tokens,
+			   COALESCE((SELECT SUM(cost) FROM requests WHERE session_key = s.key), 0) as total_cost
+		FROM sessions s
+		WHERE s.key = ?
+	`, sessionID).Scan(&replay.SessionID, &replay.AgentID, &replay.Status, &replay.StartedAt, 
+		&completedAt, &replay.InitialTask, &replay.TotalTurns, &replay.TotalTokens, &replay.TotalCost)
+	
+	if err != nil {
+		return nil, fmt.Errorf("session not found: %w", err)
+	}
+	
+	if completedAt.Valid {
+		replay.CompletedAt = completedAt.String
+	}
+
+	// Get all turns/requests for this session
+	rows, err := s.gatewayDB.Query(`
+		SELECT r.id, r.started_at, r.input_text, r.output_text, r.tool_calls,
+			   r.input_tokens, r.output_tokens, r.cost,
+			   COALESCE(julianday(r.completed_at) - julianday(r.started_at), 0) * 86400 as duration
+		FROM requests r
+		WHERE r.session_key = ?
+		ORDER BY r.id ASC
+	`, sessionID)
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session turns: %w", err)
+	}
+	defer rows.Close()
+
+	turnNumber := 1
+	for rows.Next() {
+		var turn ReplayTurn
+		var toolCallsJSON sql.NullString
+		var duration sql.NullFloat64
+		
+		err := rows.Scan(&turn.TurnNumber, &turn.Timestamp, &turn.Input, &turn.Output,
+			&toolCallsJSON, &turn.InputTokens, &turn.OutputTokens, &turn.Cost, &duration)
+		if err != nil {
+			continue
+		}
+		
+		turn.TurnNumber = turnNumber
+		turnNumber++
+		
+		if duration.Valid {
+			turn.Duration = duration.Float64
+		}
+
+		// Parse tool calls if present
+		if toolCallsJSON.Valid && toolCallsJSON.String != "" {
+			var toolCalls []map[string]interface{}
+			if err := json.Unmarshal([]byte(toolCallsJSON.String), &toolCalls); err == nil {
+				for _, tc := range toolCalls {
+					replayTool := ReplayToolCall{
+						Timestamp: turn.Timestamp, // Use turn timestamp as default
+					}
+					
+					if name, ok := tc["name"].(string); ok {
+						replayTool.Name = name
+					}
+					if params, ok := tc["parameters"]; ok {
+						replayTool.Parameters = params
+					}
+					if result, ok := tc["result"].(string); ok {
+						replayTool.Result = result
+						replayTool.Success = true
+					}
+					if errorStr, ok := tc["error"].(string); ok && errorStr != "" {
+						replayTool.Result = errorStr
+						replayTool.Success = false
+					}
+					// Duration estimation based on tool complexity
+					replayTool.Duration = estimateToolDuration(replayTool.Name)
+					
+					turn.ToolCalls = append(turn.ToolCalls, replayTool)
+				}
+			}
+		}
+		
+		replay.Turns = append(replay.Turns, turn)
+	}
+
+	return &replay, nil
+}
+
+// estimateToolDuration provides rough duration estimates for different tool types
+func estimateToolDuration(toolName string) float64 {
+	switch toolName {
+	case "read", "write", "edit":
+		return 1.0 // File operations are usually quick
+	case "exec", "process":
+		return 3.0 // Shell commands take longer
+	case "web_search", "web_fetch":
+		return 2.0 // Web operations have network latency
+	case "image", "tts":
+		return 4.0 // AI operations take time
+	case "browser":
+		return 5.0 // Browser automation is slow
+	default:
+		return 1.5 // Default duration
+	}
+}

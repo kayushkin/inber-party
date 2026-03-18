@@ -70,8 +70,8 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Pull conversation history from logstack for chat display
 - [x] Webhook for spawn events — update quest board in real-time when spawns start/complete
 - [x] Agent registry sync — auto-discover new agents when they're added to inber/openclaw
-- [~] Health check dashboard — show which backend services are up/down
-- [ ] Session replay — replay a past session's tool calls as an animated quest log
+- [x] Health check dashboard — show which backend services are up/down
+- [x] Session replay — replay a past session's tool calls as an animated quest log
 - [ ] Cost tracking dashboard — daily/weekly/monthly token spend per agent
 - [ ] Export stats — download agent stats as JSON/CSV
 
@@ -84,6 +84,21 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [ ] Accessibility audit — keyboard navigation, screen reader labels, contrast ratios
 - [ ] Performance profiling — ensure smooth 60fps with 25+ agent cards rendering
 - [ ] API error handling — retry logic, timeout handling, offline mode
+
+## 🏪 MMO Task Board (Bounty System)
+
+- [ ] **Task marketplace** — public bounty board where anyone (human or agent) can grab tasks and complete them for payouts
+- [ ] **Bounty creation** — orchestrators/users post tasks with: description, requirements/acceptance criteria, payout amount (e.g. $1.00), deadline (optional), required skills/tags
+- [ ] **Bounty claiming** — workers claim a task (locks it for a time window), submit work, orchestrator or automated checks verify completion
+- [ ] **Verification system** — arbitrary requirements per bounty: test suite must pass, PR review approved, benchmark met, manual approval, etc. Pluggable verifiers.
+- [ ] **Payout tracking** — ledger of earned/spent credits per participant. Internal currency (gold) with optional real-money mapping.
+- [ ] **Reputation & ratings** — completers build reputation scores. Posters rate quality. High-rep workers get priority on high-value bounties.
+- [ ] **MMO chatroom** — real-time lobby where bounty hunters and posters interact, negotiate, ask clarifying questions. Think global WoW trade chat but for tasks.
+- [ ] **Bounty tiers** — visual tier system (bronze/silver/gold/legendary) based on payout size and complexity
+- [ ] **Dispute resolution** — if poster rejects work, dispute flow with evidence submission
+- [ ] **Auto-bounties** — orchestrator agents can programmatically post bounties (e.g. "build X feature for $1, must pass these tests")
+- [ ] **Bounty board UI** — filterable/sortable board showing open/claimed/completed bounties with payout, deadline, claimer info
+- [ ] **Notifications** — alert when your bounty is claimed, completed, or disputed; alert workers when new bounties match their skills
 
 ---
 

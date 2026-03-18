@@ -406,3 +406,9 @@ func (c *HTTPClient) GetConversations(limit int) ([]RPGConversation, error) {
 	// HTTP API doesn't expose session conversation details
 	return []RPGConversation{}, nil
 }
+
+// GetSessionReplay returns session replay data (HTTP API doesn't support this yet).
+func (c *HTTPClient) GetSessionReplay(sessionID string) (*SessionReplay, error) {
+	// HTTP API doesn't expose detailed session replay data yet
+	return nil, fmt.Errorf("session replay not available via HTTP API")
+}

@@ -15,6 +15,7 @@ type DataSource interface {
 	GetAchievements(agentID string) ([]RPGAchievement, error)
 	GetQuestHistory(agentID string, limit int) ([]QuestHistoryEntry, error)
 	GetConversations(limit int) ([]RPGConversation, error)
+	GetSessionReplay(sessionID string) (*SessionReplay, error)
 }
 
 // Ensure both implement DataSource
@@ -39,6 +40,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/inber/achievements", h.handleAchievements)
 	mux.HandleFunc("/api/inber/quest-history", h.handleQuestHistory)
 	mux.HandleFunc("/api/inber/conversations", h.handleConversations)
+	mux.HandleFunc("/api/inber/session-replay", h.handleSessionReplay)
 }
 
 func (h *Handler) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -178,4 +180,27 @@ func (h *Handler) handleConversations(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(conversations)
+}
+
+func (h *Handler) handleSessionReplay(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sessionID := r.URL.Query().Get("session")
+	if sessionID == "" {
+		http.Error(w, "session parameter required", http.StatusBadRequest)
+		return
+	}
+
+	replay, err := h.source.GetSessionReplay(sessionID)
+	if err != nil {
+		log.Printf("Error getting session replay: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(replay)
 }
