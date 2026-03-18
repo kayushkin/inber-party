@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import { useStore } from '../store';
 import ThemeToggle from './ThemeToggle';
 import SoundToggle from './SoundToggle';
@@ -6,11 +7,13 @@ import TTSToggle from './TTSToggle';
 import SoundEffects from './SoundEffects';
 import AnimatedBackground from './AnimatedBackground';
 import PageTransition from './PageTransition';
+import Minimap from './Minimap';
 import './Layout.css';
 
 export default function Layout() {
   const connected = useStore((s) => s.connected);
   const location = useLocation();
+  const [showMinimap, setShowMinimap] = useState(false);
 
   const navItems = [
     { to: '/', label: '🏕️ Tavern', match: '/' },
@@ -61,6 +64,13 @@ export default function Layout() {
             ))}
           </nav>
           <div className="header-controls">
+            <button
+              className={`minimap-toggle ${showMinimap ? 'active' : ''}`}
+              onClick={() => setShowMinimap(!showMinimap)}
+              title="Toggle Guild Map"
+            >
+              🗺️
+            </button>
             <TTSToggle />
             <SoundToggle />
             <ThemeToggle />
@@ -76,6 +86,20 @@ export default function Layout() {
           <Outlet />
         </PageTransition>
       </main>
+      
+      {/* Minimap Sidebar */}
+      <div className={`minimap-sidebar ${showMinimap ? 'show' : ''}`}>
+        <Minimap />
+      </div>
+      
+      {/* Backdrop for closing minimap */}
+      {showMinimap && (
+        <div 
+          className="minimap-backdrop" 
+          onClick={() => setShowMinimap(false)}
+        />
+      )}
+      
       <SoundEffects />
     </div>
   );

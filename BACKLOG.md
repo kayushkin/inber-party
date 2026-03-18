@@ -44,7 +44,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Agent's Quarters — per-agent room with their files, memory, recent work
 - [x] Room transitions — animated transitions when moving between rooms
 - [x] Room-specific ambient styling (different bg colors/textures per room)
-- [ ] Minimap/floorplan showing which agents are in which room
+- [~] Minimap/floorplan showing which agents are in which room
 
 ## 🎮 Game Mechanics
 
