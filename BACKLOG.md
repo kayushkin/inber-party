@@ -36,7 +36,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 🏰 Rooms & Spaces
 
-- [~] Tavern room — main gathering area, shows all agents and recent activity feed
+- [x] Tavern room — main gathering area, shows all agents and recent activity feed
 - [ ] War Room — active quests/tasks dashboard with real-time progress
 - [ ] Library — session logs and history browser, searchable
 - [ ] Training Grounds — benchmarks and test results display
