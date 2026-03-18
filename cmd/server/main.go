@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kayushkin/inber-party/internal/api"
+	"github.com/kayushkin/inber-party/internal/dailyquests"
 	"github.com/kayushkin/inber-party/internal/db"
 	"github.com/kayushkin/inber-party/internal/inber"
 	"github.com/kayushkin/inber-party/internal/questgiver"
@@ -42,7 +43,16 @@ func main() {
 		log.Println("⚠ No DATABASE_URL set — running in inber-only mode")
 	}
 
-	apiServer := api.NewServer(database, hub, nil)
+	// Initialize Daily Quest Manager
+	var dailyQuestMgr *dailyquests.DailyQuestManager
+	if database != nil {
+		dailyQuestMgr = dailyquests.NewDailyQuestManager(database)
+		// Start the daily quest scheduler
+		dailyQuestMgr.ScheduleDailyQuestGeneration()
+		log.Println("✓ Daily Quest Manager initialized and scheduled")
+	}
+
+	apiServer := api.NewServer(database, hub, nil, dailyQuestMgr)
 
 	mux := http.NewServeMux()
 	apiServer.RegisterRoutes(mux)

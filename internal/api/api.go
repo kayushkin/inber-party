@@ -7,19 +7,21 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kayushkin/inber-party/internal/dailyquests"
 	"github.com/kayushkin/inber-party/internal/db"
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
 
 type Server struct {
-	DB         *db.DB
-	Hub        *ws.Hub
-	QuestGiver *questgiver.QuestGiver
+	DB               *db.DB
+	Hub              *ws.Hub
+	QuestGiver       *questgiver.QuestGiver
+	DailyQuestMgr    *dailyquests.DailyQuestManager
 }
 
-func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver) *Server {
-	return &Server{DB: database, Hub: hub, QuestGiver: qg}
+func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dailyquests.DailyQuestManager) *Server {
+	return &Server{DB: database, Hub: hub, QuestGiver: qg, DailyQuestMgr: dqm}
 }
 
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
@@ -33,6 +35,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/quest-giver/analyze", s.handleQuestAnalyze)
 	mux.HandleFunc("/api/quest-giver/recommendations", s.handleQuestRecommendations)
 	mux.HandleFunc("/api/quest-giver/assign", s.handleQuestAssign)
+	mux.HandleFunc("/api/daily-quests", s.handleDailyQuests)
+	mux.HandleFunc("/api/daily-quests/generate", s.handleGenerateDailyQuests)
+	mux.HandleFunc("/api/daily-quests/stats", s.handleDailyQuestStats)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -876,4 +881,78 @@ func (s *Server) handleQuestAssign(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Task assigned successfully"})
+}
+
+// Daily Quest handlers
+func (s *Server) handleDailyQuests(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if s.DailyQuestMgr == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+	
+	quests, err := s.DailyQuestMgr.GetActiveDailyQuests()
+	if err != nil {
+		log.Printf("Error getting daily quests: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(quests)
+}
+
+func (s *Server) handleGenerateDailyQuests(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if s.DailyQuestMgr == nil {
+		http.Error(w, "Daily Quest Manager not available", http.StatusServiceUnavailable)
+		return
+	}
+	
+	err := s.DailyQuestMgr.GenerateDailyQuests()
+	if err != nil {
+		log.Printf("Error generating daily quests: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// Broadcast that new daily quests were generated
+	s.Hub.Broadcast(ws.Message{Type: "daily_quests_generated", Data: map[string]string{
+		"message": "New daily quests have been generated!",
+	}})
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Daily quests generated successfully"})
+}
+
+func (s *Server) handleDailyQuestStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if s.DailyQuestMgr == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{})
+		return
+	}
+	
+	stats, err := s.DailyQuestMgr.GetQuestStats()
+	if err != nil {
+		log.Printf("Error getting daily quest stats: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
 }
