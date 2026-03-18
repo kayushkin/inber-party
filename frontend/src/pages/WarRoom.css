@@ -399,6 +399,30 @@
   opacity: 0.8;
 }
 
+/* Boss Battles Section */
+.boss-battles-section {
+  margin-bottom: 2rem;
+}
+
+.boss-battles-section h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e, #ffabab);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 2px 2px 4px rgba(255, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.boss-battles-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 /* Skeleton Loading */
 .skeleton {
   background: linear-gradient(90deg, #333 25%, #444 50%, #333 75%);

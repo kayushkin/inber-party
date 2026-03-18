@@ -1,0 +1,386 @@
+.boss-battle {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a0000 20%, #2d0000 80%, #0a0a0a 100%);
+  border: 3px solid #8b0000;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  box-shadow: 
+    0 8px 32px rgba(139, 0, 0, 0.4),
+    0 0 20px rgba(255, 0, 0, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+  animation: boss-entrance 0.8s ease-out;
+}
+
+.boss-battle.completed {
+  background: linear-gradient(135deg, #0a0a0a 0%, #001a00 20%, #002d00 80%, #0a0a0a 100%);
+  border-color: #228b22;
+  box-shadow: 
+    0 8px 32px rgba(34, 139, 34, 0.4),
+    0 0 20px rgba(0, 255, 0, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+.boss-battle.enraged {
+  animation: boss-rage 1s ease-in-out infinite alternate;
+}
+
+@keyframes boss-entrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes boss-rage {
+  0% {
+    box-shadow: 
+      0 8px 32px rgba(139, 0, 0, 0.4),
+      0 0 20px rgba(255, 0, 0, 0.2),
+      inset 0 2px 4px rgba(255, 255, 255, 0.1);
+  }
+  100% {
+    box-shadow: 
+      0 8px 32px rgba(255, 0, 0, 0.8),
+      0 0 40px rgba(255, 0, 0, 0.6),
+      inset 0 2px 4px rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Boss Header */
+.boss-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.boss-info h3.boss-name {
+  font-size: 1.8rem;
+  margin: 0 0 0.25rem 0;
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e, #ffabab);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 2px 2px 4px rgba(255, 0, 0, 0.3);
+  font-weight: bold;
+}
+
+.boss-title {
+  color: #ff8888;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.25rem;
+}
+
+.boss-quest-name {
+  color: #cccccc;
+  font-size: 1rem;
+  font-style: italic;
+}
+
+.boss-difficulty {
+  text-align: right;
+}
+
+.difficulty-stars {
+  color: #ffd700;
+  font-size: 1.2rem;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.boss-status {
+  color: #ff9999;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+/* Health Bar */
+.boss-health-container {
+  margin-bottom: 1.5rem;
+}
+
+.boss-health-label {
+  display: flex;
+  justify-content: space-between;
+  color: #ffffff;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.boss-health-bar {
+  position: relative;
+  height: 32px;
+  border: 2px solid #666;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #222;
+}
+
+.boss-health-bg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.boss-health-fill {
+  height: 100%;
+  transition: all 0.8s ease-out;
+  position: relative;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    rgba(255,255,255,0.1) 0%, 
+    transparent 50%, 
+    rgba(255,255,255,0.2) 100%);
+}
+
+.boss-health-fill.animate {
+  animation: health-pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes health-pulse {
+  0% { filter: brightness(1); }
+  100% { filter: brightness(1.2); }
+}
+
+.health-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255,255,255,0.4) 50%, 
+    transparent 100%);
+  animation: shine-sweep 3s ease-in-out infinite;
+}
+
+@keyframes shine-sweep {
+  0% { left: -100%; }
+  50% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.low-health-effect {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  color: #ffff00;
+  font-size: 1.2rem;
+  animation: low-health-flash 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes low-health-flash {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Champion Section */
+.champion-section {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 1px solid #d4af37;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.champion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.champion-label {
+  color: #ffd700;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.champion-status {
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.champion-status.status-working {
+  background: #28a745;
+  color: white;
+}
+
+.champion-status.status-idle {
+  background: #6c757d;
+  color: white;
+}
+
+.champion-status.status-error {
+  background: #dc3545;
+  color: white;
+}
+
+.champion-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.champion-avatar {
+  font-size: 1.5rem;
+}
+
+.champion-details {
+  flex: 1;
+}
+
+.champion-name {
+  display: block;
+  color: #ffffff;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.champion-level {
+  display: block;
+  color: #cccccc;
+  font-size: 0.8rem;
+}
+
+.champion-energy-bar {
+  width: 60px;
+  height: 8px;
+  background: #333;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.champion-energy-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #28a745, #20c997);
+  transition: width 0.3s ease;
+}
+
+/* Battle Metrics */
+.battle-metrics {
+  margin-bottom: 1rem;
+}
+
+.metric-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 0.5rem;
+}
+
+.metric-icon {
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.metric-label {
+  color: #999;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.125rem;
+}
+
+.metric-value {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+/* Boss Description */
+.boss-description {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.description-label {
+  color: #ffd700;
+  font-weight: bold;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.description-text {
+  color: #cccccc;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Boss Error */
+.boss-error {
+  background: linear-gradient(135deg, #2d0000 0%, #1a0000 100%);
+  border: 1px solid #8b0000;
+  border-radius: 6px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ff6666;
+  font-weight: bold;
+  animation: error-pulse 1s ease-in-out infinite alternate;
+}
+
+.error-icon {
+  font-size: 1.2rem;
+}
+
+@keyframes error-pulse {
+  0% { background: linear-gradient(135deg, #2d0000 0%, #1a0000 100%); }
+  100% { background: linear-gradient(135deg, #4d0000 0%, #2a0000 100%); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .boss-battle {
+    padding: 1rem;
+  }
+  
+  .boss-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .boss-difficulty {
+    text-align: left;
+  }
+  
+  .metric-group {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 0.5rem;
+  }
+  
+  .champion-info {
+    gap: 0.5rem;
+  }
+}

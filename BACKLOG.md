@@ -60,7 +60,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] Achievement notifications — toast popups when achievements are earned
 - [x] Leaderboard — ranked agent stats (XP, quests completed, efficiency score)
 - [x] Agent mood/morale system — based on error rate, workload, rest time
-- [ ] Boss battles — complex multi-agent tasks displayed as boss encounters with health bars
+- [x] Boss battles — complex multi-agent tasks displayed as boss encounters with health bars
 - [ ] Reputation system — agents build reputation in their domains over time
 - [ ] Gold/currency — token cost converted to gold, agents "earn" gold for completing quests
 

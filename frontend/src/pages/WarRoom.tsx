@@ -1,5 +1,6 @@
 import { useStore, formatTokens, formatCost, timeAgo, getDifficultyStars, getDifficultyName, calculateQuestDifficulty } from '../store';
 import { SkeletonQuestCard } from '../components/SkeletonLoader';
+import BossBattle from '../components/BossBattle';
 import Tooltip from '../components/Tooltip';
 import './WarRoom.css';
 
@@ -11,6 +12,15 @@ export default function WarRoom() {
 
   const activeQuests = quests.filter((q) => q.status === 'in_progress');
   const workingAgents = agents.filter((a) => a.status === 'working');
+
+  // Identify boss-level quests (high difficulty OR multi-agent OR high token count)
+  const bossQuests = activeQuests.filter((q) => 
+    q.tokens_used >= 50000 || // High token count
+    (q.children && q.children > 0) || // Multi-agent task
+    calculateQuestDifficulty(q.tokens_used) >= 4 // 4-5 star difficulty
+  );
+  
+  const regularQuests = activeQuests.filter((q) => !bossQuests.includes(q));
 
   // Calculate war room stats
   const totalActiveTokens = activeQuests.reduce((sum, q) => sum + q.tokens_used, 0);
@@ -102,6 +112,26 @@ export default function WarRoom() {
         </div>
       </div>
 
+      {/* Boss Battles */}
+      {bossQuests.length > 0 && (
+        <div className="boss-battles-section">
+          <h2>🐉 Boss Battles</h2>
+          <div className="boss-battles-container">
+            {bossQuests.map((quest) => {
+              const assignedAgent = agents.find(a => a.id === quest.assigned_agent_id);
+              return (
+                <BossBattle 
+                  key={quest.id} 
+                  quest={quest} 
+                  assignedAgent={assignedAgent}
+                  isActive={true}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Active Operations */}
       <div className="active-operations">
         <h2>🎯 Active Operations</h2>
@@ -111,15 +141,15 @@ export default function WarRoom() {
               <SkeletonQuestCard key={`skeleton-operation-${i}`} />
             ))}
           </div>
-        ) : activeQuests.length === 0 ? (
+        ) : regularQuests.length === 0 ? (
           <div className="no-operations">
             <div className="no-operations-icon">😴</div>
             <div className="no-operations-text">All quiet on the digital front</div>
-            <div className="no-operations-subtitle">No active operations at the moment</div>
+            <div className="no-operations-subtitle">No regular operations at the moment{bossQuests.length > 0 ? ' (boss battles active above)' : ''}</div>
           </div>
         ) : (
           <div className="operations-grid">
-            {activeQuests.map((quest) => {
+            {regularQuests.map((quest) => {
               const assignedAgent = agents.find(a => a.id === quest.assigned_agent_id);
               const progressClass = quest.progress > 75 ? 'high' : quest.progress > 25 ? 'medium' : 'low';
               
