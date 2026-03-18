@@ -10,6 +10,7 @@ Míl Party transforms your AI coding agents into a party of adventurers gathered
 - 🏕️ **Camp View** — Your agents rest by the fire, showing their current status and energy
 - 📜 **Quest Board** — Create tasks and assign them to agents
 - 📊 **Character Sheets** — Detailed view of each agent's stats, skills, achievements, and quest log
+- ⭐ **Daily Quests** — Auto-generated daily tasks tailored to each agent's class and level for progressive leveling
 - 📡 **Real-time Updates** — WebSocket connection for live state changes
 - 🎨 **Pixel-Art Aesthetic** — Dark backgrounds, gold accents, and monospace fonts
 
