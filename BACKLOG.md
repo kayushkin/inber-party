@@ -26,7 +26,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 💬 Chat & Interaction
 
-- [ ] Talk to adventurers as "the player" — chat interface where you're the guild master giving orders
+- [~] Talk to adventurers as "the player" — chat interface where you're the guild master giving orders
 - [ ] Adventurers chat with each other — show inter-agent conversations (from spawn chains, btw messages)
 - [ ] Prompt adventurers directly from their character sheet — quick-action buttons ("Scout this repo", "Fix bugs", "Write tests")
 - [ ] Chat history persistence — store conversations in localStorage or backend

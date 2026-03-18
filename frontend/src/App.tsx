@@ -7,6 +7,7 @@ import CharacterSheet from './pages/CharacterSheet';
 import QuestBoard from './pages/QuestBoard';
 import StatsView from './pages/StatsView';
 import ComparisonView from './pages/ComparisonView';
+import GuildMasterChat from './pages/GuildMasterChat';
 import './App.css';
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
           <Route index element={<CampView />} />
           <Route path="agent/:id" element={<CharacterSheet />} />
           <Route path="quests" element={<QuestBoard />} />
+          <Route path="guild-chat" element={<GuildMasterChat />} />
           <Route path="stats" element={<StatsView />} />
           <Route path="compare" element={<ComparisonView />} />
         </Route>
