@@ -17,6 +17,7 @@ export default function Layout() {
     { to: '/war-room', label: '⚔️ War Room', match: '/war-room' },
     { to: '/guild-chat', label: '👑 Guild Hall', match: '/guild-chat' },
     { to: '/conversations', label: '🗣️ Conversations', match: '/conversations' },
+    { to: '/library', label: '📚 Library', match: '/library' },
     { to: '/stats', label: '📊 Stats', match: '/stats' },
     { to: '/compare', label: '🔍 Compare', match: '/compare' },
   ];

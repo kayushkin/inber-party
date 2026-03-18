@@ -10,6 +10,7 @@ import StatsView from './pages/StatsView';
 import ComparisonView from './pages/ComparisonView';
 import GuildMasterChat from './pages/GuildMasterChat';
 import AgentConversations from './pages/AgentConversations';
+import Library from './pages/Library';
 import './App.css';
 
 function App() {
@@ -43,6 +44,7 @@ function App() {
           <Route path="war-room" element={<WarRoom />} />
           <Route path="guild-chat" element={<GuildMasterChat />} />
           <Route path="conversations" element={<AgentConversations />} />
+          <Route path="library" element={<Library />} />
           <Route path="stats" element={<StatsView />} />
           <Route path="compare" element={<ComparisonView />} />
         </Route>
