@@ -11,6 +11,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/api"
 	"github.com/kayushkin/inber-party/internal/dailyquests"
 	"github.com/kayushkin/inber-party/internal/db"
+	"github.com/kayushkin/inber-party/internal/events"
 	"github.com/kayushkin/inber-party/internal/inber"
 	"github.com/kayushkin/inber-party/internal/mood"
 	"github.com/kayushkin/inber-party/internal/questgiver"
@@ -118,9 +119,13 @@ func main() {
 		inberHandler := inber.NewHandler(inberSource)
 		inberHandler.RegisterRoutes(mux)
 
-		// Auto-refresh: poll inber data every 10s and broadcast changes via WebSocket
+		// Start real-time quest monitoring for live updates
+		questMonitor := events.NewQuestMonitor(inberSource, hub)
+		questMonitor.Start()
+		
+		// Fallback: poll inber data every 30s for full refresh (less frequent since we have real-time events)
 		go func() {
-			ticker := time.NewTicker(10 * time.Second)
+			ticker := time.NewTicker(30 * time.Second)
 			defer ticker.Stop()
 			for range ticker.C {
 				agents, err := inberSource.GetAgents()

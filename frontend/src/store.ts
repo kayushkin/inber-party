@@ -432,7 +432,36 @@ export const useStore = create<StoreState>((set, get) => ({
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        if (msg.type === 'inber_update') {
+        if (msg.type === 'quest_event') {
+          // Handle real-time quest events
+          const questEvent = msg.data;
+          console.log(`🎯 Quest Event: ${questEvent.message}`);
+          
+          // Play sound effects for important events
+          switch (questEvent.type) {
+            case 'quest_completed':
+              console.log(`🎉 ${questEvent.message}`);
+              // The quest completion sound/animation is already handled by the existing triggerQuestCompletion logic
+              break;
+            case 'quest_failed':
+              console.log(`💀 ${questEvent.message}`);
+              break;
+            case 'quest_started':
+              console.log(`⚔️ ${questEvent.message}`);
+              break;
+            case 'agent_level_up':
+              console.log(`✨ ${questEvent.message}`);
+              // The level up animation is already handled by the existing triggerLevelUp logic
+              break;
+            case 'agent_status_changed':
+              console.log(`📍 ${questEvent.message}`);
+              break;
+          }
+          
+          // Trigger a fresh data fetch to get the latest state after the event
+          // This ensures the UI stays in sync with the real-time events
+          get().fetchAll();
+        } else if (msg.type === 'inber_update') {
           const { agents, quests, stats } = msg.data;
           if (agents) {
             const { previousAgentLevels, triggerLevelUp } = get();
