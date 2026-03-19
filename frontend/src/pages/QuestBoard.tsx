@@ -5,6 +5,64 @@ import QuestCreationForm from '../components/QuestCreationForm';
 import { SkeletonQuestCard } from '../components/SkeletonLoader';
 import './QuestBoard.css';
 
+// Quest type detection and formatting
+function parseQuestDetails(quest: any) {
+  const name = quest.name || '';
+  const description = quest.description || '';
+  
+  // Detect quest type from name format
+  if (name.includes('[Sub-agent completed]')) {
+    const agentMatch = name.match(/Agent: (\w+)/);
+    const agentName = agentMatch ? agentMatch[1] : 'Unknown';
+    return {
+      type: 'sub-agent',
+      icon: '🤖',
+      displayName: `Sub-agent: ${agentName}`,
+      summary: description.split('. ')[0] || description.substring(0, 80) + '...',
+      fullDescription: description
+    };
+  } else if (name.includes('[scheduler]')) {
+    const taskName = name.replace(/⚗️\s*\[scheduler\]\s*/, '').trim();
+    return {
+      type: 'scheduler',
+      icon: '⚗️',
+      displayName: `Scheduler: ${taskName}`,
+      summary: description.replace(/^\[scheduler\]\s*/, '').trim(),
+      fullDescription: description
+    };
+  } else if (name.includes('[') && name.includes(']')) {
+    const userMatch = name.match(/\[([^\]]+)\]/);
+    const userName = userMatch ? userMatch[1] : 'User';
+    const taskName = name.replace(/📋\s*\[[^\]]+\]\s*/, '').trim();
+    return {
+      type: 'user-request',
+      icon: '👤',
+      displayName: `${userName}: ${taskName}`,
+      summary: description.replace(/^\[[^\]]+\]\s*/, '').trim(),
+      fullDescription: description
+    };
+  } else {
+    return {
+      type: 'system',
+      icon: '⚙️',
+      displayName: name.replace(/[📋⚗️]\s*/, '').trim(),
+      summary: description,
+      fullDescription: description
+    };
+  }
+}
+
+// Enhanced quest status icons
+function getQuestStatusIcon(status: string) {
+  switch (status) {
+    case 'completed': return '✅';
+    case 'failed': return '❌';
+    case 'in_progress': return '⏳';
+    case 'cancelled': return '🚫';
+    default: return '📋';
+  }
+}
+
 // Helper function to calculate duration between two timestamps
 function calculateDuration(startTime: string, endTime: string): string {
   const start = new Date(startTime);
@@ -78,21 +136,35 @@ export default function QuestBoard() {
             <SkeletonQuestCard key={`skeleton-quest-${i}`} />
           ))
         ) : (
-          filtered.map((q) => (
-          <div key={q.id} className={`quest-card status-${q.status}`}>
-            <div className="quest-card-header">
-              <h3 className="quest-card-name">{q.name}</h3>
-              <span 
-                className="quest-difficulty" 
-                title={`${getDifficultyName(q.tokens_used)} (${calculateQuestDifficulty(q.tokens_used)}/5 stars) - ${formatTokens(q.tokens_used)} tokens`}
-              >
-                {getDifficultyStars(q.tokens_used)}
-              </span>
-            </div>
-            {q.description && (
-              <p className="quest-card-desc">{q.description.slice(0, 120)}{q.description.length > 120 ? '...' : ''}</p>
-            )}
-            <div className="quest-meta-grid">
+          filtered.map((q) => {
+            const questDetails = parseQuestDetails(q);
+            return (
+            <div key={q.id} className={`quest-card status-${q.status} quest-type-${questDetails.type}`}>
+              <div className="quest-card-header">
+                <div className="quest-header-left">
+                  <span className="quest-type-icon" title={`${questDetails.type} quest`}>
+                    {questDetails.icon}
+                  </span>
+                  <span className="quest-status-icon">
+                    {getQuestStatusIcon(q.status)}
+                  </span>
+                  <h3 className="quest-card-name" title={questDetails.fullDescription}>
+                    {questDetails.displayName}
+                  </h3>
+                </div>
+                <span 
+                  className="quest-difficulty" 
+                  title={`${getDifficultyName(q.tokens_used)} (${calculateQuestDifficulty(q.tokens_used)}/5 stars) - ${formatTokens(q.tokens_used)} tokens`}
+                >
+                  {getDifficultyStars(q.tokens_used)}
+                </span>
+              </div>
+              {questDetails.summary && (
+                <p className="quest-card-desc" title={questDetails.fullDescription}>
+                  {questDetails.summary.length > 120 ? questDetails.summary.slice(0, 120) + '...' : questDetails.summary}
+                </p>
+              )}
+              <div className="quest-meta-grid">
               <div className="qm"><span className="qm-l">Agent</span><span className="qm-v agent">{q.assigned_agent_name || '—'}</span></div>
               <div className="qm">
                 <span className="qm-l">Tokens</span>
@@ -135,6 +207,35 @@ export default function QuestBoard() {
               </div>
             )}
             
+            {/* Quest metadata badges */}
+            <div className="quest-badges">
+              {q.turns > 20 && (
+                <span className="quest-badge high-turns" title="High turn count - complex conversation">
+                  🔄 {q.turns} turns
+                </span>
+              )}
+              {q.tokens_used > 10000 && (
+                <span className="quest-badge high-tokens" title="High token usage - intensive task">
+                  ⚠️ {formatTokens(q.tokens_used)}
+                </span>
+              )}
+              {q.cost > 1.0 && (
+                <span className="quest-badge high-cost" title="Expensive quest">
+                  💰 {formatCost(q.cost)}
+                </span>
+              )}
+              {questDetails.type === 'sub-agent' && (
+                <span className="quest-badge sub-agent" title="Sub-agent completion">
+                  🤖 Sub-quest
+                </span>
+              )}
+              {questDetails.type === 'scheduler' && (
+                <span className="quest-badge scheduler" title="Automated scheduler task">
+                  ⚗️ Scheduled
+                </span>
+              )}
+            </div>
+            
             {q.status === 'completed' && q.completed_at && (
               <div className="quest-timing-section">
                 <span className="timing-label">⏱️ Duration:</span>
@@ -160,7 +261,8 @@ export default function QuestBoard() {
               </div>
             )}
             </div>
-          ))
+          );
+          })
         )}
         {!isLoadingQuests && filtered.length === 0 && hasInitialLoad && (
           <div className="no-quests">No quests match this filter.</div>

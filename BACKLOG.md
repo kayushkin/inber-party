@@ -123,6 +123,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🎯 Current Work
+
+- [~] **Enhanced Quest Details UI** — Enrich Quest Board to show tokens used, cost, turns, sub-quests for each quest. Currently only shows basic title/description.
+
+---
+
 ## 💡 Ideas (unprioritized)
 
 - Procedural quest names based on actual task content ("The Great Refactoring of Memory", "Siege of the Broken Tests")
