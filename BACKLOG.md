@@ -144,9 +144,13 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
-## 💡 Ideas (unprioritized)
+## 🎯 Current Work
 
-- [~] **Procedural quest names based on actual task content** — Generate immersive, contextual quest names based on actual task content ("The Great Refactoring of Memory", "Siege of the Broken Tests") instead of generic spawn task descriptions.
+- [x] **Procedural Quest Names** — Generate immersive, contextual quest names based on actual task content (e.g. "The Great Refactoring of Memory", "Siege of the Broken Tests") instead of generic spawn task descriptions. ✅ COMPLETED: Implemented sophisticated quest name generation with task analysis, thematic patterns, and complexity-based naming.
+
+---
+
+## 💡 Ideas (unprioritized)
 - Agent journal — auto-generated narrative of what each agent did today
 - Time-lapse view — compressed animation of a day's agent activity
 - "Tavern talk" — generated banter between agents based on their recent work
