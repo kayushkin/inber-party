@@ -178,6 +178,37 @@ type PayoutSummary struct {
 	Sources        map[string]int `json:"sources"`   // Breakdown by source (bounty: 100, quest: 50, etc.)
 }
 
+// BountyVerifier represents a verification requirement for a bounty
+type BountyVerifier struct {
+	ID           int                    `json:"id"`
+	BountyID     int                    `json:"bounty_id"`
+	VerifierType string                 `json:"verifier_type"` // 'manual', 'file_exists', 'test_suite', 'pr_approved', 'benchmark'
+	Config       map[string]interface{} `json:"config"`        // configuration specific to verifier type
+	Required     bool                   `json:"required"`      // if false, verifier is optional
+	Weight       float64                `json:"weight"`        // weight for scoring (future use)
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
+}
+
+// VerifierResult represents the result of running a verifier
+type VerifierResult struct {
+	ID           int                    `json:"id"`
+	BountyID     int                    `json:"bounty_id"`
+	VerifierID   int                    `json:"verifier_id"`
+	Status       string                 `json:"status"`        // 'pending', 'passed', 'failed', 'error'
+	ResultData   map[string]interface{} `json:"result_data"`   // detailed results from verifier
+	ErrorMessage *string                `json:"error_message"` // error message if status = 'error'
+	CheckedAt    time.Time              `json:"checked_at"`
+	CheckedBy    *string                `json:"checked_by"` // agent/user/system that ran the check
+}
+
+// BountyWithVerifiers extends BountyDetail with verification info
+type BountyWithVerifiers struct {
+	BountyDetail
+	Verifiers []BountyVerifier  `json:"verifiers"`
+	Results   []VerifierResult  `json:"results"`
+}
+
 type Stats struct {
 	TotalAgents        int     `json:"total_agents"`
 	ActiveTasks        int     `json:"active_tasks"`

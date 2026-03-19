@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import './CreateBountyForm.css';
 
+interface Verifier {
+  verifier_type: string;
+  config: Record<string, any>;
+  required: boolean;
+  weight: number;
+}
+
 interface CreateBountyFormData {
   title: string;
   description: string;
@@ -9,6 +16,7 @@ interface CreateBountyFormData {
   creator_id: number;
   deadline: string;
   required_skills: string[];
+  verifiers: Verifier[];
 }
 
 interface Agent {
@@ -32,16 +40,20 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
     payout_amount: 50,
     creator_id: 0,
     deadline: '',
-    required_skills: []
+    required_skills: [],
+    verifiers: []
   });
   const [agents, setAgents] = useState<Agent[]>([]);
   const [skillInput, setSkillInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [verifierTypes, setVerifierTypes] = useState<Record<string, any>>({});
+  const [showVerifierConfig, setShowVerifierConfig] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       fetchAgents();
+      fetchVerifierTypes();
     }
   }, [isOpen]);
 
@@ -58,6 +70,18 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
       }
     } catch (error) {
       console.error('Error fetching agents:', error);
+    }
+  };
+
+  const fetchVerifierTypes = async () => {
+    try {
+      const response = await fetch('/api/verifiers/types');
+      if (response.ok) {
+        const data = await response.json();
+        setVerifierTypes(data.schemas || {});
+      }
+    } catch (error) {
+      console.error('Error fetching verifier types:', error);
     }
   };
 
@@ -80,6 +104,33 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
     setForm(prev => ({
       ...prev,
       required_skills: prev.required_skills.filter(skill => skill !== skillToRemove)
+    }));
+  };
+
+  const addVerifier = (verifierType: string) => {
+    const newVerifier: Verifier = {
+      verifier_type: verifierType,
+      config: {},
+      required: true,
+      weight: 1.0
+    };
+    setForm(prev => ({
+      ...prev,
+      verifiers: [...prev.verifiers, newVerifier]
+    }));
+  };
+
+  const removeVerifier = (index: number) => {
+    setForm(prev => ({
+      ...prev,
+      verifiers: prev.verifiers.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateVerifier = (index: number, updates: Partial<Verifier>) => {
+    setForm(prev => ({
+      ...prev,
+      verifiers: prev.verifiers.map((v, i) => i === index ? { ...v, ...updates } : v)
     }));
   };
 
@@ -124,7 +175,8 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
         payout_amount: 50,
         creator_id: agents.length > 0 ? agents[0].id : 0,
         deadline: '',
-        required_skills: []
+        required_skills: [],
+        verifiers: []
       });
       onClose();
     } catch (err) {
@@ -296,6 +348,157 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
           </div>
 
           {/* Preview */}
+          <div className="form-section">
+            <div className="section-header">
+              <h3 className="section-title">🔍 Verification Requirements</h3>
+              <button
+                type="button"
+                className="btn-toggle"
+                onClick={() => setShowVerifierConfig(!showVerifierConfig)}
+              >
+                {showVerifierConfig ? 'Hide' : 'Configure'} Verifiers
+              </button>
+            </div>
+            
+            {showVerifierConfig && (
+              <div className="verifiers-config">
+                <p className="form-help">
+                  Add verification requirements that must be met before the bounty is approved.
+                  Automated verifiers can check files, run tests, or validate other criteria.
+                </p>
+
+                {form.verifiers.map((verifier, index) => (
+                  <div key={index} className="verifier-config">
+                    <div className="verifier-header">
+                      <span className="verifier-type">{verifier.verifier_type}</span>
+                      <div className="verifier-controls">
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={verifier.required}
+                            onChange={(e) => updateVerifier(index, { required: e.target.checked })}
+                          />
+                          Required
+                        </label>
+                        <button
+                          type="button"
+                          className="btn-remove"
+                          onClick={() => removeVerifier(index)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="verifier-config-fields">
+                      {verifier.verifier_type === 'file_exists' && (
+                        <>
+                          <div className="config-field">
+                            <label>Files to check (one per line):</label>
+                            <textarea
+                              placeholder="README.md&#10;tests/test_*.py&#10;package.json"
+                              onChange={(e) => {
+                                const files = e.target.value.split('\n').filter(f => f.trim());
+                                updateVerifier(index, { config: { ...verifier.config, files } });
+                              }}
+                              rows={3}
+                            />
+                          </div>
+                          <div className="config-field">
+                            <label>Base path (optional):</label>
+                            <input
+                              type="text"
+                              placeholder="/path/to/project"
+                              onChange={(e) => updateVerifier(index, { 
+                                config: { ...verifier.config, base_path: e.target.value } 
+                              })}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {verifier.verifier_type === 'test_suite' && (
+                        <>
+                          <div className="config-field">
+                            <label>Command to run:</label>
+                            <input
+                              type="text"
+                              placeholder="npm test"
+                              onChange={(e) => updateVerifier(index, { 
+                                config: { ...verifier.config, command: e.target.value } 
+                              })}
+                            />
+                          </div>
+                          <div className="config-field">
+                            <label>Working directory (optional):</label>
+                            <input
+                              type="text"
+                              placeholder="/path/to/project"
+                              onChange={(e) => updateVerifier(index, { 
+                                config: { ...verifier.config, working_dir: e.target.value } 
+                              })}
+                            />
+                          </div>
+                          <div className="config-field">
+                            <label>Timeout (seconds):</label>
+                            <input
+                              type="number"
+                              placeholder="300"
+                              onChange={(e) => updateVerifier(index, { 
+                                config: { ...verifier.config, timeout_sec: parseInt(e.target.value) || 300 } 
+                              })}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {verifier.verifier_type === 'manual' && (
+                        <>
+                          <div className="config-field">
+                            <label>Review instructions:</label>
+                            <textarea
+                              placeholder="What should the reviewer check?"
+                              onChange={(e) => updateVerifier(index, { 
+                                config: { ...verifier.config, instructions: e.target.value } 
+                              })}
+                              rows={3}
+                            />
+                          </div>
+                          <div className="config-field">
+                            <label>Assign to (optional):</label>
+                            <input
+                              type="text"
+                              placeholder="username or role"
+                              onChange={(e) => updateVerifier(index, { 
+                                config: { ...verifier.config, assignee: e.target.value } 
+                              })}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="add-verifier">
+                  <label>Add verifier:</label>
+                  <div className="verifier-buttons">
+                    {Object.keys(verifierTypes).map(type => (
+                      <button
+                        key={type}
+                        type="button"
+                        className="btn-add-verifier"
+                        onClick={() => addVerifier(type)}
+                      >
+                        {type.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="form-section">
             <h3 className="section-title">Preview</h3>
             <div className={`bounty-preview tier-${tier}`}>

@@ -174,6 +174,30 @@ func (db *DB) Migrate() error {
 		`CREATE INDEX IF NOT EXISTS payout_entries_source_idx ON payout_entries(source, source_id)`,
 		`CREATE INDEX IF NOT EXISTS payout_entries_created_at_idx ON payout_entries(created_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS payout_entries_transaction_type_idx ON payout_entries(transaction_type)`,
+		// Add verification system
+		`CREATE TABLE IF NOT EXISTS bounty_verifiers (
+			id SERIAL PRIMARY KEY,
+			bounty_id INTEGER NOT NULL REFERENCES bounties(id) ON DELETE CASCADE,
+			verifier_type VARCHAR(50) NOT NULL,
+			config JSONB NOT NULL DEFAULT '{}',
+			required BOOLEAN NOT NULL DEFAULT true,
+			weight REAL NOT NULL DEFAULT 1.0,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS verifier_results (
+			id SERIAL PRIMARY KEY,
+			bounty_id INTEGER NOT NULL REFERENCES bounties(id) ON DELETE CASCADE,
+			verifier_id INTEGER NOT NULL REFERENCES bounty_verifiers(id) ON DELETE CASCADE,
+			status VARCHAR(20) NOT NULL DEFAULT 'pending',
+			result_data JSONB DEFAULT '{}',
+			error_message TEXT,
+			checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			checked_by VARCHAR(100)
+		)`,
+		`CREATE INDEX IF NOT EXISTS bounty_verifiers_bounty_id_idx ON bounty_verifiers(bounty_id)`,
+		`CREATE INDEX IF NOT EXISTS verifier_results_bounty_id_idx ON verifier_results(bounty_id)`,
+		`CREATE INDEX IF NOT EXISTS verifier_results_verifier_id_idx ON verifier_results(verifier_id)`,
 	}
 
 	for i, migration := range migrations {

@@ -14,6 +14,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/mood"
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/sync"
+	"github.com/kayushkin/inber-party/internal/verifiers"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
 
@@ -25,18 +26,21 @@ type Server struct {
 	MoodCalc         *mood.MoodCalculator
 	LogstackClient   *logstack.LogstackClient
 	AgentSync        *sync.AgentRegistrySync
+	VerifierRegistry *verifiers.VerifierRegistry
 }
 
 func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dailyquests.DailyQuestManager) *Server {
 	moodCalc := mood.NewMoodCalculator(database)
 	logstackClient := logstack.NewLogstackClient()
+	verifierRegistry := verifiers.NewVerifierRegistry()
 	return &Server{
-		DB:             database, 
-		Hub:            hub, 
-		QuestGiver:     qg, 
-		DailyQuestMgr:  dqm, 
-		MoodCalc:       moodCalc,
-		LogstackClient: logstackClient,
+		DB:               database, 
+		Hub:              hub, 
+		QuestGiver:       qg, 
+		DailyQuestMgr:    dqm, 
+		MoodCalc:         moodCalc,
+		LogstackClient:   logstackClient,
+		VerifierRegistry: verifierRegistry,
 	}
 }
 
@@ -70,6 +74,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Bounty marketplace endpoints
 	mux.HandleFunc("/api/bounties", s.handleBounties)
 	mux.HandleFunc("/api/bounties/", s.handleBountyDetail)
+	mux.HandleFunc("/api/verifiers/types", s.handleVerifierTypes)
+	mux.HandleFunc("/api/verifiers/run/", s.handleRunVerifiers)
 	// Payout tracking endpoints
 	mux.HandleFunc("/api/payouts", s.handlePayouts)
 	mux.HandleFunc("/api/payouts/summary", s.handlePayoutSummary)
@@ -2421,4 +2427,187 @@ func (s *Server) handleAgentPayouts(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(entries)
+}
+
+// Verifier system handlers
+
+func (s *Server) handleVerifierTypes(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.VerifierRegistry == nil {
+		http.Error(w, "Verifier registry not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	response := map[string]interface{}{
+		"types":   s.VerifierRegistry.ListTypes(),
+		"schemas": s.VerifierRegistry.GetConfigSchemas(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) handleRunVerifiers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	if s.VerifierRegistry == nil {
+		http.Error(w, "Verifier registry not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Extract bounty ID from path
+	bountyIDStr := strings.TrimPrefix(r.URL.Path, "/api/verifiers/run/")
+	bountyID, err := strconv.Atoi(bountyIDStr)
+	if err != nil {
+		http.Error(w, "Invalid bounty ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get bounty with verifiers
+	bountyWithVerifiers, err := s.DB.GetBountyWithVerifiers(bountyID)
+	if err != nil {
+		log.Printf("Error getting bounty with verifiers: %v", err)
+		http.Error(w, "Failed to get bounty", http.StatusInternalServerError)
+		return
+	}
+	if bountyWithVerifiers == nil {
+		http.Error(w, "Bounty not found", http.StatusNotFound)
+		return
+	}
+
+	// Check if bounty is in submitted status
+	if bountyWithVerifiers.Status != "submitted" {
+		http.Error(w, "Bounty must be in submitted status to run verifiers", http.StatusBadRequest)
+		return
+	}
+
+	var runResults []map[string]interface{}
+	allPassed := true
+
+	// Run each verifier
+	for _, verifierDef := range bountyWithVerifiers.Verifiers {
+		verifier, err := s.VerifierRegistry.GetVerifier(verifierDef.VerifierType)
+		if err != nil {
+			log.Printf("Error getting verifier %s: %v", verifierDef.VerifierType, err)
+			continue
+		}
+
+		// Create verification context
+		workSubmission := ""
+		if bountyWithVerifiers.WorkSubmission != nil {
+			workSubmission = *bountyWithVerifiers.WorkSubmission
+		}
+		
+		ctx := verifiers.VerificationContext{
+			BountyID:       bountyID,
+			WorkSubmission: workSubmission,
+			BountyTitle:    bountyWithVerifiers.Title,
+			Requirements:   bountyWithVerifiers.Requirements,
+			ClaimerName:    "",
+			Config:         verifierDef.Config,
+		}
+
+		if bountyWithVerifiers.Claimer != nil {
+			ctx.ClaimerName = bountyWithVerifiers.Claimer.Name
+		}
+
+		// Run verifier
+		result := verifier.Verify(ctx)
+
+		// Save result to database
+		dbResult := &db.VerifierResult{
+			BountyID:     bountyID,
+			VerifierID:   verifierDef.ID,
+			Status:       result.Status,
+			ResultData:   result.Details,
+			ErrorMessage: result.ErrorMessage,
+			CheckedBy:    stringPtr("system"),
+		}
+
+		if err := s.DB.CreateVerifierResult(dbResult); err != nil {
+			log.Printf("Error saving verifier result: %v", err)
+		}
+
+		// Check if this verifier passed (or is manual and pending)
+		if verifierDef.Required && result.Status != "passed" && result.Status != "pending" {
+			allPassed = false
+		}
+
+		runResults = append(runResults, map[string]interface{}{
+			"verifier_id":   verifierDef.ID,
+			"verifier_type": verifierDef.VerifierType,
+			"status":        result.Status,
+			"message":       result.Message,
+			"required":      verifierDef.Required,
+		})
+	}
+
+	// Determine overall verification status
+	overallStatus := "verification_pending"
+	if allPassed {
+		// Check if all verifiers are complete (no pending ones)
+		allComplete := true
+		for _, result := range runResults {
+			if result["status"] == "pending" {
+				allComplete = false
+				break
+			}
+		}
+		
+		if allComplete {
+			overallStatus = "verification_passed"
+			
+			// Automatically approve the bounty if all verifiers passed
+			err := s.DB.VerifyBounty(bountyID, true, "All automated verifications passed")
+			if err != nil {
+				log.Printf("Error auto-approving bounty: %v", err)
+			} else {
+				s.Hub.Broadcast(ws.Message{Type: "bounty_auto_verified", Data: map[string]interface{}{
+					"bounty_id": bountyID,
+					"approved":  true,
+					"message":   "All verifications passed automatically",
+				}})
+			}
+		}
+	} else {
+		overallStatus = "verification_failed"
+		
+		// Automatically reject the bounty if required verifiers failed
+		err := s.DB.VerifyBounty(bountyID, false, "Required verifications failed")
+		if err != nil {
+			log.Printf("Error auto-rejecting bounty: %v", err)
+		} else {
+			s.Hub.Broadcast(ws.Message{Type: "bounty_auto_verified", Data: map[string]interface{}{
+				"bounty_id": bountyID,
+				"approved":  false,
+				"message":   "Required verifications failed",
+			}})
+		}
+	}
+
+	response := map[string]interface{}{
+		"bounty_id":        bountyID,
+		"overall_status":   overallStatus,
+		"verification_results": runResults,
+		"all_passed":       allPassed,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func stringPtr(s string) *string {
+	return &s
 }

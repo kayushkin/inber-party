@@ -314,3 +314,158 @@ func (db *DB) GetBountyDetail(id int) (*BountyDetail, error) {
 	
 	return detail, nil
 }
+
+// Verifier management methods
+
+// CreateBountyVerifier adds a verifier to a bounty
+func (db *DB) CreateBountyVerifier(verifier *BountyVerifier) error {
+	configJSON, err := json.Marshal(verifier.Config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal verifier config: %w", err)
+	}
+
+	err = db.QueryRow(`
+		INSERT INTO bounty_verifiers (bounty_id, verifier_type, config, required, weight)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, created_at, updated_at
+	`, verifier.BountyID, verifier.VerifierType, configJSON, verifier.Required, verifier.Weight).Scan(
+		&verifier.ID, &verifier.CreatedAt, &verifier.UpdatedAt)
+
+	if err != nil {
+		return fmt.Errorf("failed to create bounty verifier: %w", err)
+	}
+
+	return nil
+}
+
+// GetBountyVerifiers returns all verifiers for a bounty
+func (db *DB) GetBountyVerifiers(bountyID int) ([]BountyVerifier, error) {
+	query := `
+		SELECT id, bounty_id, verifier_type, config, required, weight, created_at, updated_at
+		FROM bounty_verifiers
+		WHERE bounty_id = $1
+		ORDER BY created_at ASC
+	`
+
+	rows, err := db.Query(query, bountyID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query bounty verifiers: %w", err)
+	}
+	defer rows.Close()
+
+	var verifiers []BountyVerifier
+	for rows.Next() {
+		var v BountyVerifier
+		var configJSON []byte
+
+		err := rows.Scan(
+			&v.ID, &v.BountyID, &v.VerifierType, &configJSON,
+			&v.Required, &v.Weight, &v.CreatedAt, &v.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan bounty verifier: %w", err)
+		}
+
+		if err := json.Unmarshal(configJSON, &v.Config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal verifier config: %w", err)
+		}
+
+		verifiers = append(verifiers, v)
+	}
+
+	return verifiers, nil
+}
+
+// CreateVerifierResult records the result of running a verifier
+func (db *DB) CreateVerifierResult(result *VerifierResult) error {
+	resultDataJSON, err := json.Marshal(result.ResultData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal result data: %w", err)
+	}
+
+	err = db.QueryRow(`
+		INSERT INTO verifier_results (bounty_id, verifier_id, status, result_data, error_message, checked_by)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, checked_at
+	`, result.BountyID, result.VerifierID, result.Status, resultDataJSON, result.ErrorMessage, result.CheckedBy).Scan(
+		&result.ID, &result.CheckedAt)
+
+	if err != nil {
+		return fmt.Errorf("failed to create verifier result: %w", err)
+	}
+
+	return nil
+}
+
+// GetVerifierResults returns all results for a bounty
+func (db *DB) GetVerifierResults(bountyID int) ([]VerifierResult, error) {
+	query := `
+		SELECT id, bounty_id, verifier_id, status, result_data, error_message, checked_at, checked_by
+		FROM verifier_results
+		WHERE bounty_id = $1
+		ORDER BY checked_at DESC
+	`
+
+	rows, err := db.Query(query, bountyID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query verifier results: %w", err)
+	}
+	defer rows.Close()
+
+	var results []VerifierResult
+	for rows.Next() {
+		var r VerifierResult
+		var resultDataJSON []byte
+
+		err := rows.Scan(
+			&r.ID, &r.BountyID, &r.VerifierID, &r.Status,
+			&resultDataJSON, &r.ErrorMessage, &r.CheckedAt, &r.CheckedBy,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan verifier result: %w", err)
+		}
+
+		if err := json.Unmarshal(resultDataJSON, &r.ResultData); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal result data: %w", err)
+		}
+
+		results = append(results, r)
+	}
+
+	return results, nil
+}
+
+// GetBountyWithVerifiers returns a bounty with its verifiers and results
+func (db *DB) GetBountyWithVerifiers(id int) (*BountyWithVerifiers, error) {
+	detail, err := db.GetBountyDetail(id)
+	if err != nil {
+		return nil, err
+	}
+	if detail == nil {
+		return nil, nil
+	}
+
+	verifiers, err := db.GetBountyVerifiers(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get verifiers: %w", err)
+	}
+
+	results, err := db.GetVerifierResults(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get verifier results: %w", err)
+	}
+
+	return &BountyWithVerifiers{
+		BountyDetail: *detail,
+		Verifiers:    verifiers,
+		Results:      results,
+	}, nil
+}
+
+// RunBountyVerifiers runs all verifiers for a bounty and records results
+func (db *DB) RunBountyVerifiers(bountyID int, registry interface{}) error {
+	// This method would coordinate running all verifiers for a bounty
+	// Implementation depends on the verifier registry interface
+	// For now, it's a placeholder for the verification orchestration
+	return fmt.Errorf("RunBountyVerifiers not implemented yet")
+}
