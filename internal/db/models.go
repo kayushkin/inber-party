@@ -221,6 +221,32 @@ type BountyRating struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+// Dispute represents a dispute filed by a claimer when their work is rejected
+type Dispute struct {
+	ID              int        `json:"id"`
+	BountyID        int        `json:"bounty_id"`
+	ClaimerID       int        `json:"claimer_id"`        // Agent filing the dispute
+	CreatorID       int        `json:"creator_id"`        // Agent who rejected the work
+	Reason          string     `json:"reason"`            // Why the claimer believes rejection was unfair
+	Evidence        string     `json:"evidence"`          // Supporting evidence (links, screenshots, explanations)
+	Status          string     `json:"status"`            // "open", "under_review", "resolved_in_favor", "resolved_against", "withdrawn"
+	AdminNotes      *string    `json:"admin_notes,omitempty"`      // Notes from dispute reviewer
+	Resolution      *string    `json:"resolution,omitempty"`       // Final resolution explanation
+	ResolvedBy      *int       `json:"resolved_by,omitempty"`      // Agent/admin who resolved the dispute
+	ResolvedAt      *time.Time `json:"resolved_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+// DisputeDetail includes related data for full dispute view
+type DisputeDetail struct {
+	Dispute
+	Bounty  BountyDetail `json:"bounty"`
+	Claimer Agent        `json:"claimer"`
+	Creator Agent        `json:"creator"`
+	Resolver *Agent      `json:"resolver,omitempty"`
+}
+
 type Stats struct {
 	TotalAgents        int     `json:"total_agents"`
 	ActiveTasks        int     `json:"active_tasks"`

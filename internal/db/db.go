@@ -198,6 +198,27 @@ func (db *DB) Migrate() error {
 		`CREATE INDEX IF NOT EXISTS bounty_verifiers_bounty_id_idx ON bounty_verifiers(bounty_id)`,
 		`CREATE INDEX IF NOT EXISTS verifier_results_bounty_id_idx ON verifier_results(bounty_id)`,
 		`CREATE INDEX IF NOT EXISTS verifier_results_verifier_id_idx ON verifier_results(verifier_id)`,
+		// Add dispute resolution system
+		`CREATE TABLE IF NOT EXISTS disputes (
+			id SERIAL PRIMARY KEY,
+			bounty_id INTEGER NOT NULL REFERENCES bounties(id) ON DELETE CASCADE,
+			claimer_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			creator_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			reason TEXT NOT NULL,
+			evidence TEXT NOT NULL DEFAULT '',
+			status VARCHAR(30) NOT NULL DEFAULT 'open',
+			admin_notes TEXT,
+			resolution TEXT,
+			resolved_by INTEGER REFERENCES agents(id) ON DELETE SET NULL,
+			resolved_at TIMESTAMP,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(bounty_id, claimer_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS disputes_bounty_id_idx ON disputes(bounty_id)`,
+		`CREATE INDEX IF NOT EXISTS disputes_claimer_id_idx ON disputes(claimer_id)`,
+		`CREATE INDEX IF NOT EXISTS disputes_status_idx ON disputes(status)`,
+		`CREATE INDEX IF NOT EXISTS disputes_created_at_idx ON disputes(created_at DESC)`,
 	}
 
 	for i, migration := range migrations {

@@ -9,7 +9,7 @@ interface Bounty {
   description: string;
   requirements: string;
   payout_amount: number;
-  status: 'open' | 'claimed' | 'submitted' | 'completed' | 'rejected' | 'paid';
+  status: 'open' | 'claimed' | 'submitted' | 'completed' | 'rejected' | 'paid' | 'disputed';
   deadline?: string;
   creator_id: number;
   claimer_id?: number;
@@ -56,6 +56,11 @@ export default function BountyBoard() {
   const [rating, setRating] = useState(5);
   const [ratingComment, setRatingComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [selectedBountyForDispute, setSelectedBountyForDispute] = useState<Bounty | null>(null);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeEvidence, setDisputeEvidence] = useState('');
+  const [submittingDispute, setSubmittingDispute] = useState(false);
   
   useEffect(() => {
     fetchBounties();
@@ -246,6 +251,52 @@ export default function BountyBoard() {
     }
   };
 
+  const handleDisputeClick = (bounty: Bounty) => {
+    setSelectedBountyForDispute(bounty);
+    setDisputeReason('');
+    setDisputeEvidence('');
+    setShowDisputeModal(true);
+  };
+
+  const handleSubmitDispute = async () => {
+    if (!selectedBountyForDispute || !disputeReason.trim()) return;
+
+    try {
+      setSubmittingDispute(true);
+      const response = await fetch('/api/disputes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bounty_id: selectedBountyForDispute.id,
+          claimer_id: selectedBountyForDispute.claimer_id,
+          reason: disputeReason,
+          evidence: disputeEvidence,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to submit dispute: ${errorData}`);
+      }
+
+      // Refresh bounties to show updated status
+      await fetchBounties();
+      setShowDisputeModal(false);
+      setSelectedBountyForDispute(null);
+      setDisputeReason('');
+      setDisputeEvidence('');
+      
+      alert('Dispute submitted successfully! The bounty is now under review.');
+    } catch (error) {
+      console.error('Error submitting dispute:', error);
+      alert(`Failed to submit dispute: ${error}`);
+    } finally {
+      setSubmittingDispute(false);
+    }
+  };
+
   const filteredBounties = filter === 'all' 
     ? bounties 
     : bounties.filter(bounty => bounty.status === filter);
@@ -256,6 +307,7 @@ export default function BountyBoard() {
     claimed: bounties.filter(b => b.status === 'claimed').length,
     submitted: bounties.filter(b => b.status === 'submitted').length,
     completed: bounties.filter(b => b.status === 'completed').length,
+    disputed: bounties.filter(b => b.status === 'disputed').length,
   };
 
   const getTierIcon = (tier: string) => {
@@ -276,6 +328,7 @@ export default function BountyBoard() {
       case 'completed': return '✅';
       case 'rejected': return '❌';
       case 'paid': return '💰';
+      case 'disputed': return '⚖️';
       default: return '❓';
     }
   };
@@ -314,7 +367,7 @@ export default function BountyBoard() {
         </div>
 
         <div className="bounty-filters">
-          {(['all', 'open', 'claimed', 'submitted', 'completed'] as const).map((status) => (
+          {(['all', 'open', 'claimed', 'submitted', 'completed', 'disputed'] as const).map((status) => (
             <button
               key={status}
               className={`filter-btn ${filter === status ? 'active' : ''} filter-${status}`}
@@ -424,8 +477,22 @@ export default function BountyBoard() {
                   </div>
                 )}
                 {bounty.status === 'rejected' && (
-                  <button className="rejected-btn" disabled>
-                    ❌ Rejected
+                  <div className="rejected-actions">
+                    <button className="rejected-btn" disabled>
+                      ❌ Rejected
+                    </button>
+                    <button 
+                      className="dispute-btn"
+                      onClick={() => handleDisputeClick(bounty)}
+                      title="File a dispute if you believe the rejection was unfair"
+                    >
+                      ⚖️ Dispute
+                    </button>
+                  </div>
+                )}
+                {bounty.status === 'disputed' && (
+                  <button className="disputed-btn" disabled>
+                    ⚖️ Under Dispute Review
                   </button>
                 )}
                 {bounty.status === 'paid' && bounty.rating && (
@@ -664,6 +731,98 @@ export default function BountyBoard() {
                     onClick={handleSubmitRating}
                   >
                     ⭐ Submit Rating
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dispute Modal for Filing Disputes */}
+      {showDisputeModal && selectedBountyForDispute && (
+        <div className="modal-overlay">
+          <div className="modal-content dispute-modal">
+            <div className="modal-header">
+              <h2>⚖️ File Dispute</h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowDisputeModal(false)}
+                disabled={submittingDispute}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="dispute-explanation">
+                <p><strong>📋 Filing a Dispute</strong></p>
+                <p>If you believe your work was unfairly rejected, you can file a dispute. 
+                   Please provide a clear explanation and any supporting evidence.</p>
+              </div>
+
+              <div className="bounty-summary">
+                <h3>{selectedBountyForDispute.title}</h3>
+                <p><strong>Payout:</strong> 🪙 {selectedBountyForDispute.payout_amount} Gold</p>
+                {selectedBountyForDispute.verification_notes && (
+                  <div className="rejection-reason">
+                    <p><strong>Rejection reason:</strong></p>
+                    <div className="rejection-notes">
+                      {selectedBountyForDispute.verification_notes}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="dispute-reason-section">
+                <h4>📝 Why do you believe the rejection was unfair? *</h4>
+                <textarea
+                  className="dispute-reason-input"
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  placeholder="Explain why you believe your work meets the requirements and should be accepted..."
+                  rows={4}
+                  disabled={submittingDispute}
+                  required
+                />
+              </div>
+
+              <div className="dispute-evidence-section">
+                <h4>🔗 Supporting Evidence (Optional)</h4>
+                <textarea
+                  className="dispute-evidence-input"
+                  value={disputeEvidence}
+                  onChange={(e) => setDisputeEvidence(e.target.value)}
+                  placeholder="Provide links to your work, screenshots, documentation, test results, or any other evidence that supports your case..."
+                  rows={4}
+                  disabled={submittingDispute}
+                />
+                <p className="evidence-help">
+                  💡 Include links to GitHub commits, deployed demos, test results, 
+                  screenshots, or any documentation that proves your work is complete.
+                </p>
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              {submittingDispute ? (
+                <div className="submitting-status">
+                  🔄 Submitting dispute...
+                </div>
+              ) : (
+                <div className="dispute-actions">
+                  <button 
+                    className="cancel-btn"
+                    onClick={() => setShowDisputeModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="submit-dispute-btn"
+                    onClick={handleSubmitDispute}
+                    disabled={!disputeReason.trim()}
+                  >
+                    ⚖️ Submit Dispute
                   </button>
                 </div>
               )}

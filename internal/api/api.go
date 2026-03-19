@@ -74,6 +74,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Bounty marketplace endpoints
 	mux.HandleFunc("/api/bounties", s.handleBounties)
 	mux.HandleFunc("/api/bounties/", s.handleBountyDetail)
+	// Dispute resolution endpoints
+	mux.HandleFunc("/api/disputes", s.handleDisputes)
+	mux.HandleFunc("/api/disputes/", s.handleDisputeDetail)
 	mux.HandleFunc("/api/verifiers/types", s.handleVerifierTypes)
 	mux.HandleFunc("/api/verifiers/run/", s.handleRunVerifiers)
 	// Payout tracking endpoints
@@ -2258,6 +2261,245 @@ func (s *Server) deleteBounty(w http.ResponseWriter, r *http.Request, id int) {
 	s.Hub.Broadcast(ws.Message{Type: "bounty_deleted", Data: map[string]interface{}{"id": id}})
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Dispute resolution handlers
+
+func (s *Server) handleDisputes(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.listDisputes(w, r)
+	case http.MethodPost:
+		s.createDispute(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleDisputeDetail(w http.ResponseWriter, r *http.Request) {
+	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/disputes/"), "/")
+	if len(pathParts) == 0 || pathParts[0] == "" {
+		http.Error(w, "Dispute ID required", http.StatusBadRequest)
+		return
+	}
+	
+	id, err := strconv.Atoi(pathParts[0])
+	if err != nil {
+		http.Error(w, "Invalid dispute ID", http.StatusBadRequest)
+		return
+	}
+	
+	// Handle sub-actions like /api/disputes/123/resolve, /api/disputes/123/withdraw
+	if len(pathParts) > 1 {
+		switch pathParts[1] {
+		case "resolve":
+			if r.Method == http.MethodPost {
+				s.resolveDispute(w, r, id)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		case "withdraw":
+			if r.Method == http.MethodPost {
+				s.withdrawDispute(w, r, id)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		default:
+			http.Error(w, "Unknown dispute action", http.StatusBadRequest)
+		}
+		return
+	}
+	
+	switch r.Method {
+	case http.MethodGet:
+		s.getDisputeDetail(w, r, id)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) listDisputes(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+	
+	// Parse query parameters
+	status := r.URL.Query().Get("status")
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+	
+	limit := 50
+	if limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+			if limit > 100 { // Cap at 100
+				limit = 100
+			}
+		}
+	}
+	
+	offset := 0
+	if offsetStr != "" {
+		if parsed, err := strconv.Atoi(offsetStr); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+	
+	disputes, err := s.DB.GetDisputes(status, limit, offset)
+	if err != nil {
+		log.Printf("Error listing disputes: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(disputes)
+}
+
+func (s *Server) createDispute(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+	
+	var dispute db.Dispute
+	if err := json.NewDecoder(r.Body).Decode(&dispute); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Validate required fields
+	if dispute.BountyID == 0 {
+		http.Error(w, "Bounty ID is required", http.StatusBadRequest)
+		return
+	}
+	if dispute.ClaimerID == 0 {
+		http.Error(w, "Claimer ID is required", http.StatusBadRequest)
+		return
+	}
+	if dispute.Reason == "" {
+		http.Error(w, "Dispute reason is required", http.StatusBadRequest)
+		return
+	}
+	
+	err := s.DB.CreateDispute(&dispute)
+	if err != nil {
+		log.Printf("Error creating dispute: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	// Broadcast the dispute creation
+	s.Hub.Broadcast(ws.Message{Type: "dispute_created", Data: dispute})
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(dispute)
+}
+
+func (s *Server) getDisputeDetail(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+	
+	disputeDetail, err := s.DB.GetDisputeDetail(id)
+	if err != nil {
+		log.Printf("Error getting dispute detail: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	if disputeDetail == nil {
+		http.Error(w, "Dispute not found", http.StatusNotFound)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(disputeDetail)
+}
+
+func (s *Server) resolveDispute(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+	
+	var req struct {
+		InFavorOfClaimer bool   `json:"in_favor_of_claimer"`
+		Resolution       string `json:"resolution"`
+		ResolverID       int    `json:"resolver_id"`
+		AdminNotes       string `json:"admin_notes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Validate required fields
+	if req.Resolution == "" {
+		http.Error(w, "Resolution text is required", http.StatusBadRequest)
+		return
+	}
+	if req.ResolverID == 0 {
+		http.Error(w, "Resolver ID is required", http.StatusBadRequest)
+		return
+	}
+	
+	err := s.DB.ResolveDispute(id, req.InFavorOfClaimer, req.Resolution, req.ResolverID, req.AdminNotes)
+	if err != nil {
+		log.Printf("Error resolving dispute: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	// Get the updated dispute detail
+	disputeDetail, err := s.DB.GetDisputeDetail(id)
+	if err == nil && disputeDetail != nil {
+		// Broadcast the dispute resolution
+		s.Hub.Broadcast(ws.Message{Type: "dispute_resolved", Data: disputeDetail})
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Dispute resolved"})
+}
+
+func (s *Server) withdrawDispute(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+	
+	var req struct {
+		ClaimerID int `json:"claimer_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	if req.ClaimerID == 0 {
+		http.Error(w, "Claimer ID is required", http.StatusBadRequest)
+		return
+	}
+	
+	err := s.DB.WithdrawDispute(id, req.ClaimerID)
+	if err != nil {
+		log.Printf("Error withdrawing dispute: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	// Get the updated dispute detail
+	disputeDetail, err := s.DB.GetDisputeDetail(id)
+	if err == nil && disputeDetail != nil {
+		// Broadcast the dispute withdrawal
+		s.Hub.Broadcast(ws.Message{Type: "dispute_withdrawn", Data: disputeDetail})
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Dispute withdrawn"})
 }
 
 // Payout tracking handlers

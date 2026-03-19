@@ -524,3 +524,304 @@ func (db *DB) RunBountyVerifiers(bountyID int, registry interface{}) error {
 	// For now, it's a placeholder for the verification orchestration
 	return fmt.Errorf("RunBountyVerifiers not implemented yet")
 }
+
+// CreateDispute creates a new dispute for a rejected bounty
+func (db *DB) CreateDispute(d *Dispute) error {
+	// First verify that the bounty exists and is in rejected status
+	var bounty Bounty
+	err := db.QueryRow(`
+		SELECT id, status, claimer_id, creator_id 
+		FROM bounties 
+		WHERE id = $1 AND status = 'rejected'
+	`, d.BountyID).Scan(&bounty.ID, &bounty.Status, &bounty.ClaimerID, &bounty.CreatorID)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("bounty not found or not in rejected status")
+		}
+		return fmt.Errorf("failed to verify bounty: %w", err)
+	}
+	
+	// Verify the claimer is the one who worked on the bounty
+	if bounty.ClaimerID == nil || *bounty.ClaimerID != d.ClaimerID {
+		return fmt.Errorf("only the claimer can dispute this bounty")
+	}
+	
+	// Set the creator ID from the bounty
+	d.CreatorID = bounty.CreatorID
+	
+	// Check if a dispute already exists for this bounty
+	var existingID int
+	err = db.QueryRow(`
+		SELECT id FROM disputes WHERE bounty_id = $1 AND claimer_id = $2
+	`, d.BountyID, d.ClaimerID).Scan(&existingID)
+	
+	if err == nil {
+		return fmt.Errorf("dispute already exists for this bounty")
+	} else if err != sql.ErrNoRows {
+		return fmt.Errorf("failed to check existing dispute: %w", err)
+	}
+	
+	// Create the dispute
+	query := `
+		INSERT INTO disputes (bounty_id, claimer_id, creator_id, reason, evidence)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, created_at, updated_at
+	`
+	
+	err = db.QueryRow(query, d.BountyID, d.ClaimerID, d.CreatorID, d.Reason, d.Evidence).Scan(
+		&d.ID, &d.CreatedAt, &d.UpdatedAt)
+	
+	if err != nil {
+		return fmt.Errorf("failed to create dispute: %w", err)
+	}
+	
+	// Update bounty status to 'disputed'
+	_, err = db.Exec(`
+		UPDATE bounties 
+		SET status = 'disputed', updated_at = CURRENT_TIMESTAMP 
+		WHERE id = $1
+	`, d.BountyID)
+	
+	if err != nil {
+		return fmt.Errorf("failed to update bounty status: %w", err)
+	}
+	
+	d.Status = "open"
+	return nil
+}
+
+// GetDispute returns a single dispute by ID
+func (db *DB) GetDispute(id int) (*Dispute, error) {
+	query := `
+		SELECT id, bounty_id, claimer_id, creator_id, reason, evidence, status,
+		       admin_notes, resolution, resolved_by, resolved_at, created_at, updated_at
+		FROM disputes WHERE id = $1
+	`
+	
+	var d Dispute
+	err := db.QueryRow(query, id).Scan(
+		&d.ID, &d.BountyID, &d.ClaimerID, &d.CreatorID, &d.Reason,
+		&d.Evidence, &d.Status, &d.AdminNotes, &d.Resolution,
+		&d.ResolvedBy, &d.ResolvedAt, &d.CreatedAt, &d.UpdatedAt,
+	)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get dispute: %w", err)
+	}
+	
+	return &d, nil
+}
+
+// GetDisputes returns all disputes with optional filtering
+func (db *DB) GetDisputes(status string, limit, offset int) ([]Dispute, error) {
+	query := `
+		SELECT id, bounty_id, claimer_id, creator_id, reason, evidence, status,
+		       admin_notes, resolution, resolved_by, resolved_at, created_at, updated_at
+		FROM disputes
+		WHERE ($1 = '' OR status = $1)
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+	
+	rows, err := db.Query(query, status, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query disputes: %w", err)
+	}
+	defer rows.Close()
+	
+	var disputes []Dispute
+	for rows.Next() {
+		var d Dispute
+		err := rows.Scan(
+			&d.ID, &d.BountyID, &d.ClaimerID, &d.CreatorID, &d.Reason,
+			&d.Evidence, &d.Status, &d.AdminNotes, &d.Resolution,
+			&d.ResolvedBy, &d.ResolvedAt, &d.CreatedAt, &d.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan dispute: %w", err)
+		}
+		
+		disputes = append(disputes, d)
+	}
+	
+	return disputes, nil
+}
+
+// GetDisputeDetail returns a dispute with related data
+func (db *DB) GetDisputeDetail(id int) (*DisputeDetail, error) {
+	dispute, err := db.GetDispute(id)
+	if err != nil {
+		return nil, err
+	}
+	if dispute == nil {
+		return nil, nil
+	}
+	
+	// Get bounty detail
+	bountyDetail, err := db.GetBountyDetail(dispute.BountyID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get bounty detail: %w", err)
+	}
+	
+	// Get claimer info
+	claimer, err := db.GetAgentByID(dispute.ClaimerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get claimer: %w", err)
+	}
+	
+	// Get creator info
+	creator, err := db.GetAgentByID(dispute.CreatorID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get creator: %w", err)
+	}
+	
+	detail := &DisputeDetail{
+		Dispute: *dispute,
+		Bounty:  *bountyDetail,
+		Claimer: *claimer,
+		Creator: *creator,
+	}
+	
+	// Get resolver info if dispute is resolved
+	if dispute.ResolvedBy != nil {
+		resolver, err := db.GetAgentByID(*dispute.ResolvedBy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get resolver: %w", err)
+		}
+		detail.Resolver = resolver
+	}
+	
+	return detail, nil
+}
+
+// ResolveDispute resolves a dispute in favor of claimer or creator
+func (db *DB) ResolveDispute(disputeID int, inFavorOfClaimer bool, resolution string, resolverID int, adminNotes string) error {
+	// Get the dispute details
+	dispute, err := db.GetDispute(disputeID)
+	if err != nil {
+		return err
+	}
+	if dispute == nil {
+		return fmt.Errorf("dispute not found")
+	}
+	
+	if dispute.Status != "open" {
+		return fmt.Errorf("dispute is not open")
+	}
+	
+	// Determine new status
+	newStatus := "resolved_against"
+	if inFavorOfClaimer {
+		newStatus = "resolved_in_favor"
+	}
+	
+	// Update dispute
+	_, err = db.Exec(`
+		UPDATE disputes 
+		SET status = $1, resolution = $2, resolved_by = $3, admin_notes = $4,
+		    resolved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $5
+	`, newStatus, resolution, resolverID, adminNotes, disputeID)
+	
+	if err != nil {
+		return fmt.Errorf("failed to update dispute: %w", err)
+	}
+	
+	// Update bounty based on resolution
+	if inFavorOfClaimer {
+		// Claimer wins - bounty should be marked as completed and paid out
+		bounty, err := db.GetBountyByID(dispute.BountyID)
+		if err != nil {
+			return fmt.Errorf("failed to get bounty for payout: %w", err)
+		}
+		
+		now := time.Now()
+		_, err = db.Exec(`
+			UPDATE bounties 
+			SET status = 'completed', completed_at = $1, updated_at = CURRENT_TIMESTAMP,
+			    verification_notes = COALESCE(verification_notes, '') || $2
+			WHERE id = $3
+		`, now, "\n\n[DISPUTE RESOLVED IN FAVOR OF CLAIMER] "+resolution, dispute.BountyID)
+		
+		if err != nil {
+			return fmt.Errorf("failed to update bounty to completed: %w", err)
+		}
+		
+		// Pay out the bounty
+		if bounty != nil && bounty.ClaimerID != nil {
+			err = db.RecordBountyPayout(dispute.BountyID, *bounty.ClaimerID, bounty.PayoutAmount)
+			if err != nil {
+				return fmt.Errorf("failed to record bounty payout: %w", err)
+			}
+			
+			// Mark bounty as paid
+			_, err = db.Exec(`
+				UPDATE bounties 
+				SET status = 'paid', updated_at = CURRENT_TIMESTAMP 
+				WHERE id = $1
+			`, dispute.BountyID)
+			if err != nil {
+				return fmt.Errorf("failed to mark bounty as paid: %w", err)
+			}
+		}
+	} else {
+		// Creator wins - bounty remains rejected but dispute is closed
+		_, err = db.Exec(`
+			UPDATE bounties 
+			SET status = 'rejected', updated_at = CURRENT_TIMESTAMP,
+			    verification_notes = COALESCE(verification_notes, '') || $1
+			WHERE id = $2
+		`, "\n\n[DISPUTE RESOLVED AGAINST CLAIMER] "+resolution, dispute.BountyID)
+		
+		if err != nil {
+			return fmt.Errorf("failed to update bounty rejection: %w", err)
+		}
+	}
+	
+	return nil
+}
+
+// WithdrawDispute allows a claimer to withdraw their dispute
+func (db *DB) WithdrawDispute(disputeID, claimerID int) error {
+	result, err := db.Exec(`
+		UPDATE disputes 
+		SET status = 'withdrawn', updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1 AND claimer_id = $2 AND status = 'open'
+	`, disputeID, claimerID)
+	
+	if err != nil {
+		return fmt.Errorf("failed to withdraw dispute: %w", err)
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+	
+	if rowsAffected == 0 {
+		return fmt.Errorf("dispute not found, not yours, or already resolved")
+	}
+	
+	// Get dispute to update bounty
+	dispute, err := db.GetDispute(disputeID)
+	if err != nil {
+		return fmt.Errorf("failed to get dispute for bounty update: %w", err)
+	}
+	
+	// Revert bounty back to rejected status
+	_, err = db.Exec(`
+		UPDATE bounties 
+		SET status = 'rejected', updated_at = CURRENT_TIMESTAMP 
+		WHERE id = $1
+	`, dispute.BountyID)
+	
+	if err != nil {
+		return fmt.Errorf("failed to revert bounty status: %w", err)
+	}
+	
+	return nil
+}
