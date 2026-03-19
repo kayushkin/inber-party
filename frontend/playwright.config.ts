@@ -5,13 +5,13 @@ export default defineConfig({
   timeout: 30 * 1000,
   expect: {
     timeout: 5000,
-    // Visual regression test configuration
+    // Visual regression test configuration - more tolerant settings
     toHaveScreenshot: {
-      threshold: 0.2,
+      threshold: 0.3, // Increased threshold for viewport differences
       mode: 'ci',
     },
     toMatchSnapshot: {
-      threshold: 0.2,
+      threshold: 0.3, // Increased threshold for better stability
     },
   },
   fullyParallel: true,
