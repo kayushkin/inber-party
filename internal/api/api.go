@@ -70,6 +70,10 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Bounty marketplace endpoints
 	mux.HandleFunc("/api/bounties", s.handleBounties)
 	mux.HandleFunc("/api/bounties/", s.handleBountyDetail)
+	// Payout tracking endpoints
+	mux.HandleFunc("/api/payouts", s.handlePayouts)
+	mux.HandleFunc("/api/payouts/summary", s.handlePayoutSummary)
+	mux.HandleFunc("/api/payouts/agent/", s.handleAgentPayouts)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -455,18 +459,24 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request, id int) {
 		if agentID, hasAgent := updates["assigned_agent_id"].(float64); hasAgent && s.MoodCalc != nil {
 			agentIDInt := int(agentID)
 			
-			// Award gold and XP for completed tasks
+			// Award XP and gold for completed tasks
 			if status == "completed" {
 				// Get task rewards
 				var xpReward, goldReward int
 				err := s.DB.QueryRow("SELECT xp_reward, gold_reward FROM tasks WHERE id = $1", id).Scan(&xpReward, &goldReward)
 				if err == nil {
-					// Award the rewards to the agent
+					// Award XP directly (XP is not tracked in payout system, only gold)
 					_, err = s.DB.Exec(`
 						UPDATE agents 
-						SET xp = xp + $1, gold = gold + $2, updated_at = NOW()
-						WHERE id = $3
-					`, xpReward, goldReward, agentIDInt)
+						SET xp = xp + $1, updated_at = NOW()
+						WHERE id = $2
+					`, xpReward, agentIDInt)
+					
+					// Award gold using the payout tracking system
+					if goldReward > 0 {
+						err = s.DB.RecordQuestPayout(id, agentIDInt, goldReward)
+					}
+					
 					if err == nil {
 						s.Hub.Broadcast(ws.Message{Type: "rewards_awarded", Data: map[string]interface{}{
 							"agent_id": agentIDInt,
@@ -2237,4 +2247,178 @@ func (s *Server) deleteBounty(w http.ResponseWriter, r *http.Request, id int) {
 	s.Hub.Broadcast(ws.Message{Type: "bounty_deleted", Data: map[string]interface{}{"id": id}})
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Payout tracking handlers
+
+func (s *Server) handlePayouts(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.listPayouts(w, r)
+	case http.MethodPost:
+		s.createManualPayout(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) listPayouts(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+
+	// Parse query parameters
+	agentIDStr := r.URL.Query().Get("agent_id")
+	source := r.URL.Query().Get("source")
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	var agentID *int
+	if agentIDStr != "" {
+		if parsed, err := strconv.Atoi(agentIDStr); err == nil {
+			agentID = &parsed
+		}
+	}
+
+	limit := 50 // default
+	if limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	offset := 0
+	if offsetStr != "" {
+		if parsed, err := strconv.Atoi(offsetStr); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	entries, err := s.DB.GetPayoutEntries(agentID, source, limit, offset)
+	if err != nil {
+		log.Printf("Error getting payout entries: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entries)
+}
+
+func (s *Server) createManualPayout(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		AgentID     int    `json:"agent_id"`
+		Amount      int    `json:"amount"`
+		Description string `json:"description"`
+		ProcessedBy *int   `json:"processed_by,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.AgentID <= 0 {
+		http.Error(w, "Agent ID is required", http.StatusBadRequest)
+		return
+	}
+	if req.Amount == 0 {
+		http.Error(w, "Amount cannot be zero", http.StatusBadRequest)
+		return
+	}
+
+	err := s.DB.RecordManualAdjustment(req.AgentID, req.Amount, req.Description, req.ProcessedBy)
+	if err != nil {
+		log.Printf("Error creating manual payout: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Broadcast the adjustment
+	s.Hub.Broadcast(ws.Message{Type: "manual_payout", Data: map[string]interface{}{
+		"agent_id":    req.AgentID,
+		"amount":      req.Amount,
+		"description": req.Description,
+	}})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Manual payout recorded"})
+}
+
+func (s *Server) handlePayoutSummary(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+
+	// Parse limit parameter
+	limitStr := r.URL.Query().Get("limit")
+	limit := 25 // default
+	if limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	summaries, err := s.DB.GetPayoutSummary(limit)
+	if err != nil {
+		log.Printf("Error getting payout summary: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(summaries)
+}
+
+func (s *Server) handleAgentPayouts(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	// Extract agent ID from path
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/payouts/agent/")
+	agentID, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid agent ID", http.StatusBadRequest)
+		return
+	}
+
+	// Parse limit parameter
+	limitStr := r.URL.Query().Get("limit")
+	limit := 50 // default
+	if limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	entries, err := s.DB.GetAgentPayoutHistory(agentID, limit)
+	if err != nil {
+		log.Printf("Error getting agent payout history: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entries)
 }

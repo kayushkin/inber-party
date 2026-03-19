@@ -21,6 +21,7 @@ import CreateAdventurer from './pages/CreateAdventurer';
 import Parties from './pages/Parties';
 import Leaderboard from './pages/Leaderboard';
 import CostDashboard from './pages/CostDashboard';
+import PayoutDashboard from './pages/PayoutDashboard';
 import { AchievementToastContainer } from './components/AchievementToast';
 import './App.css';
 
@@ -88,6 +89,7 @@ function App() {
             <Route path="parties" element={<Parties />} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="costs" element={<CostDashboard />} />
+            <Route path="payouts" element={<PayoutDashboard />} />
             <Route path="create-adventurer" element={<CreateAdventurer />} />
           </Route>
         </Routes>

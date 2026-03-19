@@ -156,6 +156,24 @@ func (db *DB) Migrate() error {
 		`CREATE INDEX IF NOT EXISTS bounties_claimer_id_idx ON bounties(claimer_id)`,
 		`CREATE INDEX IF NOT EXISTS bounties_tier_idx ON bounties(tier)`,
 		`CREATE INDEX IF NOT EXISTS bounties_created_at_idx ON bounties(created_at DESC)`,
+		// Add payout tracking system
+		`CREATE TABLE IF NOT EXISTS payout_entries (
+			id SERIAL PRIMARY KEY,
+			agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			amount INTEGER NOT NULL,
+			source VARCHAR(50) NOT NULL,
+			source_id INTEGER,
+			description TEXT NOT NULL,
+			transaction_type VARCHAR(20) NOT NULL CHECK (transaction_type IN ('credit', 'debit', 'adjustment')),
+			balance_before INTEGER NOT NULL DEFAULT 0,
+			balance_after INTEGER NOT NULL DEFAULT 0,
+			processed_by INTEGER REFERENCES agents(id) ON DELETE SET NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS payout_entries_agent_id_idx ON payout_entries(agent_id)`,
+		`CREATE INDEX IF NOT EXISTS payout_entries_source_idx ON payout_entries(source, source_id)`,
+		`CREATE INDEX IF NOT EXISTS payout_entries_created_at_idx ON payout_entries(created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS payout_entries_transaction_type_idx ON payout_entries(transaction_type)`,
 	}
 
 	for i, migration := range migrations {

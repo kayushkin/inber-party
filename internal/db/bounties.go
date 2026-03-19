@@ -229,11 +229,28 @@ func (db *DB) VerifyBounty(bountyID int, approved bool, notes string) error {
 		return fmt.Errorf("bounty not found or not in submitted status")
 	}
 	
-	// If approved, pay out the gold to the claimer
+	// If approved, pay out the gold to the claimer using the new payout tracking system
 	if approved {
-		err = db.payoutBounty(bountyID)
+		// Get bounty details for payout
+		bounty, err := db.GetBountyByID(bountyID)
 		if err != nil {
-			return fmt.Errorf("failed to payout bounty: %w", err)
+			return fmt.Errorf("failed to get bounty for payout: %w", err)
+		}
+		if bounty != nil && bounty.ClaimerID != nil {
+			err = db.RecordBountyPayout(bountyID, *bounty.ClaimerID, bounty.PayoutAmount)
+			if err != nil {
+				return fmt.Errorf("failed to record bounty payout: %w", err)
+			}
+			
+			// Mark bounty as paid
+			_, err = db.Exec(`
+				UPDATE bounties 
+				SET status = 'paid', updated_at = CURRENT_TIMESTAMP 
+				WHERE id = $1
+			`, bountyID)
+			if err != nil {
+				return fmt.Errorf("failed to mark bounty as paid: %w", err)
+			}
 		}
 	}
 	

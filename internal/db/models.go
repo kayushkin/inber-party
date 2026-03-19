@@ -151,6 +151,33 @@ type BountyDetail struct {
 	Claimer *Agent `json:"claimer,omitempty"`
 }
 
+// PayoutEntry tracks all gold/credit transactions for auditing and ledger purposes
+type PayoutEntry struct {
+	ID              int        `json:"id"`
+	AgentID         int        `json:"agent_id"`             // Recipient of the payout
+	Amount          int        `json:"amount"`               // Amount of gold/credits paid
+	Source          string     `json:"source"`               // "bounty", "quest", "daily_quest", "manual"
+	SourceID        *int       `json:"source_id,omitempty"`  // ID of the bounty/quest/etc that generated this payout
+	Description     string     `json:"description"`          // Human readable description
+	TransactionType string     `json:"transaction_type"`     // "credit", "debit", "adjustment"
+	BalanceBefore   int        `json:"balance_before"`       // Agent's gold balance before this transaction
+	BalanceAfter    int        `json:"balance_after"`        // Agent's gold balance after this transaction
+	ProcessedBy     *int       `json:"processed_by,omitempty"` // Agent/user who processed this payout (for manual adjustments)
+	CreatedAt       time.Time  `json:"created_at"`
+}
+
+// PayoutSummary provides aggregated payout data for participants
+type PayoutSummary struct {
+	AgentID        int     `json:"agent_id"`
+	AgentName      string  `json:"agent_name"`
+	TotalEarned    int     `json:"total_earned"`     // Total credits earned
+	TotalSpent     int     `json:"total_spent"`      // Total credits spent/debited
+	CurrentBalance int     `json:"current_balance"`  // Current gold balance
+	PayoutCount    int     `json:"payout_count"`     // Number of payout transactions
+	LastPayout     *time.Time `json:"last_payout,omitempty"` // Most recent payout timestamp
+	Sources        map[string]int `json:"sources"`   // Breakdown by source (bounty: 100, quest: 50, etc.)
+}
+
 type Stats struct {
 	TotalAgents        int     `json:"total_agents"`
 	ActiveTasks        int     `json:"active_tasks"`
