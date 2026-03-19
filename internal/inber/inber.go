@@ -1177,6 +1177,11 @@ func generateQuestName(input, status string) string {
 	lines := strings.SplitN(input, "\n", 2)
 	originalText := strings.TrimSpace(lines[0])
 	
+	// Check for spawn commands first
+	if isSpawnCommand(originalText) {
+		return generateSpawnQuestName(originalText, status)
+	}
+	
 	// Analyze the task to determine type and complexity
 	taskType, complexity := analyzeTaskForNaming(originalText, status)
 	
@@ -1262,29 +1267,92 @@ func generateProceduralQuestName(taskType string, complexity int, originalText s
 		subject = keyTerms[0]
 	}
 	
-	// Epic prefixes based on complexity
+	// Epic prefixes based on complexity - now with more variety
 	prefixes := [][]string{
-		{"The Simple", "A Quick", "The Minor"},                    // complexity 1
-		{"The", "A Noble", "The Modest"},                          // complexity 2
-		{"The Great", "The Epic", "The Grand"},                    // complexity 3
-		{"The Mighty", "The Legendary", "The Heroic"},             // complexity 4
-		{"The Ultimate", "The Mythical", "The Supreme"},           // complexity 5
+		{"The Simple", "A Quick", "The Minor", "The Brief", "A Small"},                         // complexity 1
+		{"The", "A Noble", "The Modest", "The Humble", "A Worthy"},                            // complexity 2
+		{"The Great", "The Epic", "The Grand", "The Glorious", "The Majestic"},               // complexity 3
+		{"The Mighty", "The Legendary", "The Heroic", "The Fabled", "The Renowned"},          // complexity 4
+		{"The Ultimate", "The Mythical", "The Supreme", "The Transcendent", "The Divine"},     // complexity 5
 	}
 	
-	// Task-specific naming patterns
+	// Enhanced task-specific naming patterns with more variety
 	patterns := map[string][]string{
-		"debugging":     {"Hunt for the {subject} Bug", "Siege of the Broken {subject}", "{prefix} Debugging of {subject}"},
-		"development":   {"{prefix} Forging of {subject}", "Quest for the Perfect {subject}", "{prefix} Creation of {subject}"},
-		"deployment":    {"{prefix} Deployment of {subject}", "Launch of the Mighty {subject}", "The Golden Release Quest"},
-		"testing":       {"{prefix} Verification of {subject}", "Trial by Fire for {subject}", "The Quality Assurance Crusade"},
-		"documentation": {"{prefix} Chronicle of {subject}", "Scribing the Great {subject} Tome", "The Sacred Documentation Quest"},
-		"optimization":  {"{prefix} Refinement of {subject}", "Enhancement of the Ancient {subject}", "The Performance Optimization Saga"},
-		"design":        {"{prefix} Architectural Vision of {subject}", "Blueprint of the Perfect {subject}", "The Grand Design Odyssey"},
-		"monitoring":    {"{prefix} Vigil of {subject}", "Guardian Watch over {subject}", "The Silent Monitoring Mission"},
-		"general":       {"{prefix} Adventure of {subject}", "Quest for the Perfect {subject}", "The Noble Mission"},
+		"debugging":     {
+			"Hunt for the {subject} Bug", 
+			"Siege of the Broken {subject}", 
+			"{prefix} Debugging of {subject}",
+			"The {subject} Extermination",
+			"Purification of the Cursed {subject}",
+			"The {subject} Bug Crusade",
+		},
+		"development":   {
+			"{prefix} Forging of {subject}", 
+			"Quest for the Perfect {subject}", 
+			"{prefix} Creation of {subject}",
+			"The {subject} Crafting Saga",
+			"Birth of the {subject} Empire",
+			"The {subject} Genesis Project",
+		},
+		"deployment":    {
+			"{prefix} Deployment of {subject}", 
+			"Launch of the Mighty {subject}", 
+			"The Golden Release Quest",
+			"The {subject} Ascension",
+			"Journey to the {subject} Summit",
+			"The {subject} Liberation Campaign",
+		},
+		"testing":       {
+			"{prefix} Verification of {subject}", 
+			"Trial by Fire for {subject}", 
+			"The Quality Assurance Crusade",
+			"The {subject} Ordeal",
+			"Judgment of the {subject}",
+			"The {subject} Proving Grounds",
+		},
+		"documentation": {
+			"{prefix} Chronicle of {subject}", 
+			"Scribing the Great {subject} Tome", 
+			"The Sacred Documentation Quest",
+			"The {subject} Codex Creation",
+			"Legends of the {subject}",
+			"The {subject} Scripture Project",
+		},
+		"optimization":  {
+			"{prefix} Refinement of {subject}", 
+			"Enhancement of the Ancient {subject}", 
+			"The Performance Optimization Saga",
+			"The {subject} Renaissance",
+			"Transformation of the {subject}",
+			"The {subject} Evolution",
+		},
+		"design":        {
+			"{prefix} Architectural Vision of {subject}", 
+			"Blueprint of the Perfect {subject}", 
+			"The Grand Design Odyssey",
+			"The {subject} Masterplan",
+			"Vision of the Eternal {subject}",
+			"The {subject} Design Revolution",
+		},
+		"monitoring":    {
+			"{prefix} Vigil of {subject}", 
+			"Guardian Watch over {subject}", 
+			"The Silent Monitoring Mission",
+			"The {subject} Sentinel Duty",
+			"Eternal Watch of the {subject}",
+			"The {subject} Observatory Quest",
+		},
+		"general":       {
+			"{prefix} Adventure of {subject}", 
+			"Quest for the Perfect {subject}", 
+			"The Noble Mission",
+			"The {subject} Expedition",
+			"Journey of the {subject}",
+			"The {subject} Odyssey",
+		},
 	}
 	
-	// Get appropriate prefix for complexity level
+	// Get appropriate prefix for complexity level with variety
 	complexityIndex := complexity - 1
 	if complexityIndex < 0 {
 		complexityIndex = 0
@@ -1292,7 +1360,11 @@ func generateProceduralQuestName(taskType string, complexity int, originalText s
 	if complexityIndex >= len(prefixes) {
 		complexityIndex = len(prefixes) - 1
 	}
-	prefix := prefixes[complexityIndex][0] // Use first prefix for consistency
+	
+	// Use the text length to pick different prefixes for variety
+	prefixChoices := prefixes[complexityIndex]
+	prefixIndex := len(originalText) % len(prefixChoices)
+	prefix := prefixChoices[prefixIndex]
 	
 	// Get patterns for this task type, fall back to general
 	taskPatterns, exists := patterns[taskType]
@@ -1300,8 +1372,8 @@ func generateProceduralQuestName(taskType string, complexity int, originalText s
 		taskPatterns = patterns["general"]
 	}
 	
-	// Select pattern based on subject length for variety
-	patternIndex := len(subject) % len(taskPatterns)
+	// Use a hash of the original text for consistent but varied pattern selection
+	patternIndex := hashString(originalText) % len(taskPatterns)
 	pattern := taskPatterns[patternIndex]
 	
 	// Replace placeholders
@@ -1309,6 +1381,18 @@ func generateProceduralQuestName(taskType string, complexity int, originalText s
 	result = strings.ReplaceAll(result, "{prefix}", prefix)
 	
 	return result
+}
+
+// hashString creates a simple hash of a string for consistent randomization
+func hashString(s string) int {
+	hash := 0
+	for i, r := range s {
+		hash = hash*31 + int(r) + i
+	}
+	if hash < 0 {
+		hash = -hash
+	}
+	return hash
 }
 
 // extractKeyTermsForNaming extracts meaningful terms from task text for quest naming
@@ -1332,6 +1416,38 @@ func extractKeyTermsForNaming(text string) []string {
 		"fix": true, "build": true, "create": true, "write": true, "deploy": true, "test": true,
 		"implement": true, "develop": true, "design": true, "refactor": true, "monitor": true,
 		"update": true, "add": true, "remove": true, "delete": true, "install": true, "configure": true,
+		// Additional common words to skip for better extraction
+		"just": true, "only": true, "now": true, "then": true, "here": true, "there": true, "when": true,
+		"where": true, "why": true, "how": true, "what": true, "who": true, "which": true, "very": true,
+		"much": true, "many": true, "more": true, "most": true, "some": true, "any": true, "all": true,
+	}
+	
+	// Priority keywords that make good quest subjects
+	priorityWords := map[string]bool{
+		"homepage": true, "website": true, "dashboard": true, "api": true, "database": true,
+		"authentication": true, "authorization": true, "user": true, "admin": true, "profile": true,
+		"system": true, "service": true, "server": true, "client": true, "frontend": true, "backend": true,
+		"component": true, "module": true, "feature": true, "function": true, "method": true,
+		"memory": true, "performance": true, "security": true, "tests": true, "documentation": true,
+		"config": true, "settings": true, "environment": true, "deployment": true, "infrastructure": true,
+		"repository": true, "codebase": true, "project": true, "application": true, "interface": true,
+		"endpoint": true, "route": true, "controller": true, "model": true, "view": true,
+	}
+	
+	// First pass: look for priority terms
+	for _, word := range words {
+		cleanWord := strings.Trim(word, ".,!?;:\"'()[]{}/-_")
+		if priorityWords[cleanWord] && len(cleanWord) > 2 {
+			keyTerms = append(keyTerms, strings.Title(cleanWord))
+			if len(keyTerms) >= 2 {
+				break
+			}
+		}
+	}
+	
+	// If we found priority terms, return them
+	if len(keyTerms) > 0 {
+		return keyTerms
 	}
 	
 	// Look for meaningful nouns - start from the end to find the main subject
@@ -1358,6 +1474,22 @@ func extractKeyTermsForNaming(text string) []string {
 					break
 				}
 			}
+		}
+	}
+	
+	// If still no terms found, use fallback based on common technical terms
+	if len(keyTerms) == 0 {
+		lower := strings.ToLower(text)
+		if strings.Contains(lower, "comment") {
+			keyTerms = []string{"Comments"}
+		} else if strings.Contains(lower, "easter egg") {
+			keyTerms = []string{"Enchantment"}
+		} else if strings.Contains(lower, "footer") {
+			keyTerms = []string{"Footer"}
+		} else if strings.Contains(lower, "file") || strings.Contains(lower, ".tsx") || strings.Contains(lower, ".js") {
+			keyTerms = []string{"Code"}
+		} else {
+			keyTerms = []string{"Mystery"}
 		}
 	}
 	
@@ -1406,6 +1538,106 @@ func isAlpha(s string) bool {
 		}
 	}
 	return true
+}
+
+// isSpawnCommand detects if this is a spawn/delegation command
+func isSpawnCommand(text string) bool {
+	lower := strings.ToLower(text)
+	spawnIndicators := []string{"spawn ", "have ", "get ", "ask ", "tell ", "delegate"}
+	for _, indicator := range spawnIndicators {
+		if strings.Contains(lower, indicator) {
+			return true
+		}
+	}
+	return false
+}
+
+// generateSpawnQuestName creates special quest names for delegation/spawn commands
+func generateSpawnQuestName(input, status string) string {
+	lower := strings.ToLower(input)
+	
+	// Extract agent name if possible
+	agentName := extractAgentNameFromSpawn(input)
+	
+	// Determine delegation type and create appropriate quest name
+	switch {
+	case containsAnyKeyword(lower, []string{"add", "comment", "line"}):
+		if agentName != "" {
+			return fmt.Sprintf("The %s Inscription Quest", strings.Title(agentName))
+		}
+		return "The Sacred Inscription"
+		
+	case containsAnyKeyword(lower, []string{"easter egg", "fun", "creative"}):
+		if agentName != "" {
+			return fmt.Sprintf("The %s Enchantment", strings.Title(agentName))
+		}
+		return "The Whimsical Enchantment"
+		
+	case containsAnyKeyword(lower, []string{"fix", "debug", "error"}):
+		if agentName != "" {
+			return fmt.Sprintf("The %s Bug Hunt", strings.Title(agentName))
+		}
+		return "The Debugging Expedition"
+		
+	case containsAnyKeyword(lower, []string{"build", "create", "implement"}):
+		if agentName != "" {
+			return fmt.Sprintf("The %s Construction", strings.Title(agentName))
+		}
+		return "The Grand Construction"
+		
+	case containsAnyKeyword(lower, []string{"deploy", "release"}):
+		if agentName != "" {
+			return fmt.Sprintf("The %s Deployment", strings.Title(agentName))
+		}
+		return "The Strategic Deployment"
+		
+	case containsAnyKeyword(lower, []string{"test", "verify"}):
+		if agentName != "" {
+			return fmt.Sprintf("The %s Trial", strings.Title(agentName))
+		}
+		return "The Testing Trials"
+		
+	default:
+		// Generic spawn quest names
+		prefixes := []string{"The Noble", "The Sacred", "The Honored", "The Divine"}
+		prefix := prefixes[len(input)%len(prefixes)]
+		
+		if agentName != "" {
+			return fmt.Sprintf("%s %s Mission", prefix, strings.Title(agentName))
+		}
+		return prefix + " Delegation"
+	}
+}
+
+// extractAgentNameFromSpawn tries to extract the agent name from spawn commands
+func extractAgentNameFromSpawn(input string) string {
+	lower := strings.ToLower(input)
+	
+	// Common agent names to look for
+	agentNames := []string{"brigid", "fionn", "oisin", "manannan", "ogma", "scathach", "goibniu", "bran", "claxon"}
+	
+	for _, name := range agentNames {
+		if strings.Contains(lower, name) {
+			return name
+		}
+	}
+	
+	// Try to extract from "spawn X to" pattern
+	if strings.Contains(lower, "spawn ") {
+		parts := strings.Split(lower, "spawn ")
+		if len(parts) > 1 {
+			words := strings.Fields(parts[1])
+			if len(words) > 0 {
+				// Check if first word after "spawn" is likely an agent name
+				candidate := strings.Trim(words[0], ".,!?;:")
+				if len(candidate) > 2 && isAlpha(candidate) {
+					return candidate
+				}
+			}
+		}
+	}
+	
+	return ""
 }
 
 // min/max helpers for naming logic
