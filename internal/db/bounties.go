@@ -113,13 +113,13 @@ func (db *DB) GetBountyByID(id int) (*Bounty, error) {
 
 // CreateBounty creates a new bounty
 func (db *DB) CreateBounty(b *Bounty) error {
-	// Determine tier based on payout amount
+	// Determine tier based on payout amount (aligned with frontend)
 	tier := "bronze"
-	if b.PayoutAmount >= 1000 {
+	if b.PayoutAmount >= 500 {
 		tier = "legendary"
-	} else if b.PayoutAmount >= 500 {
+	} else if b.PayoutAmount >= 200 {
 		tier = "gold"
-	} else if b.PayoutAmount >= 100 {
+	} else if b.PayoutAmount >= 50 {
 		tier = "silver"
 	}
 	
@@ -171,13 +171,13 @@ func (db *DB) ClaimBounty(bountyID, claimerID int) error {
 	minReputationRequired := 0
 	switch bounty.Tier {
 	case "legendary":
-		minReputationRequired = 800 // Legendary bounties require very high reputation
+		minReputationRequired = 750 // Legendary bounties (500+ gold) require very high reputation
 	case "gold":
-		minReputationRequired = 600 // Gold bounties require high reputation
+		minReputationRequired = 500 // Gold bounties (200+ gold) require high reputation
 	case "silver":
-		minReputationRequired = 400 // Silver bounties require moderate reputation
+		minReputationRequired = 250 // Silver bounties (50+ gold) require moderate reputation
 	case "bronze":
-		minReputationRequired = 100 // Bronze bounties are open to all
+		minReputationRequired = 100 // Bronze bounties (< 50 gold) are open to all
 	}
 	
 	// If agent doesn't meet minimum reputation and has completed fewer than 3 tasks in this domain, reject

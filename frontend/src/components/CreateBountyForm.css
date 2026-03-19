@@ -145,10 +145,63 @@
 
 /* Tier Indicator */
 .tier-indicator {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  letter-spacing: 0.3px;
+  border: 2px solid;
+  transition: all 0.2s ease;
+  display: inline-block;
+}
+
+.tier-indicator.tier-bronze {
+  background: rgba(205, 127, 50, 0.1);
+  border-color: #cd7f32;
+  color: #cd7f32;
+}
+
+.tier-indicator.tier-silver {
+  background: rgba(192, 192, 192, 0.1);
+  border-color: #c0c0c0;
+  color: #8e8e8e;
+}
+
+.tier-indicator.tier-gold {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: #ffd700;
+  color: #e6ac00;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.2);
+}
+
+.tier-indicator.tier-legendary {
+  background: rgba(153, 50, 204, 0.1);
+  border-color: #9932cc;
+  color: #9932cc;
+  box-shadow: 0 0 8px rgba(153, 50, 204, 0.2);
+  animation: tier-legendary-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes tier-legendary-glow {
+  from {
+    box-shadow: 0 0 8px rgba(153, 50, 204, 0.2);
+  }
+  to {
+    box-shadow: 0 0 12px rgba(153, 50, 204, 0.4);
+  }
+}
+
+.tier-info {
+  margin-top: 0.5rem;
+}
+
+.tier-thresholds {
+  color: var(--text-muted);
   font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-left: 8px;
-  font-weight: normal;
+  opacity: 0.7;
+  display: block;
 }
 
 /* Payout Input */

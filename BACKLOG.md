@@ -100,7 +100,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] **Payout tracking** — ledger of earned/spent credits per participant. Internal currency (gold) with optional real-money mapping.
 - [x] **Reputation & ratings** — completers build reputation scores. Posters rate quality. High-rep workers get priority on high-value bounties.
 - [x] **MMO chatroom** — real-time lobby where bounty hunters and posters interact, negotiate, ask clarifying questions. Think global WoW trade chat but for tasks.
-- [ ] **Bounty tiers** — visual tier system (bronze/silver/gold/legendary) based on payout size and complexity
+- [x] **Bounty tiers** — visual tier system (bronze/silver/gold/legendary) based on payout size and complexity
 - [ ] **Dispute resolution** — if poster rejects work, dispute flow with evidence submission
 - [ ] **Auto-bounties** — orchestrator agents can programmatically post bounties (e.g. "build X feature for $1, must pass these tests")
 - [ ] **Bounty board UI** — filterable/sortable board showing open/claimed/completed bounties with payout, deadline, claimer info

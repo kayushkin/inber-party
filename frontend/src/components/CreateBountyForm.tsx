@@ -278,8 +278,8 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
               <div className="form-group">
                 <label className="form-label">
                   Payout Amount * 
-                  <span className="tier-indicator">
-                    {tierIcons[tier]} {tier}
+                  <span className={`tier-indicator tier-${tier}`}>
+                    {tierIcons[tier]} {tier.charAt(0).toUpperCase() + tier.slice(1)} Tier
                   </span>
                 </label>
                 <div className="payout-input">
@@ -293,6 +293,11 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
                     max={10000}
                   />
                   <span className="currency-label">Gold</span>
+                </div>
+                <div className="tier-info">
+                  <small className="tier-thresholds">
+                    Tiers: Bronze (&lt; 50) • Silver (50-199) • Gold (200-499) • Legendary (500+)
+                  </small>
                 </div>
               </div>
             </div>
