@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useStore } from '../store';
 
 interface PayoutEntry {
   id: number;
@@ -25,13 +26,31 @@ interface PayoutSummary {
   sources: Record<string, number>;
 }
 
+interface ManualPayoutForm {
+  agent_id: number | '';
+  amount: number | '';
+  description: string;
+  type: 'credit' | 'debit';
+}
+
 const PayoutDashboard = () => {
   const [payouts, setPayouts] = useState<PayoutEntry[]>([]);
   const [summaries, setSummaries] = useState<PayoutSummary[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'summary' | 'history'>('summary');
+  const [tab, setTab] = useState<'summary' | 'history' | 'manual'>('summary');
   const [source, setSource] = useState<string>('');
+  const [manualForm, setManualForm] = useState<ManualPayoutForm>({
+    agent_id: '',
+    amount: '',
+    description: '',
+    type: 'credit'
+  });
+  const [submittingManual, setSubmittingManual] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Get agents from store for dropdown
+  const agents = useStore((s) => s.agents);
 
   useEffect(() => {
     fetchData();
@@ -63,6 +82,67 @@ const PayoutDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const submitManualPayout = async () => {
+    if (!manualForm.agent_id || !manualForm.amount || !manualForm.description) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setSubmittingManual(true);
+    try {
+      const amount = manualForm.type === 'debit' ? -Math.abs(Number(manualForm.amount)) : Math.abs(Number(manualForm.amount));
+      
+      const response = await fetch('/api/payouts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          agent_id: Number(manualForm.agent_id),
+          amount: amount,
+          description: manualForm.description,
+        }),
+      });
+
+      if (response.ok) {
+        alert('Payout recorded successfully!');
+        setManualForm({ agent_id: '', amount: '', description: '', type: 'credit' });
+        await fetchData(); // Refresh data
+      } else {
+        const error = await response.text();
+        alert(`Failed to record payout: ${error}`);
+      }
+    } catch (error) {
+      console.error('Failed to submit manual payout:', error);
+      alert('Failed to submit payout. Please try again.');
+    } finally {
+      setSubmittingManual(false);
+    }
+  };
+
+  const exportPayoutData = () => {
+    const csvContent = [
+      ['Agent Name', 'Total Earned', 'Current Balance', 'Payouts', 'Last Payout'],
+      ...summaries.map(summary => [
+        summary.agent_name,
+        summary.total_earned,
+        summary.current_balance,
+        summary.payout_count,
+        summary.last_payout ? formatDate(summary.last_payout) : 'Never'
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payout-summary-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const formatDate = (dateStr: string) => {
@@ -124,11 +204,51 @@ const PayoutDashboard = () => {
         >
           📋 Transaction History
         </button>
+        <button
+          onClick={() => setTab('manual')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            tab === 'manual' 
+              ? 'bg-yellow-600 text-white' 
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          ✏️ Manual Entry
+        </button>
+        <button
+          onClick={exportPayoutData}
+          className="px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors ml-auto"
+        >
+          📄 Export CSV
+        </button>
       </div>
 
       {/* Summary Tab */}
       {tab === 'summary' && (
         <div className="grid gap-6">
+          {/* Search and totals bar */}
+          <div className="bg-gray-800 rounded-lg p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <input
+                type="text"
+                placeholder="🔍 Search agents..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400"
+              />
+              <div className="flex space-x-6 text-sm text-gray-300">
+                <div>
+                  Total Participants: <span className="text-yellow-400 font-medium">{summaries.length}</span>
+                </div>
+                <div>
+                  Total Earned: <span className="text-green-400 font-medium">{summaries.reduce((sum, s) => sum + s.total_earned, 0).toLocaleString()}g</span>
+                </div>
+                <div>
+                  Total Active Balance: <span className="text-blue-400 font-medium">{summaries.reduce((sum, s) => sum + s.current_balance, 0).toLocaleString()}g</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div className="bg-gray-800 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-yellow-300 mb-4">Participant Earnings</h2>
             <div className="overflow-x-auto">
@@ -144,7 +264,12 @@ const PayoutDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {summaries.map((summary) => (
+                  {summaries
+                    .filter(summary => 
+                      searchTerm === '' || 
+                      summary.agent_name.toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                    .map((summary) => (
                     <tr key={summary.agent_id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
                       <td className="py-3">
                         <div className="font-medium text-white">{summary.agent_name}</div>
@@ -280,6 +405,124 @@ const PayoutDashboard = () => {
               {payouts.length === 0 && (
                 <div className="text-center py-8 text-gray-400">
                   No transactions found.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Entry Tab */}
+      {tab === 'manual' && (
+        <div className="grid gap-6">
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-yellow-300 mb-4">🏦 Manual Payout Entry</h2>
+            <p className="text-gray-300 mb-6">Create manual gold adjustments for agents. Use this for corrections, bonuses, or penalties.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Agent *
+                </label>
+                <select
+                  value={manualForm.agent_id}
+                  onChange={(e) => setManualForm({ ...manualForm, agent_id: e.target.value ? parseInt(e.target.value) : '' })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                  required
+                >
+                  <option value="">Select an agent...</option>
+                  {agents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name} ({agent.gold?.toLocaleString() || 0}g)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Transaction Type *
+                </label>
+                <select
+                  value={manualForm.type}
+                  onChange={(e) => setManualForm({ ...manualForm, type: e.target.value as 'credit' | 'debit' })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                >
+                  <option value="credit">📈 Credit (Add Gold)</option>
+                  <option value="debit">📉 Debit (Remove Gold)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Amount (Gold) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={manualForm.amount}
+                  onChange={(e) => setManualForm({ ...manualForm, amount: e.target.value ? parseInt(e.target.value) : '' })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                  placeholder="Enter amount..."
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Description *
+                </label>
+                <input
+                  type="text"
+                  value={manualForm.description}
+                  onChange={(e) => setManualForm({ ...manualForm, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                  placeholder="Reason for adjustment..."
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex space-x-4">
+              <button
+                onClick={submitManualPayout}
+                disabled={submittingManual || !manualForm.agent_id || !manualForm.amount || !manualForm.description}
+                className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white font-medium transition-colors"
+              >
+                {submittingManual ? '⏳ Processing...' : '💳 Record Payout'}
+              </button>
+              <button
+                onClick={() => setManualForm({ agent_id: '', amount: '', description: '', type: 'credit' })}
+                className="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded text-white font-medium transition-colors"
+              >
+                🔄 Clear Form
+              </button>
+            </div>
+          </div>
+
+          {/* Recent manual entries preview */}
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-yellow-300 mb-4">Recent Manual Entries</h3>
+            <div className="space-y-3">
+              {payouts
+                .filter(payout => payout.source === 'manual')
+                .slice(0, 5)
+                .map((payout) => (
+                  <div key={payout.id} className="bg-gray-700/50 rounded p-3 flex justify-between items-center">
+                    <div>
+                      <div className="text-white font-medium">{payout.description}</div>
+                      <div className="text-sm text-gray-400">{formatDate(payout.created_at)}</div>
+                    </div>
+                    <div className={`text-lg font-bold ${
+                      payout.amount > 0 ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {payout.amount > 0 ? '+' : ''}{payout.amount.toLocaleString()}g
+                    </div>
+                  </div>
+                ))}
+              {payouts.filter(payout => payout.source === 'manual').length === 0 && (
+                <div className="text-center py-4 text-gray-400">
+                  No manual entries yet.
                 </div>
               )}
             </div>
