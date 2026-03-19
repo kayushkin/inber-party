@@ -150,6 +150,17 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🎯 Next Priority Tasks
+
+- [x] **Enrich quest display** — Show tokens used, cost, turns, sub-quests in Quest Board UI (from STATUS.md priority #1) ✅ ALREADY IMPLEMENTED
+- [x] **Auto-refresh inber data** — Poll inber endpoints periodically or add file watcher for live updates ✅ ALREADY IMPLEMENTED (10s polling + WebSocket)
+- [~] **Better agent detail page** — Show quest history, token charts, cost breakdown from inber data
+- [ ] **Write basic tests** — At minimum: inber store unit tests with test SQLite DB
+- [ ] **Add graceful shutdown** — Handle SIGTERM/SIGINT properly in Go server
+- [ ] **Add health check endpoint** — Add `/health` endpoint for monitoring
+
+---
+
 ## 💡 Ideas (unprioritized)
 - Agent journal — auto-generated narrative of what each agent did today
 - Time-lapse view — compressed animation of a day's agent activity

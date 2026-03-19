@@ -435,21 +435,105 @@ export default function CharacterSheet() {
           </div>
         )}
 
-        {/* Sparkline from quest history */}
+        {/* Enhanced Analytics Dashboard */}
         {questHistory.length > 2 && (
           <div className="section">
-            <h3>Token Usage Trend</h3>
-            <svg viewBox={`0 0 200 40`} width="100%" height="60" preserveAspectRatio="none" style={{ display: 'block' }}>
+            <h3>📊 Analytics Dashboard</h3>
+            
+            {/* Performance Metrics */}
+            <div className="analytics-metrics">
               {(() => {
-                const data = questHistory.map((q) => q.tokens);
-                const max = Math.max(...data, 1);
-                const points = data.map((v, i) => `${(i / (data.length - 1)) * 200},${40 - (v / max) * 36 - 2}`).join(' ');
-                return <>
-                  <polygon points={`0,40 ${points} 200,40`} fill={cc} opacity="0.15" />
-                  <polyline points={points} fill="none" stroke={cc} strokeWidth="2" />
-                </>;
+                const completedQuests = questHistory.filter(q => q.status === 'completed').length;
+                const successRate = questHistory.length > 0 ? ((completedQuests / questHistory.length) * 100) : 0;
+                const avgTokens = questHistory.reduce((sum, q) => sum + q.tokens, 0) / questHistory.length;
+                const avgCost = questHistory.reduce((sum, q) => sum + q.cost, 0) / questHistory.length;
+                
+                return (
+                  <div className="metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="metric-card" style={{ padding: '1rem', background: 'rgba(212,175,55,0.1)', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ color: '#22c55e', fontSize: '1.5rem', fontWeight: 'bold' }}>{successRate.toFixed(1)}%</div>
+                      <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Success Rate</div>
+                    </div>
+                    <div className="metric-card" style={{ padding: '1rem', background: 'rgba(212,175,55,0.1)', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ color: '#60a5fa', fontSize: '1.5rem', fontWeight: 'bold' }}>{Math.round(avgTokens)}</div>
+                      <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Avg Tokens/Quest</div>
+                    </div>
+                    <div className="metric-card" style={{ padding: '1rem', background: 'rgba(212,175,55,0.1)', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ color: '#4ade80', fontSize: '1.5rem', fontWeight: 'bold' }}>${avgCost.toFixed(3)}</div>
+                      <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Avg Cost/Quest</div>
+                    </div>
+                    <div className="metric-card" style={{ padding: '1rem', background: 'rgba(212,175,55,0.1)', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ color: cc, fontSize: '1.5rem', fontWeight: 'bold' }}>{questHistory.length}</div>
+                      <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Total Quests</div>
+                    </div>
+                  </div>
+                );
               })()}
-            </svg>
+            </div>
+
+            {/* Token Usage Trend */}
+            <div className="chart-container" style={{ marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: cc }}>🔮 Token Usage Trend</h4>
+              <svg viewBox={`0 0 200 40`} width="100%" height="60" preserveAspectRatio="none" style={{ display: 'block' }}>
+                {(() => {
+                  const data = questHistory.map((q) => q.tokens);
+                  const max = Math.max(...data, 1);
+                  const points = data.map((v, i) => `${(i / (data.length - 1)) * 200},${40 - (v / max) * 36 - 2}`).join(' ');
+                  return <>
+                    <polygon points={`0,40 ${points} 200,40`} fill={cc} opacity="0.15" />
+                    <polyline points={points} fill="none" stroke={cc} strokeWidth="2" />
+                  </>;
+                })()}
+              </svg>
+            </div>
+
+            {/* Cost Trend */}
+            <div className="chart-container" style={{ marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#4ade80' }}>💰 Cost Trend</h4>
+              <svg viewBox={`0 0 200 40`} width="100%" height="60" preserveAspectRatio="none" style={{ display: 'block' }}>
+                {(() => {
+                  const data = questHistory.map((q) => q.cost);
+                  const max = Math.max(...data, 0.001);
+                  const points = data.map((v, i) => `${(i / (data.length - 1)) * 200},${40 - (v / max) * 36 - 2}`).join(' ');
+                  return <>
+                    <polygon points={`0,40 ${points} 200,40`} fill="#4ade80" opacity="0.15" />
+                    <polyline points={points} fill="none" stroke="#4ade80" strokeWidth="2" />
+                  </>;
+                })()}
+              </svg>
+            </div>
+
+            {/* Quest Status Distribution */}
+            <div className="status-distribution" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              {(() => {
+                const statusCounts = questHistory.reduce((acc, q) => {
+                  acc[q.status] = (acc[q.status] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+                
+                const statusColors = {
+                  completed: '#22c55e',
+                  failed: '#ef4444',
+                  in_progress: '#f59e0b'
+                };
+
+                return Object.entries(statusCounts).map(([status, count]) => (
+                  <div key={status} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div 
+                      style={{ 
+                        width: '12px', 
+                        height: '12px', 
+                        borderRadius: '50%', 
+                        background: statusColors[status as keyof typeof statusColors] || '#6b7280' 
+                      }}
+                    />
+                    <span style={{ fontSize: '0.9rem' }}>
+                      {status}: {count}
+                    </span>
+                  </div>
+                ));
+              })()}
+            </div>
           </div>
         )}
       </div>
