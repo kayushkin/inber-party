@@ -1,6 +1,8 @@
 package ws
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -31,9 +33,10 @@ type Hub struct {
 }
 
 type Client struct {
-	hub  *Hub
-	conn *websocket.Conn
-	send chan Message
+	hub      *Hub
+	conn     *websocket.Conn
+	send     chan Message
+	username string
 }
 
 func NewHub() *Hub {
@@ -59,6 +62,16 @@ func (h *Hub) Run() {
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.send)
+				
+				// Broadcast user left message if they had a username
+				if client.username != "" {
+					h.broadcast <- Message{
+						Type: "user_left",
+						Data: map[string]interface{}{
+							"username": client.username,
+						},
+					}
+				}
 			}
 			h.mu.Unlock()
 			log.Printf("WebSocket client disconnected (total: %d)", len(h.clients))
@@ -112,12 +125,45 @@ func (c *Client) readPump() {
 	}()
 
 	for {
-		_, _, err := c.conn.ReadMessage()
+		_, messageBytes, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("WebSocket error: %v", err)
 			}
 			break
+		}
+
+		// Try to parse incoming messages for chat functionality
+		var msg map[string]interface{}
+		if err := json.Unmarshal(messageBytes, &msg); err == nil {
+			msgType, ok := msg["type"].(string)
+			if ok && msgType == "chat_message" {
+				// Broadcast chat messages to all clients
+				c.hub.Broadcast(Message{
+					Type: "chat_message",
+					Data: map[string]interface{}{
+						"message": map[string]interface{}{
+							"id":        generateMessageID(),
+							"username":  msg["username"],
+							"message":   msg["message"],
+							"timestamp": msg["timestamp"],
+							"type":      "chat",
+							"avatar":    msg["avatar"],
+						},
+					},
+				})
+			} else if msgType == "join" {
+				username, ok := msg["username"].(string)
+				if ok {
+					c.username = username
+					c.hub.Broadcast(Message{
+						Type: "user_joined",
+						Data: map[string]interface{}{
+							"username": username,
+						},
+					})
+				}
+			}
 		}
 	}
 }
@@ -137,4 +183,10 @@ func (c *Client) writePump() {
 			break
 		}
 	}
+}
+
+func generateMessageID() string {
+	bytes := make([]byte, 8)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
 }

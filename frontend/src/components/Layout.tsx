@@ -24,6 +24,7 @@ export default function Layout() {
     { to: '/leaderboard', label: '🏆 Leaderboard', match: '/leaderboard' },
     { to: '/guild-chat', label: '👑 Guild Hall', match: '/guild-chat' },
     { to: '/conversations', label: '🗣️ Conversations', match: '/conversations' },
+    { to: '/chatroom', label: '🌍 Chatroom', match: '/chatroom' },
     { to: '/library', label: '📚 Library', match: '/library' },
     { to: '/training', label: '🏋️ Training', match: '/training' },
     { to: '/forge', label: '🔨 Forge', match: '/forge' },
@@ -44,6 +45,7 @@ export default function Layout() {
     if (path === '/leaderboard') return 'room-leaderboard';
     if (path === '/guild-chat') return 'room-guild-hall';
     if (path === '/conversations') return 'room-conversations';
+    if (path === '/chatroom') return 'room-chatroom';
     if (path === '/library') return 'room-library';
     if (path === '/training') return 'room-training';
     if (path === '/forge') return 'room-forge';

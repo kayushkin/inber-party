@@ -22,6 +22,7 @@ import Parties from './pages/Parties';
 import Leaderboard from './pages/Leaderboard';
 import CostDashboard from './pages/CostDashboard';
 import PayoutDashboard from './pages/PayoutDashboard';
+import MMOChatroom from './pages/MMOChatroom';
 import { AchievementToastContainer } from './components/AchievementToast';
 import './App.css';
 
@@ -90,6 +91,7 @@ function App() {
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="costs" element={<CostDashboard />} />
             <Route path="payouts" element={<PayoutDashboard />} />
+            <Route path="chatroom" element={<MMOChatroom />} />
             <Route path="create-adventurer" element={<CreateAdventurer />} />
           </Route>
         </Routes>

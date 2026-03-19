@@ -68,6 +68,7 @@ func main() {
 	mux := http.NewServeMux()
 	apiServer.RegisterRoutes(mux)
 	mux.HandleFunc("/ws", hub.ServeWS)
+	mux.HandleFunc("/api/ws/chat", hub.ServeWS) // Chat-specific WebSocket endpoint
 
 	// Health check endpoint
 	startTime := time.Now()
