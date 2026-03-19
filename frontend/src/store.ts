@@ -192,6 +192,16 @@ export interface RPGJournal {
   generated_at: string;
 }
 
+export interface TavernTalkMessage {
+  type: string;
+  speaker: string;
+  target: string;
+  message: string;
+  timestamp: string;
+  mood: 'friendly' | 'competitive' | 'supportive' | 'appreciative' | 'casual';
+  context: string;
+}
+
 // ── Store ──────────────────────────────────────────────────
 
 interface StoreState {
@@ -251,6 +261,11 @@ interface StoreState {
   removeAchievementToast: (timestamp: number) => void;
   checkForNewAchievements: () => Promise<void>;
 
+  // Tavern Talk state
+  tavernTalkMessages: TavernTalkMessage[];
+  isLoadingTavernTalk: boolean;
+  lastTavernTalkUpdate: number;
+
   // Actions
   fetchAll: () => Promise<void>;
   connectWebSocket: () => void;
@@ -261,6 +276,7 @@ interface StoreState {
   addChatMessage: (agentId: string, msg: ChatMessage) => void;
   clearChatHistory: (agentId?: string) => void;
   addReaction: (agentId: string, messageIndex: number, emoji: string) => void;
+  fetchTavernTalk: () => Promise<void>;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -296,6 +312,11 @@ export const useStore = create<StoreState>((set, get) => ({
   // Health check defaults
   healthData: null,
   isLoadingHealth: false,
+
+  // Tavern Talk defaults
+  tavernTalkMessages: [],
+  isLoadingTavernTalk: false,
+  lastTavernTalkUpdate: 0,
 
   // Initialize theme from localStorage or default to dark
   theme: (localStorage.getItem('theme') as 'light' | 'dark') || 'dark',
@@ -794,6 +815,39 @@ export const useStore = create<StoreState>((set, get) => ({
     
     return state;
   }),
+
+  fetchTavernTalk: async () => {
+    const { isLoadingTavernTalk, lastTavernTalkUpdate } = get();
+    
+    // Throttle requests - don't fetch more than once every 30 seconds
+    const now = Date.now();
+    if (isLoadingTavernTalk || (now - lastTavernTalkUpdate < 30000)) {
+      return;
+    }
+    
+    set({ isLoadingTavernTalk: true });
+    
+    try {
+      const response = await fetch(`${API_URL}/api/tavern-talk`);
+      if (response.ok) {
+        const tavernTalkMessages: TavernTalkMessage[] = await response.json();
+        set({ 
+          tavernTalkMessages,
+          isLoadingTavernTalk: false,
+          lastTavernTalkUpdate: now
+        });
+      } else {
+        console.warn('Failed to fetch tavern talk');
+        set({ isLoadingTavernTalk: false });
+      }
+    } catch (error) {
+      console.warn('Tavern talk fetch failed:', error);
+      set({ 
+        tavernTalkMessages: [], // Clear any existing messages on error
+        isLoadingTavernTalk: false 
+      });
+    }
+  },
 }));
 
 // ── Helpers ────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore, classColor, formatTokens, timeAgo } from '../store';
 import type { RPGAgent } from '../store';
@@ -39,9 +39,19 @@ export default function TavernView() {
   const isLoadingAgents = useStore((s) => s.isLoadingAgents);
   const isLoadingStats = useStore((s) => s.isLoadingStats);
   const hasInitialLoad = useStore((s) => s.hasInitialLoad);
+  const tavernTalkMessages = useStore((s) => s.tavernTalkMessages);
+  const isLoadingTavernTalk = useStore((s) => s.isLoadingTavernTalk);
+  const fetchTavernTalk = useStore((s) => s.fetchTavernTalk);
   
   // Performance monitoring state
   const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
+  
+  // Fetch tavern talk on component mount and periodically
+  useEffect(() => {
+    fetchTavernTalk();
+    const interval = setInterval(fetchTavernTalk, 60000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, [fetchTavernTalk]);
 
   const handleAgentClick = (agent: RPGAgent) => {
     setSelectedAgent(agent.id);
@@ -190,6 +200,53 @@ export default function TavernView() {
                   <p>The tavern is quiet... waiting for adventurers to begin their quests.</p>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Tavern Talk */}
+          <div className="tavern-talk">
+            <h2 className="section-title">💬 Tavern Banter</h2>
+            <div className="tavern-talk-content">
+              {isLoadingTavernTalk ? (
+                <div className="tavern-talk-loading">
+                  <span className="activity-icon">🗣️</span>
+                  <p>Listening to the chatter...</p>
+                </div>
+              ) : tavernTalkMessages.length > 0 ? (
+                <div className="tavern-talk-messages">
+                  {tavernTalkMessages.map((msg, index) => (
+                    <div key={`${msg.timestamp}-${index}`} className={`tavern-talk-message mood-${msg.mood}`}>
+                      <div className="ttm-header">
+                        <span className="ttm-speaker">{msg.speaker}</span>
+                        <span className="ttm-arrow">→</span>
+                        <span className="ttm-target">{msg.target}</span>
+                        <span className="ttm-time">{timeAgo(msg.timestamp)}</span>
+                      </div>
+                      <div className="ttm-message">{msg.message}</div>
+                      <div className="ttm-mood">
+                        {msg.mood === 'friendly' && '😊'}
+                        {msg.mood === 'competitive' && '😏'}
+                        {msg.mood === 'supportive' && '🤝'}
+                        {msg.mood === 'appreciative' && '👍'}
+                        {msg.mood === 'casual' && '💬'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="tavern-talk-empty">
+                  <span className="activity-icon">🤫</span>
+                  <p>The adventurers are focused on their quests... come back later for tavern gossip!</p>
+                </div>
+              )}
+              <button 
+                className="refresh-talk-btn"
+                onClick={fetchTavernTalk}
+                disabled={isLoadingTavernTalk}
+                title="Refresh tavern talk"
+              >
+                🔄 Refresh Banter
+              </button>
             </div>
           </div>
 

@@ -549,3 +549,191 @@
 [data-theme="dark"] .active-agent:hover {
   background: rgba(255, 255, 255, 0.06);
 }
+
+/* Tavern Talk Styles */
+.tavern-talk {
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--card-shadow);
+}
+
+.tavern-talk-content {
+  position: relative;
+}
+
+.tavern-talk-loading,
+.tavern-talk-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.tavern-talk-loading .activity-icon,
+.tavern-talk-empty .activity-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.tavern-talk-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 8px;
+}
+
+.tavern-talk-message {
+  background: var(--bg-muted);
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 3px solid var(--primary-color);
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.tavern-talk-message:hover {
+  background: var(--bg-hover);
+  transform: translateX(2px);
+}
+
+.tavern-talk-message.mood-friendly {
+  border-left-color: #4ade80; /* green */
+}
+
+.tavern-talk-message.mood-competitive {
+  border-left-color: #f59e0b; /* orange */
+}
+
+.tavern-talk-message.mood-supportive {
+  border-left-color: #3b82f6; /* blue */
+}
+
+.tavern-talk-message.mood-appreciative {
+  border-left-color: #8b5cf6; /* purple */
+}
+
+.tavern-talk-message.mood-casual {
+  border-left-color: var(--text-muted);
+}
+
+.ttm-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
+
+.ttm-speaker {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.ttm-arrow {
+  color: var(--text-muted);
+}
+
+.ttm-target {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.ttm-time {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.ttm-message {
+  color: var(--text-color);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.ttm-mood {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 1.1rem;
+  opacity: 0.6;
+}
+
+.refresh-talk-btn {
+  background: var(--primary-color);
+  color: var(--primary-contrast);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.refresh-talk-btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.refresh-talk-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .tavern-talk {
+    margin: 0 -8px 16px -8px;
+    border-radius: 8px;
+  }
+  
+  .tavern-talk-messages {
+    max-height: 200px;
+  }
+  
+  .ttm-header {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .ttm-time {
+    flex: 1;
+    margin-left: 8px;
+  }
+}
+
+/* Scrollbar styling for tavern talk */
+.tavern-talk-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tavern-talk-messages::-webkit-scrollbar-track {
+  background: var(--bg-color);
+  border-radius: 3px;
+}
+
+.tavern-talk-messages::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.tavern-talk-messages::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

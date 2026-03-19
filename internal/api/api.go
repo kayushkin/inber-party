@@ -122,6 +122,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/notifications/", s.handleNotificationDetail)
 	mux.HandleFunc("/api/notifications/unread-count", s.handleUnreadCount)
 	mux.HandleFunc("/api/notifications/mark-all-read", s.handleMarkAllRead)
+	// Tavern Talk endpoint
+	mux.HandleFunc("/api/tavern-talk", s.handleTavernTalk)
 }
 
 // Validation helper functions
@@ -4007,4 +4009,300 @@ func (s *Server) handleAutoBountyFromText(w http.ResponseWriter, r *http.Request
 		"bounty": createdBounty,
 		"message": "Bounty successfully created from text description",
 	})
+}
+
+// handleTavernTalk generates contextual banter between agents based on their recent work
+func (s *Server) handleTavernTalk(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]map[string]interface{}{})
+		return
+	}
+
+	// Generate tavern talk messages
+	tavernMessages, err := s.generateTavernTalk()
+	if err != nil {
+		log.Printf("Error generating tavern talk: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tavernMessages)
+}
+
+// generateTavernTalk creates contextual banter between agents based on their recent activities
+func (s *Server) generateTavernTalk() ([]map[string]interface{}, error) {
+	// Get recent agent activities
+	agents, err := s.getActiveAgentsWithRecentWork()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(agents) < 2 {
+		// Not enough active agents for banter
+		return []map[string]interface{}{}, nil
+	}
+
+	var tavernMessages []map[string]interface{}
+
+	// Generate different types of banter
+	banterTypes := []string{
+		"quest_completion_congratulations",
+		"friendly_rivalry",
+		"shared_struggle",
+		"skill_appreciation",
+		"workload_discussion",
+		"quest_difficulty_chat",
+	}
+
+	// Generate 3-5 random banter messages
+	for i := 0; i < 4; i++ {
+		if len(agents) < 2 {
+			break
+		}
+
+		// Pick random banter type
+		banterType := banterTypes[i%len(banterTypes)]
+		
+		// Pick two different agents
+		agentA := agents[i%len(agents)]
+		agentB := agents[(i+1)%len(agents)]
+		
+		if agentA.Name == agentB.Name {
+			continue // Skip if somehow same agent
+		}
+
+		message := s.generateBanterMessage(agentA, agentB, banterType)
+		if message != nil {
+			tavernMessages = append(tavernMessages, message)
+		}
+	}
+
+	return tavernMessages, nil
+}
+
+type AgentWorkSummary struct {
+	Name            string
+	Class           string
+	Level           int
+	AvatarEmoji     string
+	RecentQuests    int
+	CompletedQuests int
+	FailedQuests    int
+	TotalTokens     int
+	Status          string
+	Mood           string
+	LastActivity    *time.Time
+}
+
+// getActiveAgentsWithRecentWork retrieves agents who have been active recently
+func (s *Server) getActiveAgentsWithRecentWork() ([]AgentWorkSummary, error) {
+	query := `
+		SELECT 
+			a.name, a.class, a.level, a.avatar_emoji, a.status, 
+			COALESCE(a.mood, 'content') as mood, a.last_active,
+			COUNT(CASE WHEN t.created_at > NOW() - INTERVAL '24 hours' THEN 1 END) as recent_quests,
+			COUNT(CASE WHEN t.status = 'completed' AND t.completed_at > NOW() - INTERVAL '24 hours' THEN 1 END) as completed_quests,
+			COUNT(CASE WHEN t.status = 'failed' AND t.completed_at > NOW() - INTERVAL '24 hours' THEN 1 END) as failed_quests,
+			COALESCE(SUM(CASE WHEN t.completed_at > NOW() - INTERVAL '24 hours' THEN t.xp_reward ELSE 0 END), 0) as total_tokens
+		FROM agents a
+		LEFT JOIN tasks t ON a.id = t.assigned_agent_id
+		WHERE a.last_active > NOW() - INTERVAL '48 hours'
+		GROUP BY a.id, a.name, a.class, a.level, a.avatar_emoji, a.status, a.mood, a.last_active
+		HAVING COUNT(CASE WHEN t.created_at > NOW() - INTERVAL '48 hours' THEN 1 END) > 0 
+		   OR a.last_active > NOW() - INTERVAL '12 hours'
+		ORDER BY a.last_active DESC
+		LIMIT 10
+	`
+
+	rows, err := s.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var agents []AgentWorkSummary
+	for rows.Next() {
+		var agent AgentWorkSummary
+		var lastActive *time.Time
+
+		err := rows.Scan(
+			&agent.Name, &agent.Class, &agent.Level, &agent.AvatarEmoji, &agent.Status, &agent.Mood,
+			&lastActive, &agent.RecentQuests, &agent.CompletedQuests, &agent.FailedQuests, &agent.TotalTokens,
+		)
+		if err != nil {
+			continue
+		}
+
+		agent.LastActivity = lastActive
+		agents = append(agents, agent)
+	}
+
+	return agents, nil
+}
+
+// generateBanterMessage creates a contextual message between two agents
+func (s *Server) generateBanterMessage(agentA, agentB AgentWorkSummary, banterType string) map[string]interface{} {
+	timestamp := time.Now().Format(time.RFC3339)
+
+	switch banterType {
+	case "quest_completion_congratulations":
+		if agentA.CompletedQuests > 0 && agentB.CompletedQuests == 0 {
+			return map[string]interface{}{
+				"type":      "banter",
+				"speaker":   agentB.Name,
+				"target":    agentA.Name,
+				"message":   s.getCongratulatoryMessage(agentA, agentB),
+				"timestamp": timestamp,
+				"mood":      "friendly",
+				"context":   "quest_completion",
+			}
+		}
+
+	case "friendly_rivalry":
+		if agentA.Level > agentB.Level || agentB.Level > agentA.Level {
+			return map[string]interface{}{
+				"type":      "banter",
+				"speaker":   agentA.Name,
+				"target":    agentB.Name,
+				"message":   s.getRivalryMessage(agentA, agentB),
+				"timestamp": timestamp,
+				"mood":      "competitive",
+				"context":   "level_comparison",
+			}
+		}
+
+	case "shared_struggle":
+		if agentA.FailedQuests > 0 && agentB.FailedQuests > 0 {
+			return map[string]interface{}{
+				"type":      "banter",
+				"speaker":   agentA.Name,
+				"target":    agentB.Name,
+				"message":   s.getStruggleMessage(agentA, agentB),
+				"timestamp": timestamp,
+				"mood":      "supportive",
+				"context":   "failed_quests",
+			}
+		}
+
+	case "skill_appreciation":
+		return map[string]interface{}{
+			"type":      "banter",
+			"speaker":   agentB.Name,
+			"target":    agentA.Name,
+			"message":   s.getSkillAppreciationMessage(agentA, agentB),
+			"timestamp": timestamp,
+			"mood":      "appreciative",
+			"context":   "class_skills",
+		}
+
+	case "workload_discussion":
+		if agentA.RecentQuests > 2 || agentB.RecentQuests > 2 {
+			return map[string]interface{}{
+				"type":      "banter",
+				"speaker":   agentA.Name,
+				"target":    agentB.Name,
+				"message":   s.getWorkloadMessage(agentA, agentB),
+				"timestamp": timestamp,
+				"mood":      "casual",
+				"context":   "workload",
+			}
+		}
+	}
+
+	return nil
+}
+
+// Message generation helpers
+func (s *Server) getCongratulatoryMessage(achiever, speaker AgentWorkSummary) string {
+	messages := []string{
+		fmt.Sprintf("Nice work on those quests, %s! You've been crushing it lately. %s", achiever.Name, achiever.AvatarEmoji),
+		fmt.Sprintf("Wow %s, %d quests completed today? Save some glory for the rest of us! 🏆", achiever.Name, achiever.CompletedQuests),
+		fmt.Sprintf("Hey %s! Saw you complete another quest earlier - you're on fire! 🔥", achiever.Name),
+		fmt.Sprintf("%s, your quest completion streak is impressive! What's your secret? ⚔️", achiever.Name),
+	}
+	return messages[time.Now().Unix()%int64(len(messages))]
+}
+
+func (s *Server) getRivalryMessage(agentA, agentB AgentWorkSummary) string {
+	if agentA.Level > agentB.Level {
+		messages := []string{
+			fmt.Sprintf("Not bad %s, but I'm still level %d to your %d 😏", agentB.Name, agentA.Level, agentB.Level),
+			fmt.Sprintf("Level %d eh %s? I remember when I was that level... good times! 😄", agentB.Level, agentB.Name),
+			fmt.Sprintf("Keep grinding %s! Maybe you'll catch up to my level %d someday 💪", agentB.Name, agentA.Level),
+		}
+		return messages[time.Now().Unix()%int64(len(messages))]
+	} else {
+		messages := []string{
+			fmt.Sprintf("Looking up at my level %d, %s? The view's nice from up here! 😎", agentB.Level, agentA.Name),
+			fmt.Sprintf("Better step up your game %s - I just hit level %d! ⚡", agentA.Name, agentB.Level),
+			fmt.Sprintf("Sorry %s, can't hear you from all the way down at level %d! 😜", agentA.Name, agentA.Level),
+		}
+		return messages[time.Now().Unix()%int64(len(messages))]
+	}
+}
+
+func (s *Server) getStruggleMessage(agentA, agentB AgentWorkSummary) string {
+	messages := []string{
+		fmt.Sprintf("These quests have been brutal lately, right %s? We'll get through it! 💪", agentB.Name),
+		fmt.Sprintf("Rough day too, %s? At least we're struggling together! 🤝", agentB.Name),
+		fmt.Sprintf("Failed a quest earlier %s... sometimes the RNG just isn't on our side 🎲", agentB.Name),
+		fmt.Sprintf("Don't worry %s, every hero has setbacks. Tomorrow we'll dominate! ⚔️", agentB.Name),
+	}
+	return messages[time.Now().Unix()%int64(len(messages))]
+}
+
+func (s *Server) getSkillAppreciationMessage(target, speaker AgentWorkSummary) string {
+	classCompliments := map[string][]string{
+		"warrior": {"Your combat skills are legendary!", "Nobody tanks quests like you!", "You're the backbone of every party!"},
+		"mage": {"Your magical expertise always amazes me!", "How do you make those complex algorithms look so easy?", "Your spellcasting skills are unmatched!"},
+		"rogue": {"Your stealth debugging saves the day every time!", "You always find the hidden bugs nobody else can!", "Your infiltration skills are incredible!"},
+		"paladin": {"Your dedication to code justice is inspiring!", "You always keep the codebase pure and righteous!", "Your healing abilities fix every broken system!"},
+		"ranger": {"Your ability to navigate any environment is amazing!", "You always know the best path through complex problems!", "Your tracking skills help us find any issue!"},
+		"bard": {"Your communication skills keep the team in harmony!", "You make even the boring documentation interesting!", "Your inspiration boosts everyone's performance!"},
+	}
+
+	targetClass := strings.ToLower(target.Class)
+	if compliments, exists := classCompliments[targetClass]; exists {
+		return compliments[time.Now().Unix()%int64(len(compliments))]
+	}
+
+	// Generic fallbacks
+	fallbacks := []string{
+		fmt.Sprintf("Your %s skills are really impressive %s!", target.Class, target.Name),
+		fmt.Sprintf("I wish I had your %s expertise, %s!", target.Class, target.Name),
+		fmt.Sprintf("You make being a %s look easy, %s!", target.Class, target.Name),
+	}
+	return fallbacks[time.Now().Unix()%int64(len(fallbacks))]
+}
+
+func (s *Server) getWorkloadMessage(agentA, agentB AgentWorkSummary) string {
+	if agentA.RecentQuests > 3 {
+		messages := []string{
+			fmt.Sprintf("Phew, %d quests today %s? You're making me look lazy! 😅", agentA.RecentQuests, agentB.Name),
+			fmt.Sprintf("Taking a break between my %d quests... how many are you tackling %s?", agentA.RecentQuests, agentB.Name),
+			fmt.Sprintf("This quest load is intense! %d quests for me today. You keeping up %s?", agentA.RecentQuests, agentB.Name),
+		}
+		return messages[time.Now().Unix()%int64(len(messages))]
+	} else if agentB.RecentQuests > 3 {
+		messages := []string{
+			fmt.Sprintf("Wow %s, %d quests? Save some energy for tomorrow! ⚡", agentB.Name, agentB.RecentQuests),
+			fmt.Sprintf("Respect %s - %d quests is no joke! How do you do it?", agentB.Name, agentB.RecentQuests),
+			fmt.Sprintf("I see you've been busy %s! %d quests... that's dedication! 🏆", agentB.Name, agentB.RecentQuests),
+		}
+		return messages[time.Now().Unix()%int64(len(messages))]
+	} else {
+		messages := []string{
+			fmt.Sprintf("Nice steady pace today %s! Sometimes consistent is best 🎯", agentB.Name),
+			fmt.Sprintf("Taking it easy today too %s? Smart move for the long game!", agentB.Name),
+			fmt.Sprintf("Quality over quantity, right %s? 👌", agentB.Name),
+		}
+		return messages[time.Now().Unix()%int64(len(messages))]
+	}
 }
