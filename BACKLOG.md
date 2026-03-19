@@ -162,6 +162,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 New Critical Issues
+
+- [x] **Fix Frontend Linting Errors** — Clean up 18 linting issues including TypeScript `any` types, React hooks dependencies, setState in effects, character class regex issues, and Fast Refresh violations. Improve code quality and maintainability. ✅ COMPLETED: Reduced from 18 linting issues to 0. Fixed Fast Refresh violations by separating context exports, removed unused variables, fixed dependency arrays, and resolved function hoisting issues.
+
+---
+
 ## 💡 Ideas (unprioritized)
 - [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
 - [x] Time-lapse view — compressed animation of a day's agent activity ✅ COMPLETED: Implemented comprehensive time-lapse visualization with `/api/activity/timeline` endpoint, animated playback controls, agent activity tracking, event stream visualization, and timeline statistics

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './SessionReplay.css';
 
 interface SessionReplay {
@@ -28,7 +28,7 @@ interface ReplayTurn {
 
 interface ReplayToolCall {
   name: string;
-  parameters: any;
+  parameters: Record<string, unknown>;
   result: string;
   success: boolean;
   duration: number;
@@ -49,11 +49,7 @@ export default function SessionReplay({ sessionId, onClose }: SessionReplayProps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchReplayData();
-  }, [sessionId]);
-
-  const fetchReplayData = async () => {
+  const fetchReplayData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/inber/session-replay?session=${encodeURIComponent(sessionId)}`);
@@ -67,7 +63,11 @@ export default function SessionReplay({ sessionId, onClose }: SessionReplayProps
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId]);
+
+  useEffect(() => {
+    fetchReplayData();
+  }, [fetchReplayData]);
 
   useEffect(() => {
     if (!isPlaying || !replay) return;

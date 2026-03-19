@@ -1,4 +1,5 @@
-import { useNotifications, type Notification } from '../contexts/NotificationContext';
+import { useNotifications } from '../hooks/useNotifications';
+import type { Notification } from '../types/notification';
 import './NotificationContainer.css';
 
 interface NotificationItemProps {

@@ -10,7 +10,7 @@ interface ActivityEvent {
   task_name?: string;
   status?: string;
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface TimelineResponse {

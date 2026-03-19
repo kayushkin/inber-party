@@ -35,6 +35,23 @@ interface SessionDetail {
   lastActive: string;
 }
 
+interface RawSessionResponse {
+  sessionKey?: string;
+  key?: string;
+  id?: string;
+  agentId?: string;
+  agent_id?: string;
+  agentName?: string;
+  agent_name?: string;
+  status: string;
+  lastActive: string;
+  messageCount: number;
+  totalTokens: number;
+  totalCost: number;
+  created: string;
+  summary?: string;
+}
+
 export default function Library() {
   const [sessions, setSessions] = useState<SessionLog[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<SessionLog[]>([]);
@@ -81,7 +98,7 @@ export default function Library() {
       const data = await response.json();
       
       // Transform the data to match our interface
-      const transformedSessions: SessionLog[] = data.map((session: any) => ({
+      const transformedSessions: SessionLog[] = data.map((session: RawSessionResponse) => ({
         sessionKey: session.sessionKey || session.key || session.id,
         agentId: session.agentId || session.agent_id || 'unknown',
         agentName: session.agentName || session.agent_name || 'Unknown Agent',

@@ -19,6 +19,27 @@ interface Conversation {
   source: 'inber' | 'logstack';
 }
 
+interface LogstackConversationResponse {
+  id: string;
+  agent_name?: string;
+  title: string;
+  messages: Message[];
+  started_at?: string;
+  last_active?: string;
+  type?: string;
+  message_count?: number;
+}
+
+interface InberConversationResponse {
+  id: string;
+  participant_ids?: string[];
+  agent_id?: string;
+  title: string;
+  messages: Message[];
+  start_time?: string;
+  end_time?: string;
+}
+
 interface Message {
   id: string;
   from_agent?: string;
@@ -52,7 +73,7 @@ export default function AgentConversations() {
       // Process logstack conversations
       if (logstackRes.status === 'fulfilled' && logstackRes.value.ok) {
         const logstackData = await logstackRes.value.json();
-        const logstackConvs = (logstackData || []).map((conv: any) => ({
+        const logstackConvs = (logstackData || []).map((conv: LogstackConversationResponse) => ({
           ...conv,
           source: 'logstack' as const,
           participants: conv.agent_name ? [conv.agent_name] : [],
@@ -66,7 +87,7 @@ export default function AgentConversations() {
       // Process inber conversations  
       if (inberRes.status === 'fulfilled' && inberRes.value.ok) {
         const inberData = await inberRes.value.json();
-        const inberConvs = (inberData || []).map((conv: any) => ({
+        const inberConvs = (inberData || []).map((conv: InberConversationResponse) => ({
           ...conv,
           source: 'inber' as const
         }));

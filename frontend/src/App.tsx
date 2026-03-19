@@ -25,7 +25,7 @@ import PayoutDashboard from './pages/PayoutDashboard';
 import MMOChatroom from './pages/MMOChatroom';
 import TimeLapseView from './pages/TimeLapseView';
 import { AchievementToastContainer } from './components/AchievementToast';
-import { NotificationProvider } from './contexts/NotificationContext';
+import { NotificationProvider } from './contexts/NotificationContextProvider';
 import NotificationContainer from './components/NotificationContainer';
 import './App.css';
 

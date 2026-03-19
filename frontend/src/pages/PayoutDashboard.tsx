@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useStore } from '../store';
 
 interface PayoutEntry {
@@ -52,11 +52,7 @@ const PayoutDashboard = () => {
   // Get agents from store for dropdown
   const agents = useStore((s) => s.agents);
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedAgent, source]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch summaries
@@ -82,7 +78,11 @@ const PayoutDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedAgent, source]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const submitManualPayout = async () => {
     if (!manualForm.agent_id || !manualForm.amount || !manualForm.description) {

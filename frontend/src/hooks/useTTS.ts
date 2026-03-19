@@ -152,14 +152,20 @@ export function useTTS() {
   // Initialize TTS support and load voices
   useEffect(() => {
     if (supported) {
-      loadVoices();
-      
       // Listen for voice changes (async loading)
       if (speechSynthesis.onvoiceschanged !== undefined) {
         speechSynthesis.onvoiceschanged = loadVoices;
       }
     }
   }, [supported, loadVoices]);
+
+  // Load voices on mount if available
+  useEffect(() => {
+    if (supported && voices.length === 0) {
+      // Timeout to avoid setState during render
+      setTimeout(loadVoices, 0);
+    }
+  }, [supported, loadVoices, voices.length]);
 
   // Helper to clean text for better speech
   const cleanTextForSpeech = (text: string): string => {
@@ -172,7 +178,7 @@ export function useTTS() {
       .replace(/#{1,6}\s/g, '') // Headers
       .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // Links
       // Remove special characters that don't read well
-      .replace(/[📊🎉🔥⚡️🎯🏆💡🚀]/gu, '')
+      .replace(/(📊|🎉|🔥|⚡️|🎯|🏆|💡|🚀)/g, '')
       // Clean up whitespace
       .replace(/\s+/g, ' ')
       .trim();

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { formatCost, formatTokens, timeAgo } from '../store';
 import './CostDashboard.css';
 
@@ -47,11 +47,7 @@ export default function CostDashboard() {
 
   const API_URL = import.meta.env.VITE_API_URL || '';
 
-  useEffect(() => {
-    fetchData();
-  }, [period, selectedAgent, days]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch agents for the dropdown
@@ -91,7 +87,11 @@ export default function CostDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [period, selectedAgent, days, API_URL]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const totalCost = costSummaries.reduce((sum, s) => sum + s.total_cost, 0);
   const totalTokens = costSummaries.reduce((sum, s) => sum + s.total_tokens, 0);

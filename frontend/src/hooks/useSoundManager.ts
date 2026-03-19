@@ -34,7 +34,7 @@ export function useSoundManager() {
     if (audioContextRef.current) return audioContextRef.current;
     
     try {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = new (window.AudioContext || (window as typeof window & {webkitAudioContext: typeof AudioContext}).webkitAudioContext)();
       return audioContextRef.current;
     } catch {
       console.warn('Web Audio API not supported');

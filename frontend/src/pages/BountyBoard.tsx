@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SkeletonQuestCard } from '../components/SkeletonLoader';
 import CreateBountyForm from '../components/CreateBountyForm';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotifications } from '../hooks/useNotifications';
 import './BountyBoard.css';
 
 interface Bounty {
@@ -39,6 +39,15 @@ interface Agent {
   level: number;
 }
 
+interface CreateBountyData {
+  title: string;
+  description: string;
+  requirements: string;
+  payout_amount: number;
+  deadline?: string;
+  required_skills?: string;
+}
+
 export default function BountyBoard() {
   const { showSuccess, showError } = useNotifications();
   const [bounties, setBounties] = useState<Bounty[]>([]);
@@ -65,12 +74,7 @@ export default function BountyBoard() {
   const [disputeEvidence, setDisputeEvidence] = useState('');
   const [submittingDispute, setSubmittingDispute] = useState(false);
   
-  useEffect(() => {
-    fetchBounties();
-    fetchAgents();
-  }, []);
-
-  const fetchBounties = async () => {
+  const fetchBounties = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch('/api/bounties');
@@ -85,9 +89,9 @@ export default function BountyBoard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showError]);
 
-  const fetchAgents = async () => {
+  const fetchAgents = useCallback(async () => {
     try {
       const response = await fetch('/api/agents');
       if (response.ok) {
@@ -99,33 +103,34 @@ export default function BountyBoard() {
     } catch (error) {
       showError('Error fetching agents', `${error}`);
     }
-  };
+  }, [showError]);
 
-  const handleCreateBounty = async (bountyData: any) => {
-    try {
-      const response = await fetch('/api/bounties', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...bountyData,
-          // Convert deadline to ISO format if provided
-          deadline: bountyData.deadline ? new Date(bountyData.deadline).toISOString() : null,
-        }),
-      });
+  useEffect(() => {
+    fetchBounties();
+    fetchAgents();
+  }, [fetchBounties, fetchAgents]);
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Failed to create bounty: ${errorData}`);
-      }
+  const handleCreateBounty = async (bountyData: CreateBountyData) => {
+    const response = await fetch('/api/bounties', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...bountyData,
+        // Convert deadline to ISO format if provided
+        deadline: bountyData.deadline ? new Date(bountyData.deadline).toISOString() : null,
+      }),
+    });
 
-      const newBounty = await response.json();
-      setBounties(prev => [newBounty, ...prev]);
-      showSuccess('Bounty Created!', `Successfully created bounty: ${newBounty.title}`);
-    } catch (error) {
-      throw error; // Re-throw to let the form handle the error
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(`Failed to create bounty: ${errorData}`);
     }
+
+    const newBounty = await response.json();
+    setBounties(prev => [newBounty, ...prev]);
+    showSuccess('Bounty Created!', `Successfully created bounty: ${newBounty.title}`);
   };
 
   const handleClaimClick = (bountyId: number) => {

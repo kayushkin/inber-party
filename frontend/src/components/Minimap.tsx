@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { useStore } from '../store';
 import { classColor } from '../store';
+import type { RPGAgent } from '../store';
 import './Minimap.css';
 
 interface Room {
@@ -29,7 +30,7 @@ export default function Minimap() {
   const agents = useStore((s) => s.agents);
 
   // Determine which agents are in which rooms
-  const getAgentRoom = (agent: any) => {
+  const getAgentRoom = (agent: RPGAgent) => {
     // If we're viewing an agent's quarters, they're in quarters
     if (location.pathname.startsWith('/quarters/') && location.pathname.includes(agent.id)) {
       return 'quarters';
@@ -58,7 +59,7 @@ export default function Minimap() {
     if (!acc[room]) acc[room] = [];
     acc[room].push(agent);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, RPGAgent[]>);
 
   const currentRoom = ROOMS.find(room => {
     if (location.pathname === room.path) return true;
