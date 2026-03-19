@@ -18,6 +18,7 @@ export default function Layout() {
   const navItems = [
     { to: '/', label: '🏕️ Tavern', match: '/' },
     { to: '/quests', label: '📜 Quests', match: '/quests' },
+    { to: '/bounties', label: '💰 Bounties', match: '/bounties' },
     { to: '/parties', label: '🏰 Parties', match: '/parties' },
     { to: '/war-room', label: '⚔️ War Room', match: '/war-room' },
     { to: '/leaderboard', label: '🏆 Leaderboard', match: '/leaderboard' },
@@ -36,6 +37,7 @@ export default function Layout() {
     if (path === '/') return 'room-tavern';
     if (path.startsWith('/agent/') || path.startsWith('/quarters/')) return 'room-quarters';
     if (path === '/quests') return 'room-quests';
+    if (path === '/bounties') return 'room-bounties';
     if (path === '/parties') return 'room-parties';
     if (path === '/war-room') return 'room-war-room';
     if (path === '/leaderboard') return 'room-leaderboard';

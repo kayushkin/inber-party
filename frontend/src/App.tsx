@@ -7,6 +7,7 @@ import OfflineIndicator from './components/OfflineIndicator';
 import TavernView from './pages/TavernView';
 import CharacterSheet from './pages/CharacterSheet';
 import QuestBoard from './pages/QuestBoard';
+import BountyBoard from './pages/BountyBoard';
 import WarRoom from './pages/WarRoom';
 import StatsView from './pages/StatsView';
 import ComparisonView from './pages/ComparisonView';
@@ -69,6 +70,11 @@ function App() {
             <Route path="quests" element={
               <ErrorBoundary>
                 <QuestBoard />
+              </ErrorBoundary>
+            } />
+            <Route path="bounties" element={
+              <ErrorBoundary>
+                <BountyBoard />
               </ErrorBoundary>
             } />
             <Route path="war-room" element={<WarRoom />} />
