@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -94,6 +95,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/health", s.handleHealthCheck)
 	mux.HandleFunc("/api/costs", s.handleCosts)
 	mux.HandleFunc("/api/costs/summary", s.handleCostsSummary)
+	mux.HandleFunc("/api/activity/timeline", s.handleActivityTimeline)
 	
 	// Auto-bounty system routes (new)
 	mux.HandleFunc("/api/auto-bounties", s.handleAutoBounties)
@@ -2121,6 +2123,228 @@ func (s *Server) handleCostsSummary(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(summaries)
+}
+
+// Activity Timeline handler for time-lapse view
+type ActivityEvent struct {
+	Timestamp   time.Time `json:"timestamp"`
+	Type        string    `json:"type"`        // "task_created", "task_started", "task_completed", "agent_updated"
+	AgentID     *int      `json:"agent_id,omitempty"`
+	AgentName   string    `json:"agent_name,omitempty"`
+	TaskID      *int      `json:"task_id,omitempty"`
+	TaskName    string    `json:"task_name,omitempty"`
+	Status      string    `json:"status,omitempty"`
+	Description string    `json:"description"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type TimelineResponse struct {
+	Events    []ActivityEvent `json:"events"`
+	StartTime time.Time       `json:"start_time"`
+	EndTime   time.Time       `json:"end_time"`
+	Total     int             `json:"total"`
+}
+
+func (s *Server) handleActivityTimeline(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	query := r.URL.Query()
+	
+	// Default to last 24 hours if no time range specified
+	endTime := time.Now()
+	startTime := endTime.Add(-24 * time.Hour)
+	
+	if startStr := query.Get("start"); startStr != "" {
+		if t, err := time.Parse(time.RFC3339, startStr); err == nil {
+			startTime = t
+		}
+	}
+	
+	if endStr := query.Get("end"); endStr != "" {
+		if t, err := time.Parse(time.RFC3339, endStr); err == nil {
+			endTime = t
+		}
+	}
+	
+	agentFilter := query.Get("agent_id")
+	limit := 1000 // Default limit
+	if limitStr := query.Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 5000 {
+			limit = l
+		}
+	}
+
+	events := []ActivityEvent{}
+
+	// Query task events
+	taskQuery := `
+		SELECT t.id, t.name, t.status, t.assigned_agent_id, a.name,
+		       t.created_at, t.started_at, t.completed_at
+		FROM tasks t
+		LEFT JOIN agents a ON t.assigned_agent_id = a.id
+		WHERE t.created_at BETWEEN ? AND ?
+		   OR t.started_at BETWEEN ? AND ?
+		   OR t.completed_at BETWEEN ? AND ?
+	`
+	args := []interface{}{startTime, endTime, startTime, endTime, startTime, endTime}
+	
+	if agentFilter != "" {
+		taskQuery += " AND t.assigned_agent_id = ?"
+		args = append(args, agentFilter)
+	}
+	
+	taskQuery += " ORDER BY t.created_at DESC"
+
+	rows, err := s.DB.Query(taskQuery, args...)
+	if err != nil {
+		log.Printf("Error querying task timeline: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var taskID int
+		var taskName, status string
+		var agentID *int
+		var agentName *string
+		var createdAt, startedAt, completedAt *time.Time
+
+		if err := rows.Scan(&taskID, &taskName, &status, &agentID, &agentName,
+			&createdAt, &startedAt, &completedAt); err != nil {
+			continue
+		}
+
+		agentNameStr := ""
+		if agentName != nil {
+			agentNameStr = *agentName
+		}
+
+		// Add creation event
+		if createdAt != nil && createdAt.After(startTime) && createdAt.Before(endTime) {
+			events = append(events, ActivityEvent{
+				Timestamp:   *createdAt,
+				Type:        "task_created",
+				AgentID:     agentID,
+				AgentName:   agentNameStr,
+				TaskID:      &taskID,
+				TaskName:    taskName,
+				Status:      status,
+				Description: fmt.Sprintf("Task '%s' created", taskName),
+			})
+		}
+
+		// Add started event
+		if startedAt != nil && startedAt.After(startTime) && startedAt.Before(endTime) {
+			events = append(events, ActivityEvent{
+				Timestamp:   *startedAt,
+				Type:        "task_started",
+				AgentID:     agentID,
+				AgentName:   agentNameStr,
+				TaskID:      &taskID,
+				TaskName:    taskName,
+				Status:      status,
+				Description: fmt.Sprintf("%s started working on '%s'", agentNameStr, taskName),
+			})
+		}
+
+		// Add completion event
+		if completedAt != nil && completedAt.After(startTime) && completedAt.Before(endTime) {
+			events = append(events, ActivityEvent{
+				Timestamp:   *completedAt,
+				Type:        "task_completed",
+				AgentID:     agentID,
+				AgentName:   agentNameStr,
+				TaskID:      &taskID,
+				TaskName:    taskName,
+				Status:      status,
+				Description: fmt.Sprintf("%s completed '%s'", agentNameStr, taskName),
+			})
+		}
+	}
+
+	// Query agent update events
+	agentQuery := `
+		SELECT id, name, status, last_active, updated_at
+		FROM agents
+		WHERE updated_at BETWEEN ? AND ?
+		   OR last_active BETWEEN ? AND ?
+	`
+	agentArgs := []interface{}{startTime, endTime, startTime, endTime}
+	
+	if agentFilter != "" {
+		agentQuery += " AND id = ?"
+		agentArgs = append(agentArgs, agentFilter)
+	}
+
+	rows, err = s.DB.Query(agentQuery, agentArgs...)
+	if err != nil {
+		log.Printf("Error querying agent timeline: %v", err)
+		// Continue without agent events rather than failing
+	} else {
+		defer rows.Close()
+
+		for rows.Next() {
+			var agentID int
+			var name, status string
+			var lastActive, updatedAt *time.Time
+
+			if err := rows.Scan(&agentID, &name, &status, &lastActive, &updatedAt); err != nil {
+				continue
+			}
+
+			// Add status update event
+			if updatedAt != nil && updatedAt.After(startTime) && updatedAt.Before(endTime) {
+				events = append(events, ActivityEvent{
+					Timestamp:   *updatedAt,
+					Type:        "agent_updated",
+					AgentID:     &agentID,
+					AgentName:   name,
+					Status:      status,
+					Description: fmt.Sprintf("%s status updated to %s", name, status),
+				})
+			}
+
+			// Add activity event
+			if lastActive != nil && lastActive.After(startTime) && lastActive.Before(endTime) {
+				events = append(events, ActivityEvent{
+					Timestamp:   *lastActive,
+					Type:        "agent_active",
+					AgentID:     &agentID,
+					AgentName:   name,
+					Status:      status,
+					Description: fmt.Sprintf("%s became active", name),
+				})
+			}
+		}
+	}
+
+	// Sort events by timestamp (newest first)
+	for i := 0; i < len(events)-1; i++ {
+		for j := i + 1; j < len(events); j++ {
+			if events[i].Timestamp.Before(events[j].Timestamp) {
+				events[i], events[j] = events[j], events[i]
+			}
+		}
+	}
+
+	// Apply limit
+	if len(events) > limit {
+		events = events[:limit]
+	}
+
+	response := TimelineResponse{
+		Events:    events,
+		StartTime: startTime,
+		EndTime:   endTime,
+		Total:     len(events),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 // Bounty marketplace handlers

@@ -23,6 +23,7 @@ import Leaderboard from './pages/Leaderboard';
 import CostDashboard from './pages/CostDashboard';
 import PayoutDashboard from './pages/PayoutDashboard';
 import MMOChatroom from './pages/MMOChatroom';
+import TimeLapseView from './pages/TimeLapseView';
 import { AchievementToastContainer } from './components/AchievementToast';
 import { NotificationProvider } from './contexts/NotificationContext';
 import NotificationContainer from './components/NotificationContainer';
@@ -95,6 +96,7 @@ function App() {
             <Route path="costs" element={<CostDashboard />} />
             <Route path="payouts" element={<PayoutDashboard />} />
             <Route path="chatroom" element={<MMOChatroom />} />
+            <Route path="timelapse" element={<TimeLapseView />} />
             <Route path="create-adventurer" element={<CreateAdventurer />} />
           </Route>
         </Routes>

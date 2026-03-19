@@ -163,8 +163,8 @@ Add new ideas at the bottom. Re-prioritize as needed.
 ---
 
 ## 💡 Ideas (unprioritized)
-- [~] Agent journal — auto-generated narrative of what each agent did today
-- Time-lapse view — compressed animation of a day's agent activity
+- [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
+- [~] Time-lapse view — compressed animation of a day's agent activity
 - "Tavern talk" — generated banter between agents based on their recent work
 - Seasonal events — holiday themes, special quests
 - Agent rivalries/friendships based on collaboration patterns
