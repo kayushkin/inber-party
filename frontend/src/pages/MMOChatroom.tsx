@@ -10,6 +10,14 @@ interface ChatMessage {
   avatar?: string;
 }
 
+// Generate unique IDs to avoid React key conflicts
+let chatMessageIdCounter = 0;
+const generateChatMessageId = (suffix?: string): string => {
+  chatMessageIdCounter += 1;
+  const timestamp = Date.now();
+  return suffix ? `${timestamp}_${chatMessageIdCounter}_${suffix}` : `${timestamp}_${chatMessageIdCounter}`;
+};
+
 export default function MMOChatroom() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -74,7 +82,7 @@ export default function MMOChatroom() {
             setMessages(data.messages || []);
           } else if (data.type === 'user_joined') {
             setMessages(prev => [...prev, {
-              id: `system_${Date.now()}`,
+              id: generateChatMessageId('user_joined'),
               username: 'System',
               message: `${data.username} joined the chatroom`,
               timestamp: new Date().toISOString(),
@@ -82,7 +90,7 @@ export default function MMOChatroom() {
             }]);
           } else if (data.type === 'user_left') {
             setMessages(prev => [...prev, {
-              id: `system_${Date.now()}`,
+              id: generateChatMessageId('user_left'),
               username: 'System',
               message: `${data.username} left the chatroom`,
               timestamp: new Date().toISOString(),

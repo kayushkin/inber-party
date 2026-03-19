@@ -12,6 +12,14 @@ interface GuildMessage {
   agentId?: string;
 }
 
+// Generate unique IDs to avoid React key conflicts
+let messageIdCounter = 0;
+const generateMessageId = (suffix?: string): string => {
+  messageIdCounter += 1;
+  const timestamp = Date.now();
+  return suffix ? `${timestamp}_${messageIdCounter}_${suffix}` : `${timestamp}_${messageIdCounter}`;
+};
+
 export default function GuildMasterChat() {
   const [input, setInput] = useState('');
   const [selectedTarget, setSelectedTarget] = useState<string>('');
@@ -52,7 +60,7 @@ export default function GuildMasterChat() {
     }
 
     const newMessage: GuildMessage = {
-      id: Date.now().toString(),
+      id: generateMessageId('guildmaster'),
       role: 'guildmaster',
       content: msg,
       timestamp: new Date().toISOString(),
@@ -72,7 +80,7 @@ export default function GuildMasterChat() {
         
         // Add system message about broadcast
         setMessages(prev => [...prev, {
-          id: Date.now().toString() + '_broadcast',
+          id: generateMessageId('broadcast'),
           role: 'system',
           content: `📢 Message broadcasted to ${activeAgents.length} adventurers`,
           timestamp: new Date().toISOString(),
@@ -86,7 +94,7 @@ export default function GuildMasterChat() {
         // you'd want to hook into the chat system or use WebSocket updates)
         setTimeout(() => {
           setMessages(prev => [...prev, {
-            id: Date.now().toString() + '_response',
+            id: generateMessageId('response'),
             role: 'adventurer',
             content: `Order received and acknowledged, Guild Master! I'll get right on it.`,
             timestamp: new Date().toISOString(),
@@ -97,7 +105,7 @@ export default function GuildMasterChat() {
       }
     } catch (error) {
       setMessages(prev => [...prev, {
-        id: Date.now().toString() + '_error',
+        id: generateMessageId('error'),
         role: 'system',
         content: `Failed to send message: ${error}`,
         timestamp: new Date().toISOString(),

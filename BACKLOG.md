@@ -176,6 +176,11 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 CRITICAL: Fix React Key Errors
+- [~] **Fix Duplicate React Keys** — Multiple React errors: "Encountered two children with the same key" causing rendering issues. Need to audit all list rendering components and ensure unique keys are used. Critical for UI stability and performance.
+
+---
+
 ## 🚀 Performance Optimizations
 
 - [x] **Frontend Code Splitting** — Implement dynamic imports and lazy loading to reduce initial bundle size from 500KB to <300KB. Split routes and heavy components to improve loading performance. ✅ COMPLETED: Reduced main bundle from 500KB to 279KB (44% reduction, gzipped: 142KB → 89KB). Implemented React.lazy() for all route components with Suspense boundaries and custom LoadingSpinner.
