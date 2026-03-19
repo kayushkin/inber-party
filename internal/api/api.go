@@ -35,16 +35,21 @@ type Server struct {
 }
 
 func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dailyquests.DailyQuestManager) *Server {
-	moodCalc := mood.NewMoodCalculator(database)
+	var moodCalc *mood.MoodCalculator
+	var bountyRepo *bounty.Repository
+	var autoBountyService *bounty.AutoBountyService
+	var notificationSvc *notifications.Service
+	
 	logstackClient := logstack.NewLogstackClient()
 	verifierRegistry := verifiers.NewVerifierRegistry()
 	
-	// Initialize bounty services
-	bountyRepo := bounty.NewRepository(database.DB)
-	autoBountyService := bounty.NewAutoBountyService(bountyRepo)
-	
-	// Initialize notification service
-	notificationSvc := notifications.NewService(database.DB, hub)
+	// Initialize database-dependent services only if database is available
+	if database != nil {
+		moodCalc = mood.NewMoodCalculator(database)
+		bountyRepo = bounty.NewRepository(database.DB)
+		autoBountyService = bounty.NewAutoBountyService(bountyRepo)
+		notificationSvc = notifications.NewService(database.DB, hub)
+	}
 	
 	return &Server{
 		DB:                database, 

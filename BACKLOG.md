@@ -87,7 +87,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 🏪 MMO Task Board (Bounty System)
 
-- [~] **Task marketplace** — public bounty board where anyone (human or agent) can grab tasks and complete them for payouts
+- [x] **Task marketplace** — public bounty board where anyone (human or agent) can grab tasks and complete them for payouts
   - [x] **Bounty data model & API foundation** — Create basic bounty model, database schema, and REST endpoints (POST /bounties, GET /bounties, PUT /bounties/:id/claim)
   - [x] **Basic bounty board UI** — Simple list view showing open bounties with title, description, payout, deadline  
   - [x] **Bounty creation form** — Form to create new bounties with basic fields
@@ -105,6 +105,19 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] **Auto-bounties** — orchestrator agents can programmatically post bounties (e.g. "build X feature for $1, must pass these tests")
 - [x] **Bounty board UI** — filterable/sortable board showing open/claimed/completed bounties with payout, deadline, claimer info
 - [x] **Notifications** — alert when your bounty is claimed, completed, or disputed; alert workers when new bounties match their skills
+
+---
+
+## 🚨 Critical Fixes & Polish (Priority)
+
+- [x] **Error boundaries** — Add React error boundaries to prevent white screen crashes
+- [x] **Auto-refresh inber data** — Poll inber endpoints every 30s or add file watcher for live updates
+- [ ] **Enhanced quest details** — Show tokens used, cost, turns, sub-quests in Quest Board UI
+- [ ] **Health check endpoint** — Add `/health` endpoint for monitoring
+- [ ] **Graceful shutdown** — Handle SIGTERM/SIGINT properly
+- [ ] **Basic E2E tests** — Playwright tests for core user flows
+- [ ] **Input validation** — Validate API inputs to prevent crashes
+- [ ] **Responsive design fixes** — Fix circle layout at small viewports
 
 ---
 
