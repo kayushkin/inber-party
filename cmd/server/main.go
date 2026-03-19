@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/kayushkin/inber-party/internal/api"
@@ -76,6 +79,7 @@ func main() {
 
 	// Mount inber integration — try SQLite first, fall back to HTTP API
 	var inberSource inber.DataSource
+	var inberStore *inber.Store // Keep reference for cleanup
 
 	sessDBPath, gwDBPath := inber.DefaultDBPaths()
 	if envPath := os.Getenv("INBER_SESSIONS_DB"); envPath != "" {
@@ -85,15 +89,15 @@ func main() {
 		gwDBPath = envPath
 	}
 
-	inberStore, err := inber.NewStore(sessDBPath, gwDBPath, inberURL)
+	store, err := inber.NewStore(sessDBPath, gwDBPath, inberURL)
 	if err != nil {
 		log.Printf("⚠ Inber SQLite unavailable: %v", err)
-	} else if inberStore.HasData() {
-		defer inberStore.Close()
-		inberSource = inberStore
+	} else if store.HasData() {
+		inberStore = store
+		inberSource = store
 		log.Println("✓ Inber integration active (SQLite, read-only)")
 	} else {
-		inberStore.Close()
+		store.Close()
 	}
 
 	// Fall back to HTTP API if no SQLite data
@@ -315,8 +319,52 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	// Set up graceful shutdown handling
+	shutdownCh := make(chan os.Signal, 1)
+	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start server in a goroutine
+	serverErrCh := make(chan error, 1)
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErrCh <- err
+		}
+	}()
+
+	// Block until we receive a shutdown signal or server error
+	select {
+	case err := <-serverErrCh:
+		log.Fatalf("Server failed to start: %v", err)
+	case sig := <-shutdownCh:
+		log.Printf("📴 Received signal %v, initiating graceful shutdown...", sig)
+		
+		// Create shutdown context with timeout
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer shutdownCancel()
+		
+		// Shutdown HTTP server
+		log.Println("🔌 Shutting down HTTP server...")
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("⚠ HTTP server shutdown error: %v", err)
+		} else {
+			log.Println("✓ HTTP server shutdown complete")
+		}
+		
+		// Close database connections
+		if database != nil {
+			log.Println("🗄 Closing database connections...")
+			database.Close()
+			log.Println("✓ Database connections closed")
+		}
+		
+		// Close inber store if it was used
+		if inberStore != nil {
+			log.Println("📊 Closing inber store...")
+			inberStore.Close()
+			log.Println("✓ Inber store closed")
+		}
+		
+		log.Println("🏁 Graceful shutdown complete")
 	}
 }
 

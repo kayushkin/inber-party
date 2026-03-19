@@ -114,7 +114,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] **Auto-refresh inber data** — Poll inber endpoints every 30s or add file watcher for live updates
 - [x] **Enhanced quest details** — Show tokens used, cost, turns, sub-quests in Quest Board UI
 - [x] **Health check endpoint** — Add `/health` endpoint for monitoring
-- [ ] **Graceful shutdown** — Handle SIGTERM/SIGINT properly
+- [x] **Graceful shutdown** — Handle SIGTERM/SIGINT properly
 - [ ] **Basic E2E tests** — Playwright tests for core user flows
 - [ ] **Input validation** — Validate API inputs to prevent crashes
 - [ ] **Responsive design fixes** — Fix circle layout at small viewports
