@@ -358,7 +358,7 @@ export const useStore = create<StoreState>((set, get) => ({
         newAchievements.forEach(achievement => {
           console.log(`${agent.name} unlocked achievement: ${achievement.name}`);
           addAchievementToast({
-            id: achievement.id,
+            id: `${agent.id}_${achievement.id}`,  // Make ID unique per agent
             name: achievement.name,
             description: achievement.description,
             icon: achievement.icon

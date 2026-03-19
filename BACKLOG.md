@@ -187,6 +187,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 CRITICAL: Persistent React Key Errors
+
+- [~] **Fix Persistent React Key Duplication** — E2E tests show multiple "Encountered two children with the same key" errors still occurring despite previous fix. Need to audit all list rendering components for timestamp-based keys and implement more robust unique key generation.
+
+---
+
 ## 💡 Ideas (unprioritized)
 - [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
 - [x] Time-lapse view — compressed animation of a day's agent activity ✅ COMPLETED: Implemented comprehensive time-lapse visualization with `/api/activity/timeline` endpoint, animated playback controls, agent activity tracking, event stream visualization, and timeline statistics

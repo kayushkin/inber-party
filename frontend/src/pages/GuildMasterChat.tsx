@@ -16,8 +16,9 @@ interface GuildMessage {
 let messageIdCounter = 0;
 const generateMessageId = (suffix?: string): string => {
   messageIdCounter += 1;
-  const timestamp = Date.now();
-  return suffix ? `${timestamp}_${messageIdCounter}_${suffix}` : `${timestamp}_${messageIdCounter}`;
+  // Use counter as primary identifier with component prefix for uniqueness
+  const uniqueId = `guild_${messageIdCounter}_${Date.now() % 10000}`;
+  return suffix ? `${uniqueId}_${suffix}` : uniqueId;
 };
 
 export default function GuildMasterChat() {

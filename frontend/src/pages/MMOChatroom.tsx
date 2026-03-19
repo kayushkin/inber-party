@@ -14,8 +14,9 @@ interface ChatMessage {
 let chatMessageIdCounter = 0;
 const generateChatMessageId = (suffix?: string): string => {
   chatMessageIdCounter += 1;
-  const timestamp = Date.now();
-  return suffix ? `${timestamp}_${chatMessageIdCounter}_${suffix}` : `${timestamp}_${chatMessageIdCounter}`;
+  // Use counter as primary identifier with component prefix for uniqueness
+  const uniqueId = `mmo_${chatMessageIdCounter}_${Date.now() % 10000}`;
+  return suffix ? `${uniqueId}_${suffix}` : uniqueId;
 };
 
 export default function MMOChatroom() {
