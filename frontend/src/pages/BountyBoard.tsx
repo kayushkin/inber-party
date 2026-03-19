@@ -15,6 +15,11 @@ interface Bounty {
   claimer_id?: number;
   work_submission?: string;
   verification_notes?: string;
+  rating?: {
+    rating: number;
+    comment: string;
+    created_at: string;
+  };
   required_skills: string[];
   tier: 'bronze' | 'silver' | 'gold' | 'legendary';
   claimed_at?: string;
@@ -46,6 +51,11 @@ export default function BountyBoard() {
   const [selectedBounty, setSelectedBounty] = useState<Bounty | null>(null);
   const [verificationNotes, setVerificationNotes] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedBountyForRating, setSelectedBountyForRating] = useState<Bounty | null>(null);
+  const [rating, setRating] = useState(5);
+  const [ratingComment, setRatingComment] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
   
   useEffect(() => {
     fetchBounties();
@@ -183,6 +193,56 @@ export default function BountyBoard() {
       alert(`Failed to verify bounty: ${error}`);
     } finally {
       setVerifying(false);
+    }
+  };
+
+  const handleRateClick = (bounty: Bounty) => {
+    setSelectedBountyForRating(bounty);
+    setRating(5);
+    setRatingComment('');
+    setShowRatingModal(true);
+  };
+
+  const handleSubmitRating = async () => {
+    if (!selectedBountyForRating) return;
+
+    try {
+      setSubmittingRating(true);
+      const response = await fetch('/api/ratings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bounty_id: selectedBountyForRating.id,
+          rater_id: selectedBountyForRating.creator_id,
+          rated_id: selectedBountyForRating.claimer_id,
+          rating: rating,
+          comment: ratingComment,
+          categories: {
+            quality: rating,
+            timeliness: rating,
+            communication: rating
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to submit rating: ${errorData}`);
+      }
+
+      // Refresh bounties to show updated status
+      await fetchBounties();
+      setShowRatingModal(false);
+      setSelectedBountyForRating(null);
+      setRating(5);
+      setRatingComment('');
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      alert(`Failed to submit rating: ${error}`);
+    } finally {
+      setSubmittingRating(false);
     }
   };
 
@@ -347,15 +407,38 @@ export default function BountyBoard() {
                     📋 Review Work
                   </button>
                 )}
-                {bounty.status === 'completed' && (
-                  <button className="completed-btn" disabled>
-                    ✅ Completed
+                {bounty.status === 'completed' && !bounty.rating && (
+                  <button 
+                    className="rate-btn"
+                    onClick={() => handleRateClick(bounty)}
+                  >
+                    ⭐ Rate Work
                   </button>
+                )}
+                {bounty.status === 'completed' && bounty.rating && (
+                  <div className="rating-display">
+                    <span className="rating-stars">
+                      {'⭐'.repeat(bounty.rating.rating)}
+                    </span>
+                    <span className="rating-text">Rated {bounty.rating.rating}/5</span>
+                  </div>
                 )}
                 {bounty.status === 'rejected' && (
                   <button className="rejected-btn" disabled>
                     ❌ Rejected
                   </button>
+                )}
+                {bounty.status === 'paid' && bounty.rating && (
+                  <div className="bounty-completed">
+                    <button className="completed-btn" disabled>
+                      ✅ Paid & Rated
+                    </button>
+                    <div className="rating-display">
+                      <span className="rating-stars">
+                        {'⭐'.repeat(bounty.rating.rating)}
+                      </span>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -497,6 +580,90 @@ export default function BountyBoard() {
                     onClick={() => handleVerifyBounty(true)}
                   >
                     ✅ Approve Work
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rating Modal for Rating Completed Work */}
+      {showRatingModal && selectedBountyForRating && (
+        <div className="modal-overlay">
+          <div className="modal-content rating-modal">
+            <div className="modal-header">
+              <h2>⭐ Rate Completed Work</h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowRatingModal(false)}
+                disabled={submittingRating}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="bounty-summary">
+                <h3>{selectedBountyForRating.title}</h3>
+                <p><strong>Completed by:</strong> Agent #{selectedBountyForRating.claimer_id}</p>
+                <p><strong>Payout:</strong> 🪙 {selectedBountyForRating.payout_amount} Gold</p>
+              </div>
+
+              <div className="rating-section">
+                <h4>⭐ Overall Rating</h4>
+                <div className="star-rating">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      className={`star-btn ${star <= rating ? 'active' : ''}`}
+                      onClick={() => setRating(star)}
+                      disabled={submittingRating}
+                    >
+                      ⭐
+                    </button>
+                  ))}
+                  <span className="rating-label">
+                    {rating === 1 && 'Poor'}
+                    {rating === 2 && 'Fair'}
+                    {rating === 3 && 'Good'}
+                    {rating === 4 && 'Very Good'}
+                    {rating === 5 && 'Excellent'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="comment-section">
+                <h4>💬 Feedback (Optional)</h4>
+                <textarea
+                  className="rating-comment-input"
+                  value={ratingComment}
+                  onChange={(e) => setRatingComment(e.target.value)}
+                  placeholder="Share feedback about the work quality, timeliness, communication..."
+                  rows={4}
+                  disabled={submittingRating}
+                />
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              {submittingRating ? (
+                <div className="submitting-status">
+                  🔄 Submitting rating...
+                </div>
+              ) : (
+                <div className="rating-actions">
+                  <button 
+                    className="cancel-btn"
+                    onClick={() => setShowRatingModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="submit-rating-btn"
+                    onClick={handleSubmitRating}
+                  >
+                    ⭐ Submit Rating
                   </button>
                 </div>
               )}

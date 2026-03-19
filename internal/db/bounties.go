@@ -145,8 +145,47 @@ func (db *DB) CreateBounty(b *Bounty) error {
 	return nil
 }
 
-// ClaimBounty allows an agent to claim a bounty
+// ClaimBounty allows an agent to claim a bounty with reputation-based priority
 func (db *DB) ClaimBounty(bountyID, claimerID int) error {
+	// First check if bounty exists and is open
+	var bounty Bounty
+	err := db.QueryRow(`
+		SELECT id, title, description, required_skills, tier 
+		FROM bounties 
+		WHERE id = $1 AND status = 'open'
+	`, bountyID).Scan(&bounty.ID, &bounty.Title, &bounty.Description, (*StringSlice)(&bounty.RequiredSkills), &bounty.Tier)
+	
+	if err != nil {
+		return fmt.Errorf("bounty not found or already claimed")
+	}
+	
+	// Check agent's reputation in relevant domain
+	domain := InferTaskDomain(bounty.Title, bounty.Description)
+	agentReputation, err := db.getAgentReputationInDomain(claimerID, domain)
+	if err != nil {
+		// If no reputation exists, agent can still claim but gets lower priority
+		agentReputation = &Reputation{Score: 100, TaskCount: 0, SuccessRate: 1.0}
+	}
+	
+	// Check if this is a high-tier bounty that requires high reputation
+	minReputationRequired := 0
+	switch bounty.Tier {
+	case "legendary":
+		minReputationRequired = 800 // Legendary bounties require very high reputation
+	case "gold":
+		minReputationRequired = 600 // Gold bounties require high reputation
+	case "silver":
+		minReputationRequired = 400 // Silver bounties require moderate reputation
+	case "bronze":
+		minReputationRequired = 100 // Bronze bounties are open to all
+	}
+	
+	// If agent doesn't meet minimum reputation and has completed fewer than 3 tasks in this domain, reject
+	if agentReputation.Score < minReputationRequired && agentReputation.TaskCount < 3 {
+		return fmt.Errorf("insufficient reputation for this tier of bounty (need %d, have %d)", minReputationRequired, agentReputation.Score)
+	}
+	
+	// Attempt to claim the bounty
 	query := `
 		UPDATE bounties 
 		SET claimer_id = $1, status = 'claimed', claimed_at = CURRENT_TIMESTAMP,
@@ -169,6 +208,22 @@ func (db *DB) ClaimBounty(bountyID, claimerID int) error {
 	}
 	
 	return nil
+}
+
+// getAgentReputationInDomain returns an agent's reputation in a specific domain
+func (db *DB) getAgentReputationInDomain(agentID int, domain string) (*Reputation, error) {
+	var rep Reputation
+	err := db.QueryRow(`
+		SELECT id, agent_id, domain, score, task_count, success_rate, last_update
+		FROM reputation
+		WHERE agent_id = $1 AND domain = $2
+	`, agentID, domain).Scan(&rep.ID, &rep.AgentID, &rep.Domain, &rep.Score, &rep.TaskCount, &rep.SuccessRate, &rep.LastUpdate)
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	return &rep, nil
 }
 
 // SubmitWork allows the claimer to submit their completed work

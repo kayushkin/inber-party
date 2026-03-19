@@ -209,6 +209,18 @@ type BountyWithVerifiers struct {
 	Results   []VerifierResult  `json:"results"`
 }
 
+// BountyRating represents a rating given by a bounty creator to a claimer
+type BountyRating struct {
+	ID           int       `json:"id"`
+	BountyID     int       `json:"bounty_id"`
+	RaterID      int       `json:"rater_id"`      // Creator who is rating
+	RatedID      int       `json:"rated_id"`      // Claimer who is being rated
+	Rating       int       `json:"rating"`        // 1-5 stars
+	Comment      string    `json:"comment"`       // Text feedback
+	Categories   map[string]int `json:"categories"` // Breakdown: quality, timeliness, communication
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 type Stats struct {
 	TotalAgents        int     `json:"total_agents"`
 	ActiveTasks        int     `json:"active_tasks"`

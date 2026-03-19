@@ -80,6 +80,11 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/payouts", s.handlePayouts)
 	mux.HandleFunc("/api/payouts/summary", s.handlePayoutSummary)
 	mux.HandleFunc("/api/payouts/agent/", s.handleAgentPayouts)
+	// Rating system endpoints
+	mux.HandleFunc("/api/ratings", s.handleRatings)
+	mux.HandleFunc("/api/ratings/agent/", s.handleAgentRatings)
+	mux.HandleFunc("/api/ratings/stats/", s.handleRatingStats)
+	mux.HandleFunc("/api/ratings/leaderboard", s.handleRatingLeaderboard)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -2606,6 +2611,175 @@ func (s *Server) handleRunVerifiers(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// Rating system handlers
+
+func (s *Server) handleRatings(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		s.createRating(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) createRating(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var rating db.BountyRating
+	if err := json.NewDecoder(r.Body).Decode(&rating); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate rating
+	if rating.Rating < 1 || rating.Rating > 5 {
+		http.Error(w, "Rating must be between 1 and 5", http.StatusBadRequest)
+		return
+	}
+	if rating.BountyID <= 0 || rating.RaterID <= 0 || rating.RatedID <= 0 {
+		http.Error(w, "Valid bounty_id, rater_id, and rated_id are required", http.StatusBadRequest)
+		return
+	}
+
+	err := s.DB.CreateBountyRating(&rating)
+	if err != nil {
+		log.Printf("Error creating rating: %v", err)
+		if err.Error() == "bounty already rated" {
+			http.Error(w, err.Error(), http.StatusConflict)
+		} else if err.Error() == "cannot rate incomplete bounty" || err.Error() == "only bounty creator can rate the work" {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Broadcast rating created
+	s.Hub.Broadcast(ws.Message{Type: "rating_created", Data: map[string]interface{}{
+		"bounty_id": rating.BountyID,
+		"rated_id":  rating.RatedID,
+		"rating":    rating.Rating,
+	}})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(rating)
+}
+
+func (s *Server) handleAgentRatings(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	// Extract agent ID from path
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/ratings/agent/")
+	agentID, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid agent ID", http.StatusBadRequest)
+		return
+	}
+
+	// Parse query parameters
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit := 20 // default
+	if limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	offset := 0
+	if offsetStr != "" {
+		if parsed, err := strconv.Atoi(offsetStr); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	ratings, err := s.DB.GetAgentRatings(agentID, limit, offset)
+	if err != nil {
+		log.Printf("Error getting agent ratings: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ratings)
+}
+
+func (s *Server) handleRatingStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	// Extract agent ID from path
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/ratings/stats/")
+	agentID, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid agent ID", http.StatusBadRequest)
+		return
+	}
+
+	stats, err := s.DB.GetAgentRatingStats(agentID)
+	if err != nil {
+		log.Printf("Error getting rating stats: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
+}
+
+func (s *Server) handleRatingLeaderboard(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	// Parse query parameters
+	domain := r.URL.Query().Get("domain")
+	limitStr := r.URL.Query().Get("limit")
+
+	limit := 10 // default
+	if limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	agents, err := s.DB.GetHighestRatedAgents(domain, limit)
+	if err != nil {
+		log.Printf("Error getting highest rated agents: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(agents)
 }
 
 func stringPtr(s string) *string {

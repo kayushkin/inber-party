@@ -97,8 +97,8 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] **Bounty creation** — orchestrators/users post tasks with: description, requirements/acceptance criteria, payout amount (e.g. $1.00), deadline (optional), required skills/tags
 - [x] **Bounty claiming** — workers claim a task (locks it for a time window), submit work, orchestrator or automated checks verify completion
 - [x] **Enhanced verification system** — Beyond manual approval: automated verifiers like test suite passes, PR approval, benchmark thresholds, file existence checks, etc. Pluggable verifier architecture.
-- [~] **Payout tracking** — ledger of earned/spent credits per participant. Internal currency (gold) with optional real-money mapping.
-- [ ] **Reputation & ratings** — completers build reputation scores. Posters rate quality. High-rep workers get priority on high-value bounties.
+- [x] **Payout tracking** — ledger of earned/spent credits per participant. Internal currency (gold) with optional real-money mapping.
+- [~] **Reputation & ratings** — completers build reputation scores. Posters rate quality. High-rep workers get priority on high-value bounties.
 - [ ] **MMO chatroom** — real-time lobby where bounty hunters and posters interact, negotiate, ask clarifying questions. Think global WoW trade chat but for tasks.
 - [ ] **Bounty tiers** — visual tier system (bronze/silver/gold/legendary) based on payout size and complexity
 - [ ] **Dispute resolution** — if poster rejects work, dispute flow with evidence submission
