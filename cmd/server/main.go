@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +15,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/db"
 	"github.com/kayushkin/inber-party/internal/events"
 	"github.com/kayushkin/inber-party/internal/inber"
+	"github.com/kayushkin/inber-party/internal/logger"
 	"github.com/kayushkin/inber-party/internal/mood"
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/version"
@@ -24,6 +24,9 @@ import (
 )
 
 func main() {
+	// Initialize structured logging
+	logger.SetLevelFromEnv()
+	
 	databaseURL := getEnv("DATABASE_URL", "")
 	port := getEnv("PORT", "8080")
 
@@ -36,26 +39,34 @@ func main() {
 		var err error
 		database, err = db.Connect(databaseURL)
 		if err != nil {
-			log.Printf("⚠ PostgreSQL unavailable: %v (continuing with inber-only mode)", err)
+			logger.Warn("PostgreSQL unavailable, continuing with inber-only mode", map[string]interface{}{
+				"error": err.Error(),
+			})
 		} else {
 			defer database.Close()
 			if err := database.Migrate(); err != nil {
-				log.Fatalf("Failed to run migrations: %v", err)
+				logger.Fatal("Failed to run migrations", map[string]interface{}{
+					"error": err.Error(),
+				})
 			}
 			if err := database.Seed(); err != nil {
-				log.Fatalf("Failed to seed database: %v", err)
+				logger.Fatal("Failed to seed database", map[string]interface{}{
+					"error": err.Error(),
+				})
 			}
 			
 			// Initialize mood calculator and update all agent moods
 			moodCalc := mood.NewMoodCalculator(database)
 			if err := moodCalc.UpdateAllAgentMoods(); err != nil {
-				log.Printf("Warning: Failed to initialize agent moods: %v", err)
+				logger.Warn("Failed to initialize agent moods", map[string]interface{}{
+					"error": err.Error(),
+				})
 			} else {
-				log.Println("✓ Agent moods initialized")
+				logger.Info("Agent moods initialized")
 			}
 		}
 	} else {
-		log.Println("⚠ No DATABASE_URL set — running in inber-only mode")
+		logger.Warn("No DATABASE_URL set, running in inber-only mode")
 	}
 
 	// Initialize Daily Quest Manager
@@ -64,7 +75,7 @@ func main() {
 		dailyQuestMgr = dailyquests.NewDailyQuestManager(database)
 		// Start the daily quest scheduler
 		dailyQuestMgr.ScheduleDailyQuestGeneration()
-		log.Println("✓ Daily Quest Manager initialized and scheduled")
+		logger.Info("Daily Quest Manager initialized and scheduled")
 	}
 
 	apiServer := api.NewServer(database, hub, nil, dailyQuestMgr)
@@ -92,11 +103,13 @@ func main() {
 
 	store, err := inber.NewStore(sessDBPath, gwDBPath, inberURL)
 	if err != nil {
-		log.Printf("⚠ Inber SQLite unavailable: %v", err)
+		logger.Warn("Inber SQLite unavailable", map[string]interface{}{
+			"error": err.Error(),
+		})
 	} else if store.HasData() {
 		inberStore = store
 		inberSource = store
-		log.Println("✓ Inber integration active (SQLite, read-only)")
+		logger.Info("Inber integration active (SQLite, read-only)")
 	} else {
 		store.Close()
 	}
@@ -106,11 +119,16 @@ func main() {
 		httpClient := inber.NewHTTPClient(inberURL)
 		// Quick check if the API is reachable
 		if _, err := httpClient.GetAgents(); err != nil {
-			log.Printf("⚠ Inber HTTP API at %s also unavailable: %v", inberURL, err)
-			log.Println("⚠ Inber integration disabled — no data source available")
+			logger.Warn("Inber HTTP API unavailable", map[string]interface{}{
+				"url":   inberURL,
+				"error": err.Error(),
+			})
+			logger.Warn("Inber integration disabled - no data source available")
 		} else {
 			inberSource = httpClient
-			log.Printf("✓ Inber integration active (HTTP API at %s)", inberURL)
+			logger.Info("Inber integration active (HTTP API)", map[string]interface{}{
+				"url": inberURL,
+			})
 		}
 	}
 
@@ -150,14 +168,16 @@ func main() {
 			qg := questgiver.NewQuestGiver(database, inberSource)
 			// Update the API server to use the quest-giver
 			apiServer.QuestGiver = qg
-			log.Println("✓ Quest Giver initialized - ready to assign tasks automatically")
+			logger.Info("Quest Giver initialized - ready to assign tasks automatically")
 			
 			// Initialize agent registry sync
 			agentSync := sync.NewAgentRegistrySync(inberSource, database)
 			apiServer.AgentSync = agentSync
 			// Start periodic sync every 5 minutes
 			agentSync.StartPeriodicSync(5)
-			log.Println("✓ Agent Registry Sync initialized - auto-discovering agents from inber")
+			logger.Info("Agent Registry Sync initialized", map[string]interface{}{
+				"sync_interval_minutes": 5,
+			})
 		}
 	}
 
@@ -301,15 +321,19 @@ func main() {
 	if _, err := os.Stat("frontend/dist"); err == nil {
 		fs := http.FileServer(http.Dir("frontend/dist"))
 		mux.Handle("/", fs)
-		log.Println("✓ Serving frontend from frontend/dist/")
+		logger.Info("Serving frontend from frontend/dist/")
 	} else {
-		log.Println("⚠ Frontend build not found (frontend/dist/), serving API only")
+		logger.Warn("Frontend build not found, serving API only", map[string]interface{}{
+			"expected_path": "frontend/dist/",
+		})
 	}
 
 	addr := ":" + port
-	log.Printf("🚀 Míl Party server listening on %s", addr)
-	log.Printf("📡 WebSocket endpoint: ws://localhost%s/ws", addr)
-	log.Printf("🔌 API endpoint: http://localhost%s/api", addr)
+	logger.Info("Míl Party server starting", map[string]interface{}{
+		"addr":            addr,
+		"websocket_path":  "/ws",
+		"api_path":        "/api",
+	})
 
 	// Configure HTTP server with proper timeouts for better error handling
 	server := &http.Server{
@@ -335,37 +359,43 @@ func main() {
 	// Block until we receive a shutdown signal or server error
 	select {
 	case err := <-serverErrCh:
-		log.Fatalf("Server failed to start: %v", err)
+		logger.Fatal("Server failed to start", map[string]interface{}{
+			"error": err.Error(),
+		})
 	case sig := <-shutdownCh:
-		log.Printf("📴 Received signal %v, initiating graceful shutdown...", sig)
+		logger.Info("Received signal, initiating graceful shutdown", map[string]interface{}{
+			"signal": sig.String(),
+		})
 		
 		// Create shutdown context with timeout
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer shutdownCancel()
 		
 		// Shutdown HTTP server
-		log.Println("🔌 Shutting down HTTP server...")
+		logger.Info("Shutting down HTTP server")
 		if err := server.Shutdown(shutdownCtx); err != nil {
-			log.Printf("⚠ HTTP server shutdown error: %v", err)
+			logger.Error("HTTP server shutdown error", map[string]interface{}{
+				"error": err.Error(),
+			})
 		} else {
-			log.Println("✓ HTTP server shutdown complete")
+			logger.Info("HTTP server shutdown complete")
 		}
 		
 		// Close database connections
 		if database != nil {
-			log.Println("🗄 Closing database connections...")
+			logger.Info("Closing database connections")
 			database.Close()
-			log.Println("✓ Database connections closed")
+			logger.Info("Database connections closed")
 		}
 		
 		// Close inber store if it was used
 		if inberStore != nil {
-			log.Println("📊 Closing inber store...")
+			logger.Info("Closing inber store")
 			inberStore.Close()
-			log.Println("✓ Inber store closed")
+			logger.Info("Inber store closed")
 		}
 		
-		log.Println("🏁 Graceful shutdown complete")
+		logger.Info("Graceful shutdown complete")
 	}
 }
 

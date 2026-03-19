@@ -156,8 +156,9 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] **Auto-refresh inber data** — Poll inber endpoints periodically or add file watcher for live updates ✅ ALREADY IMPLEMENTED (10s polling + WebSocket)
 - [x] **Better agent detail page** — Show quest history, token charts, cost breakdown from inber data ✅ ENHANCED: Added analytics dashboard with performance metrics, success rates, dual trend charts
 - [x] **Write basic tests** — At minimum: inber store unit tests with test SQLite DB ✅ COMPLETED: Added comprehensive test coverage for bounty repository (11 tests) and validation module (18 test groups). All tests passing, project builds successfully.
-- [ ] **Add graceful shutdown** — Handle SIGTERM/SIGINT properly in Go server
-- [ ] **Add health check endpoint** — Add `/health` endpoint for monitoring
+- [x] **Add graceful shutdown** — Handle SIGTERM/SIGINT properly in Go server
+- [x] **Add health check endpoint** — Add `/health` endpoint for monitoring
+- [x] **Add structured logging** — Replace basic log.Printf with structured logging (JSON format, log levels, context)
 
 ---
 
