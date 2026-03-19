@@ -14,8 +14,11 @@ export default function QuestCompletionAnimation({ trigger, questName, xpReward,
 
   useEffect(() => {
     if (trigger && trigger !== lastTrigger) {
-      setIsAnimating(true);
-      setLastTrigger(trigger);
+      // Use a microtask to avoid synchronous setState in effect
+      Promise.resolve().then(() => {
+        setIsAnimating(true);
+        setLastTrigger(trigger);
+      });
       
       // Reset animation after duration
       const timer = setTimeout(() => setIsAnimating(false), 4500);

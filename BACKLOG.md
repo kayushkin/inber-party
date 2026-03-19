@@ -135,6 +135,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 Code Quality & Linting Fixes
+
+- [~] **Fix TypeScript and React Linting Issues** — Resolve 70+ linting errors including improper `any` types, React hooks violations, setState in effects, missing dependencies, and component purity issues. Focus on type safety and React best practices.
+
+---
+
 ## 💡 Ideas (unprioritized)
 
 - Procedural quest names based on actual task content ("The Great Refactoring of Memory", "Siege of the Broken Tests")

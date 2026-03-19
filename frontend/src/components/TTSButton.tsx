@@ -16,7 +16,8 @@ export default function TTSButton({ text, agentName, className = '', size = 'sma
   useEffect(() => {
     // Reset speaking state when global speaking stops
     if (!speaking) {
-      setIsThisMessageSpeaking(false);
+      // Use microtask to avoid synchronous setState in effect
+      Promise.resolve().then(() => setIsThisMessageSpeaking(false));
     }
   }, [speaking]);
 

@@ -79,7 +79,8 @@ const VirtualizedAgentGrid = memo<VirtualizedAgentGridProps>(({
     const startIndex = startRow * columnsPerRow;
     const endIndex = Math.min(agents.length, endRow * columnsPerRow);
     
-    setVisibleRange({ start: startIndex, end: endIndex });
+    // Use microtask to avoid synchronous setState in effect
+    Promise.resolve().then(() => setVisibleRange({ start: startIndex, end: endIndex }));
   }, [scrollTop, containerDimensions.height, totalRows, columnsPerRow, itemHeight, gap, agents.length]);
 
   // Handle scroll

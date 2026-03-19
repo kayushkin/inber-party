@@ -34,11 +34,14 @@ interface NotificationProviderProps {
   children: ReactNode;
 }
 
+// Helper function to generate IDs outside of render
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
 export const NotificationProvider = ({ children }: NotificationProviderProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const addNotification = (notification: Omit<Notification, 'id'>) => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const id = generateId();
     const newNotification: Notification = { ...notification, id };
     
     setNotifications(prev => [...prev, newNotification]);

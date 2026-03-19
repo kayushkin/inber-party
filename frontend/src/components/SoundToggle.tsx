@@ -9,7 +9,8 @@ export default function SoundToggle() {
 
   // Sync local state with sound manager
   useEffect(() => {
-    setConfig(soundManager.config);
+    // Use microtask to avoid synchronous setState in effect
+    Promise.resolve().then(() => setConfig(soundManager.config));
   }, [soundManager.config]);
 
   const handleToggleEnabled = () => {

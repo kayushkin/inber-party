@@ -3,7 +3,7 @@ import './CreateBountyForm.css';
 
 interface Verifier {
   verifier_type: string;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   required: boolean;
   weight: number;
 }
@@ -47,7 +47,7 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
   const [skillInput, setSkillInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [verifierTypes, setVerifierTypes] = useState<Record<string, any>>({});
+  const [verifierTypes, setVerifierTypes] = useState<Record<string, unknown>>({});
   const [showVerifierConfig, setShowVerifierConfig] = useState(false);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
     }
   };
 
-  const handleInputChange = (field: keyof CreateBountyFormData, value: any) => {
+  const handleInputChange = (field: keyof CreateBountyFormData, value: string | number | string[] | Verifier[]) => {
     setForm(prev => ({ ...prev, [field]: value }));
     if (error) setError(''); // Clear error when user types
   };

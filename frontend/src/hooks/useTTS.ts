@@ -23,22 +23,6 @@ export function useTTS() {
   const [supported, setSupported] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // Initialize TTS support and load config
-  useEffect(() => {
-    const isSupported = 'speechSynthesis' in window;
-    setSupported(isSupported);
-    
-    if (isSupported) {
-      loadConfig();
-      loadVoices();
-      
-      // Listen for voice changes (async loading)
-      if (speechSynthesis.onvoiceschanged !== undefined) {
-        speechSynthesis.onvoiceschanged = loadVoices;
-      }
-    }
-  }, []);
-
   const loadConfig = (): void => {
     try {
       const saved = localStorage.getItem('ttsConfig');
@@ -167,6 +151,22 @@ export function useTTS() {
     const newConfig = { ...config, volume: Math.max(0, Math.min(1, volume)) };
     saveConfig(newConfig);
   };
+
+  // Initialize TTS support and load config
+  useEffect(() => {
+    const isSupported = 'speechSynthesis' in window;
+    setSupported(isSupported);
+    
+    if (isSupported) {
+      loadConfig();
+      loadVoices();
+      
+      // Listen for voice changes (async loading)
+      if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+      }
+    }
+  }, []);
 
   // Helper to clean text for better speech
   const cleanTextForSpeech = (text: string): string => {

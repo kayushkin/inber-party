@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useStore, timeAgo } from '../store';
 import Tooltip from '../components/Tooltip';
 import './Forge.css';
@@ -18,35 +18,39 @@ export default function Forge() {
   // Use real health data or fallback to mock data for development
   const infrastructureServices = healthData?.services || [];
 
-  const buildLogs = [
-    {
-      id: 1,
-      service: 'inber-party-frontend',
-      status: 'success',
-      duration: '2m 14s',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-      commit: '7f3a9b2',
-      message: 'Add Forge room implementation'
-    },
-    {
-      id: 2,
-      service: 'inber-party-backend',
-      status: 'success',
-      duration: '1m 45s',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6),
-      commit: '4e8c1d5',
-      message: 'Update quest API endpoints'
-    },
-    {
-      id: 3,
-      service: 'openclaw-gateway',
-      status: 'warning',
-      duration: '3m 22s',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-      commit: 'a9f2c7e',
-      message: 'Fix memory leak in WebSocket handler'
-    }
-  ];
+  // Use useMemo to create build logs with stable timestamps
+  const buildLogs = useMemo(() => {
+    const now = Date.now();
+    return [
+      {
+        id: 1,
+        service: 'inber-party-frontend',
+        status: 'success',
+        duration: '2m 14s',
+        timestamp: new Date(now - 1000 * 60 * 60 * 2),
+        commit: '7f3a9b2',
+        message: 'Add Forge room implementation'
+      },
+      {
+        id: 2,
+        service: 'inber-party-backend',
+        status: 'success',
+        duration: '1m 45s',
+        timestamp: new Date(now - 1000 * 60 * 60 * 6),
+        commit: '4e8c1d5',
+        message: 'Update quest API endpoints'
+      },
+      {
+        id: 3,
+        service: 'openclaw-gateway',
+        status: 'warning',
+        duration: '3m 22s',
+        timestamp: new Date(now - 1000 * 60 * 60 * 24 * 2),
+        commit: 'a9f2c7e',
+        message: 'Fix memory leak in WebSocket handler'
+      }
+    ];
+  }, []); // Empty dependency array means this will only run once
 
   const systemMetrics = {
     totalUptime: '99.2%',

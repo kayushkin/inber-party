@@ -18,8 +18,8 @@ export default function PageTransition({ children }: PageTransitionProps) {
       return;
     }
 
-    // Start transition
-    setIsTransitioning(true);
+    // Start transition using microtask to avoid synchronous setState in effect
+    Promise.resolve().then(() => setIsTransitioning(true));
 
     // Wait for exit animation, then update content
     const timer = setTimeout(() => {
