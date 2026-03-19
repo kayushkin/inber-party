@@ -22,14 +22,28 @@ interface Bounty {
   updated_at: string;
 }
 
+interface Agent {
+  id: number;
+  name: string;
+  title: string;
+  class: string;
+  avatar_emoji: string;
+  level: number;
+}
+
 export default function BountyBoard() {
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [selectedBountyId, setSelectedBountyId] = useState<number | null>(null);
+  const [claimingBounty, setClaimingBounty] = useState(false);
   
   useEffect(() => {
     fetchBounties();
+    fetchAgents();
   }, []);
 
   const fetchBounties = async () => {
@@ -46,6 +60,20 @@ export default function BountyBoard() {
       console.error('Error fetching bounties:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAgents = async () => {
+    try {
+      const response = await fetch('/api/agents');
+      if (response.ok) {
+        const data = await response.json();
+        setAgents(data);
+      } else {
+        console.error('Failed to fetch agents:', response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching agents:', error);
     }
   };
 
@@ -72,6 +100,43 @@ export default function BountyBoard() {
       setBounties(prev => [newBounty, ...prev]);
     } catch (error) {
       throw error; // Re-throw to let the form handle the error
+    }
+  };
+
+  const handleClaimClick = (bountyId: number) => {
+    setSelectedBountyId(bountyId);
+    setShowClaimModal(true);
+  };
+
+  const handleClaimBounty = async (agentId: number) => {
+    if (!selectedBountyId) return;
+
+    try {
+      setClaimingBounty(true);
+      const response = await fetch(`/api/bounties/${selectedBountyId}/claim`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          claimer_id: agentId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to claim bounty: ${errorData}`);
+      }
+
+      // Refresh bounties to show updated status
+      await fetchBounties();
+      setShowClaimModal(false);
+      setSelectedBountyId(null);
+    } catch (error) {
+      console.error('Error claiming bounty:', error);
+      alert(`Failed to claim bounty: ${error}`);
+    } finally {
+      setClaimingBounty(false);
     }
   };
 
@@ -214,7 +279,10 @@ export default function BountyBoard() {
 
               <div className="bounty-actions">
                 {bounty.status === 'open' && (
-                  <button className="claim-btn">
+                  <button 
+                    className="claim-btn"
+                    onClick={() => handleClaimClick(bounty.id)}
+                  >
                     🔒 Claim Bounty
                   </button>
                 )}
@@ -247,6 +315,63 @@ export default function BountyBoard() {
         onClose={() => setShowCreateForm(false)}
         onSubmit={handleCreateBounty}
       />
+
+      {/* Agent Selection Modal for Claiming */}
+      {showClaimModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>🔒 Claim Bounty</h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowClaimModal(false)}
+                disabled={claimingBounty}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <p>Select which agent should claim this bounty:</p>
+              
+              <div className="agents-list">
+                {agents.map((agent) => (
+                  <button
+                    key={agent.id}
+                    className="agent-option"
+                    onClick={() => handleClaimBounty(agent.id)}
+                    disabled={claimingBounty}
+                  >
+                    <span className="agent-avatar">{agent.avatar_emoji}</span>
+                    <div className="agent-info">
+                      <div className="agent-name">{agent.name}</div>
+                      <div className="agent-title">{agent.title}</div>
+                      <div className="agent-meta">
+                        <span className="agent-class">{agent.class}</span>
+                        <span className="agent-level">Level {agent.level}</span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              
+              {agents.length === 0 && (
+                <div className="no-agents">
+                  <p>No agents available. Create an agent first to claim bounties.</p>
+                </div>
+              )}
+            </div>
+            
+            {claimingBounty && (
+              <div className="modal-footer">
+                <div className="claiming-status">
+                  🔄 Claiming bounty...
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
