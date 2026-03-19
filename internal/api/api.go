@@ -95,9 +95,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/costs/summary", s.handleCostsSummary)
 	
 	// Auto-bounty system routes (new)
-	// TODO: Implement these handlers
-	// mux.HandleFunc("/api/auto-bounties", s.handleAutoBounties)
-	// mux.HandleFunc("/api/auto-bounties/from-text", s.handleAutoBountyFromText)
+	mux.HandleFunc("/api/auto-bounties", s.handleAutoBounties)
+	mux.HandleFunc("/api/auto-bounties/from-text", s.handleAutoBountyFromText)
 	// Bounty marketplace endpoints
 	mux.HandleFunc("/api/bounties", s.handleBounties)
 	mux.HandleFunc("/api/bounties/", s.handleBountyDetail)
@@ -3358,4 +3357,192 @@ func (s *Server) handleMarkAllRead(w http.ResponseWriter, r *http.Request) {
 
 func stringPtr(s string) *string {
 	return &s
+}
+
+// Auto-bounty handlers
+
+// handleAutoBounties manages auto-bounty operations (GET for listing, POST for creating)
+func (s *Server) handleAutoBounties(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.listAutoBounties(w, r)
+	case http.MethodPost:
+		s.createAutoBounty(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// listAutoBounties retrieves auto-generated bounties
+func (s *Server) listAutoBounties(w http.ResponseWriter, r *http.Request) {
+	if s.AutoBountyService == nil {
+		http.Error(w, "Auto-bounty service not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse query parameters
+	agentID := r.URL.Query().Get("agent_id")
+	limitStr := r.URL.Query().Get("limit")
+
+	limit := 50 // default
+	if limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	bounties, err := s.AutoBountyService.ListAutoBounties(agentID, limit)
+	if err != nil {
+		log.Printf("Error listing auto-bounties: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(bounties)
+}
+
+// createAutoBounty creates a bounty programmatically from an orchestrator agent
+func (s *Server) createAutoBounty(w http.ResponseWriter, r *http.Request) {
+	if s.AutoBountyService == nil {
+		http.Error(w, "Auto-bounty service not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req bounty.AutoBountyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if strings.TrimSpace(req.Title) == "" {
+		http.Error(w, "Title is required", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Description) == "" {
+		http.Error(w, "Description is required", http.StatusBadRequest)
+		return
+	}
+	if req.PayoutAmount <= 0 {
+		http.Error(w, "Payout amount must be greater than 0", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.SourceAgent) == "" {
+		http.Error(w, "Source agent is required", http.StatusBadRequest)
+		return
+	}
+
+	// Create the auto-bounty
+	createdBounty, err := s.AutoBountyService.CreateAutoBounty(req)
+	if err != nil {
+		log.Printf("Error creating auto-bounty: %v", err)
+		http.Error(w, "Failed to create auto-bounty: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Broadcast bounty creation
+	s.Hub.Broadcast(ws.Message{Type: "auto_bounty_created", Data: map[string]interface{}{
+		"bounty": createdBounty,
+		"source": req.SourceAgent,
+		"auto_generated": true,
+	}})
+
+	// Send skill-based notifications for new auto-bounty
+	if s.NotificationSvc != nil {
+		// Convert string ID to int for notifications (parse the UUID or use hash)
+		bountyIDInt := 0 // Default fallback
+		if id, err := strconv.Atoi(createdBounty.ID); err == nil {
+			bountyIDInt = id
+		}
+		
+		s.NotificationSvc.NotifySkillMatch(
+			bountyIDInt,
+			createdBounty.Title,
+			createdBounty.RequiredSkills,
+			int(createdBounty.PayoutAmount), // Convert float64 to int
+			string(createdBounty.Tier),
+		)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(createdBounty)
+}
+
+// handleAutoBountyFromText creates a bounty from natural language description
+func (s *Server) handleAutoBountyFromText(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.AutoBountyService == nil {
+		http.Error(w, "Auto-bounty service not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		AgentID string `json:"agent_id" binding:"required"`
+		Text    string `json:"text" binding:"required"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if strings.TrimSpace(req.AgentID) == "" {
+		http.Error(w, "Agent ID is required", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Text) == "" {
+		http.Error(w, "Text is required", http.StatusBadRequest)
+		return
+	}
+
+	// Create bounty from text
+	createdBounty, err := s.AutoBountyService.CreateAutoBountyFromText(req.AgentID, req.Text)
+	if err != nil {
+		log.Printf("Error creating auto-bounty from text: %v", err)
+		http.Error(w, "Failed to create bounty from text: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Broadcast bounty creation
+	s.Hub.Broadcast(ws.Message{Type: "auto_bounty_from_text_created", Data: map[string]interface{}{
+		"bounty": createdBounty,
+		"source": req.AgentID,
+		"original_text": req.Text,
+		"auto_generated": true,
+	}})
+
+	// Send skill-based notifications for new auto-bounty
+	if s.NotificationSvc != nil {
+		// Convert string ID to int for notifications
+		bountyIDInt := 0 // Default fallback
+		if id, err := strconv.Atoi(createdBounty.ID); err == nil {
+			bountyIDInt = id
+		}
+		
+		s.NotificationSvc.NotifySkillMatch(
+			bountyIDInt,
+			createdBounty.Title,
+			createdBounty.RequiredSkills,
+			int(createdBounty.PayoutAmount), // Convert float64 to int
+			string(createdBounty.Tier),
+		)
+	}
+
+	// Log the successful creation
+	log.Printf("✓ Auto-bounty created from text by agent %s: %s (Payout: $%.2f)", 
+		req.AgentID, createdBounty.Title, createdBounty.PayoutAmount)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "success",
+		"bounty": createdBounty,
+		"message": "Bounty successfully created from text description",
+	})
 }
