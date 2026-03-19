@@ -93,7 +93,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
   - [x] **Bounty creation form** — Form to create new bounties with basic fields
   - [x] **Claiming mechanism** — UI and logic to claim bounties (locks them temporarily)
   - [x] **Verification flow** — Simple manual verification system with approve/reject
-  - [~] **Payout tracking** — Basic ledger for earned credits per participant
+  - [x] **Payout tracking** — Basic ledger for earned credits per participant
 - [ ] **Bounty creation** — orchestrators/users post tasks with: description, requirements/acceptance criteria, payout amount (e.g. $1.00), deadline (optional), required skills/tags
 - [ ] **Bounty claiming** — workers claim a task (locks it for a time window), submit work, orchestrator or automated checks verify completion
 - [ ] **Verification system** — arbitrary requirements per bounty: test suite must pass, PR review approved, benchmark met, manual approval, etc. Pluggable verifiers.
