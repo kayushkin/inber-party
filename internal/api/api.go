@@ -16,6 +16,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/notifications"
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/sync"
+	"github.com/kayushkin/inber-party/internal/validation"
 	"github.com/kayushkin/inber-party/internal/verifiers"
 	"github.com/kayushkin/inber-party/internal/version"
 	"github.com/kayushkin/inber-party/internal/ws"
@@ -121,6 +122,51 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/notifications/mark-all-read", s.handleMarkAllRead)
 }
 
+// Validation helper functions
+
+// writeValidationError writes validation errors as JSON response
+func (s *Server) writeValidationError(w http.ResponseWriter, errors validation.ValidationErrors) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	
+	response := map[string]interface{}{
+		"error":   "validation_failed",
+		"message": "Request validation failed",
+		"details": errors,
+	}
+	
+	json.NewEncoder(w).Encode(response)
+}
+
+// parseAndValidateID parses and validates an ID from URL path
+func (s *Server) parseAndValidateID(w http.ResponseWriter, path, prefix, fieldName string) (int, bool) {
+	idStr := strings.TrimPrefix(path, prefix)
+	
+	validator := validation.NewValidator()
+	id := validator.ValidateID(fieldName, idStr)
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
+		return 0, false
+	}
+	
+	return id, true
+}
+
+// validatePaginationParams validates limit and offset query parameters
+func (s *Server) validatePaginationParams(r *http.Request, defaultLimit, maxLimit int) (limit, offset int, valid bool) {
+	validator := validation.NewValidator()
+	
+	limit = validator.ValidateLimit(r.URL.Query().Get("limit"), defaultLimit, maxLimit)
+	offset = validator.ValidateOffset(r.URL.Query().Get("offset"))
+	
+	if validator.HasErrors() {
+		return 0, 0, false
+	}
+	
+	return limit, offset, true
+}
+
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -133,10 +179,8 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAgentDetail(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/api/agents/")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid agent ID", http.StatusBadRequest)
+	id, valid := s.parseAndValidateID(w, r.URL.Path, "/api/agents/", "agent_id")
+	if !valid {
 		return
 	}
 
@@ -251,15 +295,37 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
 		return
 	}
+	
 	var agent db.Agent
 	if err := json.NewDecoder(r.Body).Decode(&agent); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON in request body", http.StatusBadRequest)
 		return
 	}
 
-	// Start new agents with basic gold allowance
+	// Validate agent data
+	validator := validation.NewValidator()
+	
+	// Set defaults if not provided
+	if agent.Level == 0 {
+		agent.Level = 1
+	}
+	if agent.XP == 0 {
+		agent.XP = 0
+	}
 	if agent.Gold == 0 {
 		agent.Gold = 100 // Starting gold
+	}
+	if agent.Energy == 0 {
+		agent.Energy = 100
+	}
+
+	// Validate the data
+	validator.ValidateAgentData(agent.Name, agent.Title, agent.Class, agent.AvatarEmoji, 
+		agent.Level, agent.XP, agent.Gold, agent.Energy)
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
+		return
 	}
 	
 	err := s.DB.QueryRow(`
@@ -285,9 +351,54 @@ func (s *Server) updateAgent(w http.ResponseWriter, r *http.Request, id int) {
 		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
 		return
 	}
+	
 	var updates map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON in request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate updates
+	validator := validation.NewValidator()
+	
+	// Track which fields are being updated for validation
+	var name, status string
+	var energy, level, xp, gold int
+	
+	if nameVal, ok := updates["name"].(string); ok {
+		name = nameVal
+		validator.Required("name", name)
+		validator.MaxLength("name", name, 100)
+		validator.Alphanumeric("name", name)
+	}
+	
+	if statusVal, ok := updates["status"].(string); ok {
+		status = statusVal
+		validator.ValidateEnum("status", status, validation.ValidAgentStatuses, false)
+	}
+	
+	if energyVal, ok := updates["energy"].(float64); ok {
+		energy = int(energyVal)
+		validator.Range("energy", energy, 0, 100)
+	}
+	
+	if levelVal, ok := updates["level"].(float64); ok {
+		level = int(levelVal)
+		validator.Range("level", level, 1, 100)
+	}
+	
+	if xpVal, ok := updates["xp"].(float64); ok {
+		xp = int(xpVal)
+		validator.Range("xp", xp, 0, 1000000)
+	}
+	
+	if goldVal, ok := updates["gold"].(float64); ok {
+		gold = int(goldVal)
+		validator.Range("gold", gold, 0, 1000000)
+	}
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
 		return
 	}
 
@@ -296,43 +407,56 @@ func (s *Server) updateAgent(w http.ResponseWriter, r *http.Request, id int) {
 	args := []interface{}{}
 	argCount := 1
 
-	if name, ok := updates["name"].(string); ok {
+	if name != "" {
 		query += ", name = $" + strconv.Itoa(argCount)
 		args = append(args, name)
 		argCount++
 	}
-	if status, ok := updates["status"].(string); ok {
+	if status != "" {
 		query += ", status = $" + strconv.Itoa(argCount)
 		args = append(args, status)
 		argCount++
 	}
-	if energy, ok := updates["energy"].(float64); ok {
+	if _, ok := updates["energy"]; ok {
 		query += ", energy = $" + strconv.Itoa(argCount)
-		args = append(args, int(energy))
+		args = append(args, energy)
 		argCount++
 	}
-	if level, ok := updates["level"].(float64); ok {
+	if _, ok := updates["level"]; ok {
 		query += ", level = $" + strconv.Itoa(argCount)
-		args = append(args, int(level))
+		args = append(args, level)
 		argCount++
 	}
-	if xp, ok := updates["xp"].(float64); ok {
+	if _, ok := updates["xp"]; ok {
 		query += ", xp = $" + strconv.Itoa(argCount)
-		args = append(args, int(xp))
+		args = append(args, xp)
 		argCount++
 	}
-	if gold, ok := updates["gold"].(float64); ok {
+	if _, ok := updates["gold"]; ok {
 		query += ", gold = $" + strconv.Itoa(argCount)
-		args = append(args, int(gold))
+		args = append(args, gold)
 		argCount++
+	}
+
+	// Only proceed if there are actual updates
+	if argCount == 1 {
+		http.Error(w, "No valid update fields provided", http.StatusBadRequest)
+		return
 	}
 
 	query += " WHERE id = $" + strconv.Itoa(argCount)
 	args = append(args, id)
 
-	if _, err := s.DB.Exec(query, args...); err != nil {
+	result, err := s.DB.Exec(query, args...)
+	if err != nil {
 		log.Printf("Error updating agent: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "Agent not found", http.StatusNotFound)
 		return
 	}
 
@@ -353,10 +477,8 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTaskDetail(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/api/tasks/")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+	id, valid := s.parseAndValidateID(w, r.URL.Path, "/api/tasks/", "task_id")
+	if !valid {
 		return
 	}
 
@@ -405,13 +527,30 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
 		return
 	}
+	
 	var task db.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON in request body", http.StatusBadRequest)
 		return
 	}
 
-	// Calculate gold reward based on difficulty and XP reward
+	// Validate task data
+	validator := validation.NewValidator()
+	
+	// Set defaults if not provided
+	if task.XPReward == 0 {
+		task.XPReward = 10 // Default XP reward
+	}
+	
+	// Validate the data
+	validator.ValidateTaskData(task.Name, task.Description, task.Difficulty, task.XPReward, task.GoldReward)
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
+		return
+	}
+
+	// Calculate gold reward based on difficulty and XP reward if not provided
 	if task.GoldReward == 0 {
 		task.GoldReward = calculateGoldReward(task.XPReward, task.Difficulty)
 	}
@@ -451,9 +590,41 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request, id int) {
 		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
 		return
 	}
+	
 	var updates map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON in request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate updates
+	validator := validation.NewValidator()
+	
+	var status string
+	var agentID, partyID, progress int
+	
+	if statusVal, ok := updates["status"].(string); ok {
+		status = statusVal
+		validator.ValidateEnum("status", status, validation.ValidTaskStatuses, false)
+	}
+	
+	if agentIDVal, ok := updates["assigned_agent_id"].(float64); ok {
+		agentID = int(agentIDVal)
+		validator.RequiredInt("assigned_agent_id", agentID)
+	}
+	
+	if partyIDVal, ok := updates["assigned_party_id"].(float64); ok {
+		partyID = int(partyIDVal)
+		validator.RequiredInt("assigned_party_id", partyID)
+	}
+	
+	if progressVal, ok := updates["progress"].(float64); ok {
+		progress = int(progressVal)
+		validator.Range("progress", progress, 0, 100)
+	}
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
 		return
 	}
 
@@ -461,7 +632,7 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request, id int) {
 	args := []interface{}{}
 	argCount := 1
 
-	if status, ok := updates["status"].(string); ok {
+	if status != "" {
 		query += "status = $" + strconv.Itoa(argCount) + ", "
 		args = append(args, status)
 		argCount++
@@ -472,20 +643,26 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request, id int) {
 			query += "completed_at = NOW(), "
 		}
 	}
-	if agentID, ok := updates["assigned_agent_id"].(float64); ok {
+	if _, ok := updates["assigned_agent_id"]; ok {
 		query += "assigned_agent_id = $" + strconv.Itoa(argCount) + ", "
-		args = append(args, int(agentID))
+		args = append(args, agentID)
 		argCount++
 	}
-	if partyID, ok := updates["assigned_party_id"].(float64); ok {
+	if _, ok := updates["assigned_party_id"]; ok {
 		query += "assigned_party_id = $" + strconv.Itoa(argCount) + ", "
-		args = append(args, int(partyID))
+		args = append(args, partyID)
 		argCount++
 	}
-	if progress, ok := updates["progress"].(float64); ok {
+	if _, ok := updates["progress"]; ok {
 		query += "progress = $" + strconv.Itoa(argCount) + ", "
-		args = append(args, int(progress))
+		args = append(args, progress)
 		argCount++
+	}
+
+	// Only proceed if there are actual updates
+	if argCount == 1 {
+		http.Error(w, "No valid update fields provided", http.StatusBadRequest)
+		return
 	}
 
 	// Remove trailing comma and space
@@ -493,9 +670,16 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request, id int) {
 	query += " WHERE id = $" + strconv.Itoa(argCount)
 	args = append(args, id)
 
-	if _, err := s.DB.Exec(query, args...); err != nil {
+	result, err := s.DB.Exec(query, args...)
+	if err != nil {
 		log.Printf("Error updating task: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "Task not found", http.StatusNotFound)
 		return
 	}
 
@@ -1726,14 +1910,32 @@ func (s *Server) listCosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse query parameters for filtering
-	agentID := r.URL.Query().Get("agent_id")
+	// Validate query parameters
+	validator := validation.NewValidator()
+	
+	agentIDParam := r.URL.Query().Get("agent_id")
+	var agentID *int
+	if agentIDParam != "" {
+		agentIDVal := validator.ValidateOptionalID("agent_id", agentIDParam)
+		agentID = agentIDVal
+	}
+	
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
-	limit := r.URL.Query().Get("limit")
-
-	if limit == "" {
-		limit = "100" // Default limit
+	
+	// Validate date formats if provided (basic validation)
+	if startDate != "" && len(startDate) != 10 {
+		validator.AddError("start_date", "start_date must be in YYYY-MM-DD format", "invalid_date")
+	}
+	if endDate != "" && len(endDate) != 10 {
+		validator.AddError("end_date", "end_date must be in YYYY-MM-DD format", "invalid_date")
+	}
+	
+	limit := validator.ValidateLimit(r.URL.Query().Get("limit"), 100, 1000)
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
+		return
 	}
 
 	query := `
@@ -1745,11 +1947,10 @@ func (s *Server) listCosts(w http.ResponseWriter, r *http.Request) {
 	args := []interface{}{}
 	argCount := 0
 
-	if agentID != "" {
+	if agentID != nil {
 		argCount++
 		query += " AND ce.agent_id = $" + strconv.Itoa(argCount)
-		agentIDInt, _ := strconv.Atoi(agentID)
-		args = append(args, agentIDInt)
+		args = append(args, *agentID)
 	}
 
 	if startDate != "" {
@@ -1766,8 +1967,7 @@ func (s *Server) listCosts(w http.ResponseWriter, r *http.Request) {
 
 	argCount++
 	query += " ORDER BY ce.created_at DESC LIMIT $" + strconv.Itoa(argCount)
-	limitInt, _ := strconv.Atoi(limit)
-	args = append(args, limitInt)
+	args = append(args, limit)
 
 	rows, err := s.DB.Query(query, args...)
 	if err != nil {
@@ -1996,23 +2196,20 @@ func (s *Server) listBounties(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse query parameters
+	// Validate query parameters
+	validator := validation.NewValidator()
+	
 	status := r.URL.Query().Get("status")
-	limitStr := r.URL.Query().Get("limit")
-	offsetStr := r.URL.Query().Get("offset")
-
-	limit := 50 // default
-	if limitStr != "" {
-		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
-			limit = parsed
-		}
+	if status != "" {
+		validator.ValidateEnum("status", status, validation.ValidBountyStatuses, false)
 	}
-
-	offset := 0
-	if offsetStr != "" {
-		if parsed, err := strconv.Atoi(offsetStr); err == nil && parsed >= 0 {
-			offset = parsed
-		}
+	
+	limit := validator.ValidateLimit(r.URL.Query().Get("limit"), 50, 100)
+	offset := validator.ValidateOffset(r.URL.Query().Get("offset"))
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
+		return
 	}
 
 	bounties, err := s.DB.GetBounties(status, limit, offset)
@@ -2034,26 +2231,50 @@ func (s *Server) createBounty(w http.ResponseWriter, r *http.Request) {
 
 	var bounty db.Bounty
 	if err := json.NewDecoder(r.Body).Decode(&bounty); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON in request body", http.StatusBadRequest)
 		return
 	}
 
-	// Validate required fields
-	if bounty.Title == "" {
-		http.Error(w, "Title is required", http.StatusBadRequest)
+	// Validate bounty data
+	validator := validation.NewValidator()
+	
+	// Validate basic required fields
+	validator.ValidateBountyData(bounty.Title, bounty.Description, bounty.Requirements, float64(bounty.PayoutAmount))
+	
+	// Validate creator ID
+	validator.RequiredInt("creator_id", bounty.CreatorID)
+	
+	// Validate tier if provided
+	if bounty.Tier != "" {
+		validator.ValidateEnum("tier", bounty.Tier, validation.ValidBountyTiers, false)
+	}
+	
+	// Validate required skills if provided
+	if len(bounty.RequiredSkills) > 10 {
+		validator.AddError("required_skills", "Cannot have more than 10 required skills", "too_many_skills")
+	}
+	
+	// Validate deadline if provided
+	if bounty.Deadline != nil && bounty.Deadline.Before(time.Now()) {
+		validator.AddError("deadline", "Deadline cannot be in the past", "invalid_deadline")
+	}
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
 		return
 	}
-	if bounty.Description == "" {
-		http.Error(w, "Description is required", http.StatusBadRequest)
-		return
-	}
-	if bounty.CreatorID == 0 {
-		http.Error(w, "Creator ID is required", http.StatusBadRequest)
-		return
-	}
-	if bounty.PayoutAmount <= 0 {
-		http.Error(w, "Payout amount must be positive", http.StatusBadRequest)
-		return
+
+	// Set default tier if not provided
+	if bounty.Tier == "" {
+		if bounty.PayoutAmount >= 1000 {
+			bounty.Tier = "legendary"
+		} else if bounty.PayoutAmount >= 500 {
+			bounty.Tier = "gold"
+		} else if bounty.PayoutAmount >= 100 {
+			bounty.Tier = "silver"
+		} else {
+			bounty.Tier = "bronze"
+		}
 	}
 
 	err := s.DB.CreateBounty(&bounty)
@@ -2113,12 +2334,16 @@ func (s *Server) claimBounty(w http.ResponseWriter, r *http.Request, bountyID in
 		ClaimerID int `json:"claimer_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON in request body", http.StatusBadRequest)
 		return
 	}
 
-	if req.ClaimerID <= 0 {
-		http.Error(w, "Claimer ID is required", http.StatusBadRequest)
+	// Validate input
+	validator := validation.NewValidator()
+	validator.RequiredInt("claimer_id", req.ClaimerID)
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
 		return
 	}
 
@@ -2168,12 +2393,17 @@ func (s *Server) submitWork(w http.ResponseWriter, r *http.Request, bountyID int
 		WorkSubmission string `json:"work_submission"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON in request body", http.StatusBadRequest)
 		return
 	}
 
-	if req.WorkSubmission == "" {
-		http.Error(w, "Work submission is required", http.StatusBadRequest)
+	// Validate input
+	validator := validation.NewValidator()
+	validator.Required("work_submission", req.WorkSubmission)
+	validator.MaxLength("work_submission", req.WorkSubmission, 50000) // 50KB max
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
 		return
 	}
 
@@ -2223,7 +2453,16 @@ func (s *Server) verifyBounty(w http.ResponseWriter, r *http.Request, bountyID i
 		Notes    string `json:"notes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON in request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	validator := validation.NewValidator()
+	validator.MaxLength("notes", req.Notes, 2000)
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
 		return
 	}
 
@@ -2987,17 +3226,16 @@ func (s *Server) createRating(w http.ResponseWriter, r *http.Request) {
 
 	var rating db.BountyRating
 	if err := json.NewDecoder(r.Body).Decode(&rating); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON in request body", http.StatusBadRequest)
 		return
 	}
 
-	// Validate rating
-	if rating.Rating < 1 || rating.Rating > 5 {
-		http.Error(w, "Rating must be between 1 and 5", http.StatusBadRequest)
-		return
-	}
-	if rating.BountyID <= 0 || rating.RaterID <= 0 || rating.RatedID <= 0 {
-		http.Error(w, "Valid bounty_id, rater_id, and rated_id are required", http.StatusBadRequest)
+	// Validate rating data
+	validator := validation.NewValidator()
+	validator.ValidateRatingData(rating.Rating, rating.Comment, rating.BountyID, rating.RaterID, rating.RatedID)
+	
+	if validator.HasErrors() {
+		s.writeValidationError(w, validator.GetErrors())
 		return
 	}
 
