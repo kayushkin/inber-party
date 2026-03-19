@@ -363,6 +363,34 @@
   opacity: 0.7;
 }
 
+.verify-btn {
+  background: #9C27B0;
+  color: white;
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.verify-btn:hover {
+  background: #7B1FA2;
+  transform: translateY(-1px);
+}
+
+.rejected-btn {
+  background: #f44336;
+  color: white;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .no-bounties {
   grid-column: 1 / -1;
   text-align: center;
@@ -383,6 +411,205 @@
 
 .no-bounties p {
   opacity: 0.8;
+}
+
+/* Verification Modal Styles */
+.verification-modal .modal-content {
+  max-width: 700px;
+  width: 95%;
+  max-height: 90vh;
+}
+
+.bounty-summary {
+  background: var(--accent-bg);
+  border: 1px solid rgba(var(--accent-color-rgb), 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.bounty-summary h3 {
+  margin: 0 0 0.5rem 0;
+  color: var(--accent-color);
+  font-size: 1.2rem;
+}
+
+.bounty-summary p {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.work-submission {
+  margin-bottom: 1.5rem;
+}
+
+.work-submission h4 {
+  margin: 0 0 1rem 0;
+  color: var(--text-color);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.submission-content {
+  background: var(--hover-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.submission-text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-color);
+  background: transparent;
+  border: none;
+  resize: none;
+  word-wrap: break-word;
+}
+
+.no-submission {
+  margin: 0;
+  font-style: italic;
+  opacity: 0.6;
+  text-align: center;
+  padding: 2rem;
+}
+
+.verification-notes-section {
+  margin-bottom: 1rem;
+}
+
+.verification-notes-section h4 {
+  margin: 0 0 1rem 0;
+  color: var(--text-color);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.verification-notes-input {
+  width: 100%;
+  background: var(--hover-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s ease;
+}
+
+.verification-notes-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.verification-notes-input::placeholder {
+  opacity: 0.6;
+}
+
+.verification-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.verify-approve-btn,
+.verify-reject-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.verify-approve-btn {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.verify-approve-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+  background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+}
+
+.verify-reject-btn {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+.verify-reject-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4);
+  background: linear-gradient(135deg, #d32f2f 0%, #f44336 100%);
+}
+
+.verify-approve-btn:active,
+.verify-reject-btn:active {
+  transform: translateY(0);
+}
+
+.verifying-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: var(--accent-color);
+  padding: 0.5rem;
+}
+
+/* Filter styling for submitted */
+.filter-btn.filter-submitted {
+  border-color: #9C27B0;
+}
+
+.filter-btn.filter-submitted:hover {
+  border-color: #9C27B0;
+  background: rgba(156, 39, 176, 0.1);
+}
+
+.filter-btn.filter-submitted.active {
+  background: #9C27B0;
+  color: white;
+  border-color: #9C27B0;
+}
+
+/* Status styling for submitted bounties */
+.bounty-card.status-submitted::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #9C27B0, #7B1FA2);
+  border-radius: 14px;
+  z-index: -1;
+  opacity: 0.1;
+}
+
+.bounty-card.status-submitted {
+  border-color: rgba(156, 39, 176, 0.3);
+  box-shadow: 0 2px 8px rgba(156, 39, 176, 0.2);
 }
 
 /* Mobile responsiveness */
@@ -660,5 +887,31 @@
   .agent-meta {
     gap: 0.5rem;
     font-size: 0.75rem;
+  }
+  
+  /* Verification modal mobile adjustments */
+  .verification-modal .modal-content {
+    width: 98%;
+    max-height: 95vh;
+  }
+  
+  .verification-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .verify-approve-btn,
+  .verify-reject-btn {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    justify-content: center;
+  }
+  
+  .submission-content {
+    max-height: 200px;
+  }
+  
+  .verification-notes-input {
+    min-height: 60px;
   }
 }

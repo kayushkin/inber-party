@@ -9,10 +9,12 @@ interface Bounty {
   description: string;
   requirements: string;
   payout_amount: number;
-  status: 'open' | 'claimed' | 'completed' | 'rejected' | 'paid';
+  status: 'open' | 'claimed' | 'submitted' | 'completed' | 'rejected' | 'paid';
   deadline?: string;
   creator_id: number;
   claimer_id?: number;
+  work_submission?: string;
+  verification_notes?: string;
   required_skills: string[];
   tier: 'bronze' | 'silver' | 'gold' | 'legendary';
   claimed_at?: string;
@@ -40,6 +42,10 @@ export default function BountyBoard() {
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [selectedBountyId, setSelectedBountyId] = useState<number | null>(null);
   const [claimingBounty, setClaimingBounty] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [selectedBounty, setSelectedBounty] = useState<Bounty | null>(null);
+  const [verificationNotes, setVerificationNotes] = useState('');
+  const [verifying, setVerifying] = useState(false);
   
   useEffect(() => {
     fetchBounties();
@@ -140,6 +146,46 @@ export default function BountyBoard() {
     }
   };
 
+  const handleVerifyClick = (bounty: Bounty) => {
+    setSelectedBounty(bounty);
+    setVerificationNotes('');
+    setShowVerificationModal(true);
+  };
+
+  const handleVerifyBounty = async (approved: boolean) => {
+    if (!selectedBounty) return;
+
+    try {
+      setVerifying(true);
+      const response = await fetch(`/api/bounties/${selectedBounty.id}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          approved: approved,
+          notes: verificationNotes,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to verify bounty: ${errorData}`);
+      }
+
+      // Refresh bounties to show updated status
+      await fetchBounties();
+      setShowVerificationModal(false);
+      setSelectedBounty(null);
+      setVerificationNotes('');
+    } catch (error) {
+      console.error('Error verifying bounty:', error);
+      alert(`Failed to verify bounty: ${error}`);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const filteredBounties = filter === 'all' 
     ? bounties 
     : bounties.filter(bounty => bounty.status === filter);
@@ -148,6 +194,7 @@ export default function BountyBoard() {
     all: bounties.length,
     open: bounties.filter(b => b.status === 'open').length,
     claimed: bounties.filter(b => b.status === 'claimed').length,
+    submitted: bounties.filter(b => b.status === 'submitted').length,
     completed: bounties.filter(b => b.status === 'completed').length,
   };
 
@@ -165,6 +212,7 @@ export default function BountyBoard() {
     switch (status) {
       case 'open': return '🔓';
       case 'claimed': return '🔒';
+      case 'submitted': return '📋';
       case 'completed': return '✅';
       case 'rejected': return '❌';
       case 'paid': return '💰';
@@ -206,7 +254,7 @@ export default function BountyBoard() {
         </div>
 
         <div className="bounty-filters">
-          {(['all', 'open', 'claimed', 'completed'] as const).map((status) => (
+          {(['all', 'open', 'claimed', 'submitted', 'completed'] as const).map((status) => (
             <button
               key={status}
               className={`filter-btn ${filter === status ? 'active' : ''} filter-${status}`}
@@ -291,9 +339,22 @@ export default function BountyBoard() {
                     🔄 In Progress
                   </button>
                 )}
+                {bounty.status === 'submitted' && (
+                  <button 
+                    className="verify-btn"
+                    onClick={() => handleVerifyClick(bounty)}
+                  >
+                    📋 Review Work
+                  </button>
+                )}
                 {bounty.status === 'completed' && (
                   <button className="completed-btn" disabled>
                     ✅ Completed
+                  </button>
+                )}
+                {bounty.status === 'rejected' && (
+                  <button className="rejected-btn" disabled>
+                    ❌ Rejected
                   </button>
                 )}
               </div>
@@ -369,6 +430,77 @@ export default function BountyBoard() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Verification Modal for Reviewing Submitted Work */}
+      {showVerificationModal && selectedBounty && (
+        <div className="modal-overlay">
+          <div className="modal-content verification-modal">
+            <div className="modal-header">
+              <h2>📋 Review Submitted Work</h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowVerificationModal(false)}
+                disabled={verifying}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="bounty-summary">
+                <h3>{selectedBounty.title}</h3>
+                <p><strong>Payout:</strong> 🪙 {selectedBounty.payout_amount} Gold</p>
+                <p><strong>Requirements:</strong> {selectedBounty.requirements}</p>
+              </div>
+
+              <div className="work-submission">
+                <h4>📝 Submitted Work</h4>
+                <div className="submission-content">
+                  {selectedBounty.work_submission ? (
+                    <pre className="submission-text">{selectedBounty.work_submission}</pre>
+                  ) : (
+                    <p className="no-submission">No work submitted yet.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="verification-notes-section">
+                <h4>💬 Verification Notes</h4>
+                <textarea
+                  className="verification-notes-input"
+                  value={verificationNotes}
+                  onChange={(e) => setVerificationNotes(e.target.value)}
+                  placeholder="Add notes about the work quality, any issues, or feedback..."
+                  rows={4}
+                />
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              {verifying ? (
+                <div className="verifying-status">
+                  🔄 Processing verification...
+                </div>
+              ) : (
+                <div className="verification-actions">
+                  <button 
+                    className="verify-reject-btn"
+                    onClick={() => handleVerifyBounty(false)}
+                  >
+                    ❌ Reject Work
+                  </button>
+                  <button 
+                    className="verify-approve-btn"
+                    onClick={() => handleVerifyBounty(true)}
+                  >
+                    ✅ Approve Work
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
