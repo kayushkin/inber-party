@@ -24,6 +24,8 @@ import CostDashboard from './pages/CostDashboard';
 import PayoutDashboard from './pages/PayoutDashboard';
 import MMOChatroom from './pages/MMOChatroom';
 import { AchievementToastContainer } from './components/AchievementToast';
+import { NotificationProvider } from './contexts/NotificationContext';
+import NotificationContainer from './components/NotificationContainer';
 import './App.css';
 
 function App() {
@@ -54,8 +56,9 @@ function App() {
       console.error('App-level error:', error, errorInfo);
       // Could integrate with error reporting service here
     }}>
-      <OfflineIndicator />
-      <BrowserRouter>
+      <NotificationProvider>
+        <OfflineIndicator />
+        <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<TavernView />} />
@@ -102,7 +105,10 @@ function App() {
             onRemove={removeAchievementToast}
           />
         </ErrorBoundary>
+        
+        <NotificationContainer />
       </BrowserRouter>
+      </NotificationProvider>
     </ErrorBoundary>
   );
 }

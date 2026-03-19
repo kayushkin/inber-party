@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { SkeletonQuestCard } from '../components/SkeletonLoader';
 import CreateBountyForm from '../components/CreateBountyForm';
+import { useNotifications } from '../contexts/NotificationContext';
 import './BountyBoard.css';
 
 interface Bounty {
@@ -39,6 +40,7 @@ interface Agent {
 }
 
 export default function BountyBoard() {
+  const { showSuccess, showError } = useNotifications();
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -76,10 +78,10 @@ export default function BountyBoard() {
         const data = await response.json();
         setBounties(data);
       } else {
-        console.error('Failed to fetch bounties:', response.status);
+        showError('Failed to fetch bounties', `Server responded with status: ${response.status}`);
       }
     } catch (error) {
-      console.error('Error fetching bounties:', error);
+      showError('Error fetching bounties', `${error}`);
     } finally {
       setIsLoading(false);
     }
@@ -92,10 +94,10 @@ export default function BountyBoard() {
         const data = await response.json();
         setAgents(data);
       } else {
-        console.error('Failed to fetch agents:', response.status);
+        showError('Failed to fetch agents', `Server responded with status: ${response.status}`);
       }
     } catch (error) {
-      console.error('Error fetching agents:', error);
+      showError('Error fetching agents', `${error}`);
     }
   };
 
@@ -120,6 +122,7 @@ export default function BountyBoard() {
 
       const newBounty = await response.json();
       setBounties(prev => [newBounty, ...prev]);
+      showSuccess('Bounty Created!', `Successfully created bounty: ${newBounty.title}`);
     } catch (error) {
       throw error; // Re-throw to let the form handle the error
     }
@@ -151,12 +154,12 @@ export default function BountyBoard() {
       }
 
       // Refresh bounties to show updated status
+      showSuccess('Bounty Claimed!', 'You have successfully claimed this bounty.');
       await fetchBounties();
       setShowClaimModal(false);
       setSelectedBountyId(null);
     } catch (error) {
-      console.error('Error claiming bounty:', error);
-      alert(`Failed to claim bounty: ${error}`);
+      showError('Error claiming bounty', `Failed to claim bounty: ${error}`);
     } finally {
       setClaimingBounty(false);
     }
@@ -190,13 +193,13 @@ export default function BountyBoard() {
       }
 
       // Refresh bounties to show updated status
+      showSuccess('Bounty Verified!', `Bounty has been ${approved ? 'approved' : 'rejected'} successfully.`);
       await fetchBounties();
       setShowVerificationModal(false);
       setSelectedBounty(null);
       setVerificationNotes('');
     } catch (error) {
-      console.error('Error verifying bounty:', error);
-      alert(`Failed to verify bounty: ${error}`);
+      showError('Error verifying bounty', `Failed to verify bounty: ${error}`);
     } finally {
       setVerifying(false);
     }
@@ -239,14 +242,14 @@ export default function BountyBoard() {
       }
 
       // Refresh bounties to show updated status
+      showSuccess('Rating Submitted!', 'Your rating has been submitted successfully.');
       await fetchBounties();
       setShowRatingModal(false);
       setSelectedBountyForRating(null);
       setRating(5);
       setRatingComment('');
     } catch (error) {
-      console.error('Error submitting rating:', error);
-      alert(`Failed to submit rating: ${error}`);
+      showError('Error submitting rating', `Failed to submit rating: ${error}`);
     } finally {
       setSubmittingRating(false);
     }
@@ -289,10 +292,9 @@ export default function BountyBoard() {
       setDisputeReason('');
       setDisputeEvidence('');
       
-      alert('Dispute submitted successfully! The bounty is now under review.');
+      showSuccess('Dispute Submitted!', 'Your dispute has been submitted successfully. The bounty is now under review.');
     } catch (error) {
-      console.error('Error submitting dispute:', error);
-      alert(`Failed to submit dispute: ${error}`);
+      showError('Error submitting dispute', `Failed to submit dispute: ${error}`);
     } finally {
       setSubmittingDispute(false);
     }

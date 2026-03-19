@@ -125,7 +125,13 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 🎯 Current Work
 
-- [~] **Enhanced Quest Details UI** — Enrich Quest Board to show tokens used, cost, turns, sub-quests for each quest. Currently only shows basic title/description.
+- [x] **Enhanced Quest Details UI** — Enriched Quest Board with quest type detection, enhanced formatting, visual badges, and comprehensive quest information display. Shows tokens used, cost, turns, sub-quests with improved visual hierarchy.
+
+---
+
+## 🔧 Code Quality & UX Improvements
+
+- [x] **Consistent Error Handling** — Implemented unified notification system with NotificationProvider and NotificationContainer components. Replaced all inconsistent console.error + alert patterns in BountyBoard with proper toast notifications for errors and success states.
 
 ---
 
