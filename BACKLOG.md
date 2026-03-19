@@ -125,6 +125,8 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 🎯 Current Work
 
+- [~] **Procedural Quest Names** — Generate immersive, contextual quest names based on actual task content (e.g. "The Great Refactoring of Memory", "Siege of the Broken Tests") instead of generic spawn task descriptions.
+
 - [x] **Enhanced Quest Details UI** — Enriched Quest Board with quest type detection, enhanced formatting, visual badges, and comprehensive quest information display. Shows tokens used, cost, turns, sub-quests with improved visual hierarchy.
 
 ---

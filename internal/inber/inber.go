@@ -1160,7 +1160,7 @@ func titleCase(s string) string {
 	return string(runes)
 }
 
-// generateQuestName creates an RPG-flavored name from the request text.
+// generateQuestName creates an immersive RPG quest name from the request text using procedural generation.
 func generateQuestName(input, status string) string {
 	if input == "" {
 		switch status {
@@ -1173,29 +1173,250 @@ func generateQuestName(input, status string) string {
 		}
 	}
 
-	// Trim and take first line
+	// Trim and take first line for analysis
 	lines := strings.SplitN(input, "\n", 2)
-	text := strings.TrimSpace(lines[0])
-	if len(text) > 60 {
-		text = text[:57] + "..."
+	originalText := strings.TrimSpace(lines[0])
+	
+	// Analyze the task to determine type and complexity
+	taskType, complexity := analyzeTaskForNaming(originalText, status)
+	
+	// Generate procedural quest name based on analysis
+	questName := generateProceduralQuestName(taskType, complexity, originalText)
+	
+	// If the generated name is too long, fall back to original with emoji
+	if len(questName) > 80 {
+		text := originalText
+		if len(text) > 60 {
+			text = text[:57] + "..."
+		}
+		return getTaskEmoji(taskType) + " " + text
 	}
+	
+	return questName
+}
 
-	// Add RPG flair based on keywords
+// analyzeTaskForNaming analyzes the task text to determine type and complexity for name generation
+func analyzeTaskForNaming(text, status string) (taskType string, complexity int) {
 	lower := strings.ToLower(text)
+	
+	// Default values
+	taskType = "general"
+	complexity = 2
+	
+	// Determine task type based on keywords
 	switch {
-	case strings.Contains(lower, "fix") || strings.Contains(lower, "bug"):
-		return "🛡️ " + text
-	case strings.Contains(lower, "build") || strings.Contains(lower, "create"):
-		return "🔨 " + text
-	case strings.Contains(lower, "test"):
-		return "⚗️ " + text
-	case strings.Contains(lower, "deploy"):
-		return "🚀 " + text
-	case strings.Contains(lower, "refactor"):
-		return "📜 " + text
-	default:
-		return "📋 " + text
+	case containsAnyKeyword(lower, []string{"bug", "fix", "error", "debug", "broken"}):
+		taskType = "debugging"
+		complexity = 3
+	case containsAnyKeyword(lower, []string{"build", "create", "implement", "develop", "code"}):
+		taskType = "development"
+		complexity = 4
+	case containsAnyKeyword(lower, []string{"deploy", "release", "publish", "ship"}):
+		taskType = "deployment"
+		complexity = 3
+	case containsAnyKeyword(lower, []string{"test", "verify", "validate", "check"}):
+		taskType = "testing"
+		complexity = 2
+	case containsAnyKeyword(lower, []string{"document", "write", "explain", "guide"}):
+		taskType = "documentation"
+		complexity = 2
+	case containsAnyKeyword(lower, []string{"refactor", "clean", "optimize", "improve"}):
+		taskType = "optimization"
+		complexity = 3
+	case containsAnyKeyword(lower, []string{"design", "architecture", "plan", "structure"}):
+		taskType = "design"
+		complexity = 4
+	case containsAnyKeyword(lower, []string{"monitor", "watch", "alert", "health"}):
+		taskType = "monitoring"
+		complexity = 2
 	}
+	
+	// Adjust complexity based on additional indicators
+	if containsAnyKeyword(lower, []string{"urgent", "critical", "emergency", "asap"}) {
+		complexity = min(5, complexity+1)
+	}
+	if containsAnyKeyword(lower, []string{"simple", "quick", "easy", "small"}) {
+		complexity = max(1, complexity-1)
+	}
+	if containsAnyKeyword(lower, []string{"complex", "difficult", "large", "major"}) {
+		complexity = min(5, complexity+2)
+	}
+	if len(text) > 100 {
+		complexity = min(5, complexity+1)
+	}
+	if status == "error" {
+		complexity = min(5, complexity+1)
+	}
+	
+	return taskType, complexity
+}
+
+// generateProceduralQuestName creates an epic quest name based on task analysis
+func generateProceduralQuestName(taskType string, complexity int, originalText string) string {
+	// Extract key terms from the original text
+	keyTerms := extractKeyTermsForNaming(originalText)
+	
+	// Get the primary subject (first key term or default)
+	subject := "Quest"
+	if len(keyTerms) > 0 {
+		subject = keyTerms[0]
+	}
+	
+	// Epic prefixes based on complexity
+	prefixes := [][]string{
+		{"The Simple", "A Quick", "The Minor"},                    // complexity 1
+		{"The", "A Noble", "The Modest"},                          // complexity 2
+		{"The Great", "The Epic", "The Grand"},                    // complexity 3
+		{"The Mighty", "The Legendary", "The Heroic"},             // complexity 4
+		{"The Ultimate", "The Mythical", "The Supreme"},           // complexity 5
+	}
+	
+	// Task-specific naming patterns
+	patterns := map[string][]string{
+		"debugging":     {"Hunt for the {subject} Bug", "Siege of the Broken {subject}", "{prefix} Debugging of {subject}"},
+		"development":   {"{prefix} Forging of {subject}", "Quest for the Perfect {subject}", "{prefix} Creation of {subject}"},
+		"deployment":    {"{prefix} Deployment of {subject}", "Launch of the Mighty {subject}", "The Golden Release Quest"},
+		"testing":       {"{prefix} Verification of {subject}", "Trial by Fire for {subject}", "The Quality Assurance Crusade"},
+		"documentation": {"{prefix} Chronicle of {subject}", "Scribing the Great {subject} Tome", "The Sacred Documentation Quest"},
+		"optimization":  {"{prefix} Refinement of {subject}", "Enhancement of the Ancient {subject}", "The Performance Optimization Saga"},
+		"design":        {"{prefix} Architectural Vision of {subject}", "Blueprint of the Perfect {subject}", "The Grand Design Odyssey"},
+		"monitoring":    {"{prefix} Vigil of {subject}", "Guardian Watch over {subject}", "The Silent Monitoring Mission"},
+		"general":       {"{prefix} Adventure of {subject}", "Quest for the Perfect {subject}", "The Noble Mission"},
+	}
+	
+	// Get appropriate prefix for complexity level
+	complexityIndex := complexity - 1
+	if complexityIndex < 0 {
+		complexityIndex = 0
+	}
+	if complexityIndex >= len(prefixes) {
+		complexityIndex = len(prefixes) - 1
+	}
+	prefix := prefixes[complexityIndex][0] // Use first prefix for consistency
+	
+	// Get patterns for this task type, fall back to general
+	taskPatterns, exists := patterns[taskType]
+	if !exists {
+		taskPatterns = patterns["general"]
+	}
+	
+	// Select pattern based on subject length for variety
+	patternIndex := len(subject) % len(taskPatterns)
+	pattern := taskPatterns[patternIndex]
+	
+	// Replace placeholders
+	result := strings.ReplaceAll(pattern, "{subject}", subject)
+	result = strings.ReplaceAll(result, "{prefix}", prefix)
+	
+	return result
+}
+
+// extractKeyTermsForNaming extracts meaningful terms from task text for quest naming
+func extractKeyTermsForNaming(text string) []string {
+	words := strings.Fields(strings.ToLower(text))
+	var keyTerms []string
+	
+	// Skip common words, verbs, and extract meaningful nouns
+	skipWords := map[string]bool{
+		"the": true, "a": true, "an": true, "and": true, "or": true, "but": true, "in": true, 
+		"on": true, "at": true, "to": true, "for": true, "of": true, "with": true, "by": true, 
+		"from": true, "up": true, "about": true, "into": true, "through": true, "during": true, 
+		"before": true, "after": true, "above": true, "below": true, "between": true, "among": true,
+		"this": true, "that": true, "these": true, "those": true, "i": true, "me": true, "my": true,
+		"we": true, "us": true, "our": true, "you": true, "your": true, "he": true, "him": true,
+		"his": true, "she": true, "her": true, "it": true, "its": true, "they": true, "them": true,
+		"their": true, "is": true, "are": true, "was": true, "were": true, "be": true, "been": true,
+		"have": true, "has": true, "had": true, "do": true, "does": true, "did": true, "will": true,
+		"would": true, "could": true, "should": true, "can": true, "may": true, "might": true,
+		// Common verbs we want to skip
+		"fix": true, "build": true, "create": true, "write": true, "deploy": true, "test": true,
+		"implement": true, "develop": true, "design": true, "refactor": true, "monitor": true,
+		"update": true, "add": true, "remove": true, "delete": true, "install": true, "configure": true,
+	}
+	
+	// Look for meaningful nouns - start from the end to find the main subject
+	for i := len(words) - 1; i >= 0; i-- {
+		word := words[i]
+		// Remove punctuation
+		cleanWord := strings.Trim(word, ".,!?;:\"'()[]{}/-_")
+		if len(cleanWord) > 2 && !skipWords[cleanWord] && isAlpha(cleanWord) {
+			// Prefer longer, more specific terms
+			keyTerms = append([]string{strings.Title(cleanWord)}, keyTerms...)
+			if len(keyTerms) >= 2 { // Limit to 2 key terms for naming
+				break
+			}
+		}
+	}
+	
+	// If we didn't find good terms from the end, try from the beginning
+	if len(keyTerms) == 0 {
+		for _, word := range words {
+			cleanWord := strings.Trim(word, ".,!?;:\"'()[]{}/-_")
+			if len(cleanWord) > 3 && !skipWords[cleanWord] && isAlpha(cleanWord) {
+				keyTerms = append(keyTerms, strings.Title(cleanWord))
+				if len(keyTerms) >= 1 { // Just get one good term
+					break
+				}
+			}
+		}
+	}
+	
+	return keyTerms
+}
+
+// containsAnyKeyword checks if text contains any of the keywords
+func containsAnyKeyword(text string, keywords []string) bool {
+	for _, keyword := range keywords {
+		if strings.Contains(text, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// getTaskEmoji returns appropriate emoji for task type (fallback for long names)
+func getTaskEmoji(taskType string) string {
+	switch taskType {
+	case "debugging":
+		return "🛡️"
+	case "development":
+		return "🔨"
+	case "testing":
+		return "⚗️"
+	case "deployment":
+		return "🚀"
+	case "optimization":
+		return "📜"
+	case "documentation":
+		return "📚"
+	case "design":
+		return "🎨"
+	case "monitoring":
+		return "👁️"
+	default:
+		return "📋"
+	}
+}
+
+// isAlpha checks if a string contains only alphabetic characters
+func isAlpha(s string) bool {
+	for _, r := range s {
+		if !unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
+}
+
+// min/max helpers for naming logic
+func min(a, b int) int {
+	if a < b { return a }
+	return b
+}
+
+func max(a, b int) int {
+	if a > b { return a }
+	return b
 }
 
 // Activity analysis for held items
