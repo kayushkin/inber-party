@@ -47,7 +47,7 @@ export default function AgentConversations() {
         fetch('/api/inber/conversations?limit=30')
       ]);
 
-      let allConversations: Conversation[] = [];
+      const allConversations: Conversation[] = [];
 
       // Process logstack conversations
       if (logstackRes.status === 'fulfilled' && logstackRes.value.ok) {

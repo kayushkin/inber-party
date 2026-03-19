@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import './TrainingGrounds.css';
 
@@ -38,12 +38,7 @@ export default function TrainingGrounds() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchBenchmarks();
-    fetchTestSuites();
-  }, []);
-
-  const fetchBenchmarks = async () => {
+  const fetchBenchmarks = useCallback(async () => {
     try {
       // For now, using mock data. In the future, this would fetch from actual benchmark endpoints
       const mockBenchmarks: Benchmark[] = [
@@ -128,9 +123,9 @@ export default function TrainingGrounds() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [agents]);
 
-  const fetchTestSuites = async () => {
+  const fetchTestSuites = useCallback(async () => {
     try {
       // Mock test data - in the future this would come from actual CI/test runners
       const mockTestSuites: TestSuite[] = [
@@ -204,7 +199,12 @@ export default function TrainingGrounds() {
     } catch (error) {
       console.error('Failed to fetch test suites:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchBenchmarks();
+    fetchTestSuites();
+  }, [fetchBenchmarks, fetchTestSuites]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

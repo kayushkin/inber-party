@@ -279,7 +279,7 @@ export class ApiClient {
     return this.request<T>(url.toString());
   }
 
-  async post<T>(endpoint: string, body?: any): Promise<{ data: T; requestId: string }> {
+  async post<T>(endpoint: string, body?: unknown): Promise<{ data: T; requestId: string }> {
     return this.request<T>(endpoint, {
       method: 'POST',
       headers: {
@@ -289,7 +289,7 @@ export class ApiClient {
     });
   }
 
-  async put<T>(endpoint: string, body?: any): Promise<{ data: T; requestId: string }> {
+  async put<T>(endpoint: string, body?: unknown): Promise<{ data: T; requestId: string }> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       headers: {
@@ -331,7 +331,7 @@ export class ApiClient {
           try {
             const data = JSON.parse(xhr.responseText);
             resolve({ data, requestId });
-          } catch (error) {
+          } catch {
             reject(new ApiError('Invalid JSON response', xhr.status));
           }
         } else {

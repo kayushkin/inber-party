@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useStore, formatTokens, formatCost, timeAgo, getDifficultyStars, calculateQuestDifficulty, getDifficultyName } from '../store';
+import { useStore, formatTokens, formatCost, timeAgo, getDifficultyStars, calculateQuestDifficulty, getDifficultyName, type RPGQuest } from '../store';
 import QuestCompletionAnimation from '../components/QuestCompletionAnimation';
 import QuestCreationForm from '../components/QuestCreationForm';
 import { SkeletonQuestCard } from '../components/SkeletonLoader';
 import './QuestBoard.css';
 
 // Quest type detection and formatting
-function parseQuestDetails(quest: any) {
+function parseQuestDetails(quest: RPGQuest) {
   const name = quest.name || '';
   const description = quest.description || '';
   
@@ -45,7 +45,7 @@ function parseQuestDetails(quest: any) {
     return {
       type: 'system',
       icon: '⚙️',
-      displayName: name.replace(/[📋⚗️]\s*/, '').trim(),
+      displayName: name.replace(/📋\s*/, '').replace(/⚗️\s*/, '').trim(),
       summary: description,
       fullDescription: description
     };

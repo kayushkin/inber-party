@@ -63,7 +63,7 @@ export class QuestService {
   }
 
   // Complete quest
-  static async completeQuest(questId: string, results?: any) {
+  static async completeQuest(questId: string, results?: unknown) {
     return apiClient.post<RPGQuest>(`/api/quests/${encodeURIComponent(questId)}/complete`, {
       results
     });
@@ -78,7 +78,7 @@ export class QuestService {
 
   // Get quest logs
   static async getQuestLogs(questId: string) {
-    return apiClient.get<any[]>(`/api/quests/${encodeURIComponent(questId)}/logs`);
+    return apiClient.get<unknown[]>(`/api/quests/${encodeURIComponent(questId)}/logs`);
   }
 }
 
@@ -128,7 +128,7 @@ export function useQuestOperations() {
     );
   };
 
-  const completeQuest = async (questId: string, results?: any) => {
+  const completeQuest = async (questId: string, results?: unknown) => {
     return apiHook.makeApiCall(
       () => QuestService.completeQuest(questId, results),
       `Failed to complete quest ${questId}`

@@ -1,11 +1,11 @@
-import { useStore, formatTokens, formatCost, classColor } from '../store';
+import { useStore, formatTokens, formatCost, classColor, type RPGAgent, type RPGStats } from '../store';
 import { Skeleton } from '../components/SkeletonLoader';
 import Tooltip from '../components/Tooltip';
 import { STAT_TOOLTIPS } from '../constants/tooltips';
 import './StatsView.css';
 
 // Export utility functions
-function exportAsJSON(agents: any[], stats: any) {
+function exportAsJSON(agents: RPGAgent[], stats: RPGStats) {
   const exportData = {
     exported_at: new Date().toISOString(),
     guild_stats: stats,
@@ -42,7 +42,7 @@ function exportAsJSON(agents: any[], stats: any) {
   URL.revokeObjectURL(url);
 }
 
-function exportAsCSV(agents: any[], stats: any) {
+function exportAsCSV(agents: RPGAgent[], stats: RPGStats) {
   // Guild stats header
   const guildData = [
     'Guild Statistics',
@@ -97,7 +97,7 @@ function exportAsCSV(agents: any[], stats: any) {
     agent.mood || '',
     agent.mood_score || '',
     agent.workload || '',
-    agent.skills?.slice(0, 3).map((s: any) => `${s.skill_name}(${s.level})`).join('; ') || ''
+    agent.skills?.slice(0, 3).map((s: { skill_name: string; level: number; task_count: number }) => `${s.skill_name}(${s.level})`).join('; ') || ''
   ]);
   
   const csvContent = [...guildData, headers.join(','), ...rows.map(row => row.join(','))].join('\n');

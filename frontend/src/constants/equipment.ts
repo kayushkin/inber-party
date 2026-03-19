@@ -346,8 +346,20 @@ export const RARITY_COLORS = {
   legendary: '#ff8000'
 };
 
+import type { RPGAgent } from '../store';
+
+interface RecentActivity {
+  editCount?: number;
+  spawnCount?: number;
+  searchCount?: number;
+  docWriting?: number;
+  infraWork?: number;
+  debugSessions?: number;
+  createCount?: number;
+}
+
 // Get equipment that an agent should have based on their capabilities
-export function getAgentEquipment(agent: any, availableTools: string[]): Equipment[] {
+export function getAgentEquipment(agent: RPGAgent, availableTools: string[]): Equipment[] {
   const equipped: Equipment[] = [];
   
   // Determine if this agent is an orchestrator
@@ -368,7 +380,7 @@ export function getAgentEquipment(agent: any, availableTools: string[]): Equipme
     
     // Check skill requirement
     if (item.skillRequirement) {
-      const hasSkill = agent.skills?.some((skill: any) => skill.skill_name === item.skillRequirement);
+      const hasSkill = agent.skills?.some((skill: { skill_name: string; level: number; task_count: number }) => skill.skill_name === item.skillRequirement);
       if (!hasSkill) {
         canEquip = false;
       }
@@ -401,7 +413,7 @@ export function getAgentEquipment(agent: any, availableTools: string[]): Equipme
 }
 
 // Helper function to determine if an agent is an orchestrator
-function determineIfOrchestrator(agent: any): boolean {
+function determineIfOrchestrator(agent: RPGAgent): boolean {
   // Key orchestrator agents based on common naming patterns
   const knownOrchestrators = ['main', 'claxon', 'inber', 'openclaw'];
   
@@ -501,7 +513,7 @@ export const HELD_ITEMS_CATALOG: HeldItem[] = [
 ];
 
 // Analyze recent activity to determine held items
-export function getHeldItems(recentActivity: any): HeldItem[] {
+export function getHeldItems(recentActivity: RecentActivity | null | undefined): HeldItem[] {
   if (!recentActivity) return [];
   
   const activityCounts: Record<string, number> = {
@@ -515,20 +527,20 @@ export function getHeldItems(recentActivity: any): HeldItem[] {
   };
   
   // Analyze tool usage patterns (this would come from recent session data)
-  if (recentActivity.editCount > 10) activityCounts.edit = recentActivity.editCount;
-  if (recentActivity.spawnCount > 2) activityCounts.spawn = recentActivity.spawnCount;
-  if (recentActivity.searchCount > 5) activityCounts.search = recentActivity.searchCount;
-  if (recentActivity.docWriting > 3) activityCounts.docs = recentActivity.docWriting;
-  if (recentActivity.infraWork > 2) activityCounts.infra = recentActivity.infraWork;
-  if (recentActivity.debugSessions > 3) activityCounts.debug = recentActivity.debugSessions;
-  if (recentActivity.createCount > 5) activityCounts.create = recentActivity.createCount;
+  if ((recentActivity.editCount ?? 0) > 10) activityCounts.edit = recentActivity.editCount ?? 0;
+  if ((recentActivity.spawnCount ?? 0) > 2) activityCounts.spawn = recentActivity.spawnCount ?? 0;
+  if ((recentActivity.searchCount ?? 0) > 5) activityCounts.search = recentActivity.searchCount ?? 0;
+  if ((recentActivity.docWriting ?? 0) > 3) activityCounts.docs = recentActivity.docWriting ?? 0;
+  if ((recentActivity.infraWork ?? 0) > 2) activityCounts.infra = recentActivity.infraWork ?? 0;
+  if ((recentActivity.debugSessions ?? 0) > 3) activityCounts.debug = recentActivity.debugSessions ?? 0;
+  if ((recentActivity.createCount ?? 0) > 5) activityCounts.create = recentActivity.createCount ?? 0;
   
   // Get top 2 most active categories
   const topActivities = Object.entries(activityCounts)
-    .filter(([_, count]) => count > 0)
-    .sort(([_, a], [__, b]) => b - a)
+    .filter(([, count]) => count > 0)
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 2)
-    .map(([activity, _]) => activity);
+    .map(([activity]) => activity);
   
   // Find matching held items
   const heldItems = HELD_ITEMS_CATALOG
@@ -540,7 +552,7 @@ export function getHeldItems(recentActivity: any): HeldItem[] {
 
 // Get available tools for an agent (this would normally come from API)
 // For now, we'll infer from agent class and skills
-export function inferAvailableTools(agent: any): string[] {
+export function inferAvailableTools(agent: RPGAgent): string[] {
   const tools = ['read', 'write', 'edit']; // Basic tools everyone has
   
   // Add tools based on agent level and class
@@ -570,7 +582,7 @@ export function inferAvailableTools(agent: any): string[] {
   }
   
   // Add based on skills
-  if (agent.skills?.some((s: any) => s.skill_name === 'Tool Mastery' && s.level >= 5)) {
+  if (agent.skills?.some((s: { skill_name: string; level: number; task_count: number }) => s.skill_name === 'Tool Mastery' && s.level >= 5)) {
     tools.push('canvas');
   }
   
