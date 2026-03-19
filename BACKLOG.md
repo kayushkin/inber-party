@@ -118,8 +118,8 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] **Basic E2E tests** — Playwright tests for core user flows
 - [x] **Dynamic version from build info** — Replace hardcoded "1.0.0" with version from git/build info
 - [x] **Auto-bounty API handlers** — Implement missing handleAutoBounties and handleAutoBountyFromText endpoints
-- [~] **Input validation** — Validate API inputs to prevent crashes
-- [ ] **Responsive design fixes** — Fix circle layout at small viewports
+- [x] **Input validation** — Validate API inputs to prevent crashes
+- [~] **Responsive design fixes** — Fix circle layout at small viewports
 
 ---
 

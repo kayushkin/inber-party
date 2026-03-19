@@ -258,4 +258,85 @@
     grid-template-columns: 1fr;
     gap: 8px;
   }
+  
+  .agent-card {
+    padding: 10px;
+  }
+  
+  .ac-top {
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .ac-name {
+    font-size: 0.95rem;
+  }
+  
+  .ac-class {
+    font-size: 0.8rem;
+  }
+  
+  .ac-bottom {
+    font-size: 0.75rem;
+    gap: 6px;
+  }
+}
+
+/* Specific optimizations for 375px viewport */
+@media (max-width: 375px) {
+  .agent-card {
+    padding: 8px;
+  }
+  
+  .agent-card.compact {
+    padding: 6px;
+  }
+  
+  .ac-top {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  
+  .ac-avatar {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .agent-card.compact .ac-avatar {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .ac-name {
+    font-size: 0.9rem;
+  }
+  
+  .ac-class {
+    font-size: 0.75rem;
+  }
+  
+  .ac-bottom {
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    font-size: 0.7rem;
+    margin-bottom: 6px;
+  }
+  
+  .ac-xp-bar {
+    height: 3px;
+    margin-bottom: 8px;
+  }
+  
+  .ac-chat-hint {
+    bottom: 6px;
+    left: 8px;
+    font-size: 0.7rem;
+  }
+  
+  .ac-detail-btn {
+    top: 6px;
+    right: 6px;
+    font-size: 0.9rem;
+    padding: 2px;
+  }
 }

@@ -66,9 +66,9 @@ export default function TavernView() {
       .sort((a, b) => new Date(b.completed_at!).getTime() - new Date(a.completed_at!).getTime())
       .slice(0, 5);
 
-    recentCompletedQuests.forEach(quest => {
+    recentCompletedQuests.forEach((quest, index) => {
       activities.push({
-        id: `quest-${quest.id}`,
+        id: `quest-completed-${quest.id}-${index}`,
         type: 'quest_completed',
         timestamp: quest.completed_at!,
         content: `${quest.assigned_agent_name || 'Unknown Adventurer'} completed quest "${quest.name}"`,
@@ -83,9 +83,9 @@ export default function TavernView() {
       .sort((a, b) => new Date(b.started_at!).getTime() - new Date(a.started_at!).getTime())
       .slice(0, 3);
 
-    recentStartedQuests.forEach(quest => {
+    recentStartedQuests.forEach((quest, index) => {
       activities.push({
-        id: `quest-start-${quest.id}`,
+        id: `quest-started-${quest.id}-${index}`,
         type: 'quest_started',
         timestamp: quest.started_at!,
         content: `${quest.assigned_agent_name || 'Unknown Adventurer'} began quest "${quest.name}"`,
@@ -100,12 +100,12 @@ export default function TavernView() {
       .sort((a, b) => new Date(b.last_active!).getTime() - new Date(a.last_active!).getTime())
       .slice(0, 8);
 
-    recentActiveAgents.forEach(agent => {
+    recentActiveAgents.forEach((agent, index) => {
       const timeDiff = Date.now() - new Date(agent.last_active!).getTime();
       // Only show activity from last 2 hours
       if (timeDiff < 2 * 60 * 60 * 1000) {
         activities.push({
-          id: `activity-${agent.id}`,
+          id: `agent-active-${agent.id}-${index}`,
           type: 'agent_active',
           timestamp: agent.last_active!,
           content: `${agent.name} was active`,

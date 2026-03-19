@@ -191,13 +191,39 @@
 
 @media (max-width: 375px) {
   .header { padding: 0.5rem 0.75rem; }
-  .header-content { gap: 0.25rem; flex-wrap: wrap; }
-  .camp-name { font-size: 1.1rem; }
-  .nav { flex-wrap: wrap; gap: 0.25rem; }
+  .header-content { 
+    gap: 0.5rem; 
+    flex-direction: column; 
+    align-items: stretch; 
+  }
+  .camp-name { 
+    font-size: 1.1rem; 
+    text-align: center; 
+    margin-bottom: 0.25rem; 
+  }
+  .nav { 
+    flex-wrap: wrap; 
+    gap: 0.25rem; 
+    justify-content: center; 
+    order: 1;
+  }
   .nav-link { 
-    font-size: 0.75rem; 
-    padding: 0.25rem 0.4rem;
+    font-size: 0.7rem; 
+    padding: 0.25rem 0.35rem;
     white-space: nowrap;
+    min-width: 44px; /* Ensure touch targets are at least 44px */
+    text-align: center;
+  }
+  .header-controls {
+    order: 0;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+  }
+  .minimap-toggle {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
   }
   .main { padding: 0.5rem; }
   
