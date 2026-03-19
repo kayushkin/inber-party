@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { SkeletonQuestCard } from '../components/SkeletonLoader';
+import CreateBountyForm from '../components/CreateBountyForm';
 import './BountyBoard.css';
 
 interface Bounty {
@@ -25,6 +26,7 @@ export default function BountyBoard() {
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  const [showCreateForm, setShowCreateForm] = useState(false);
   
   useEffect(() => {
     fetchBounties();
@@ -44,6 +46,32 @@ export default function BountyBoard() {
       console.error('Error fetching bounties:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCreateBounty = async (bountyData: any) => {
+    try {
+      const response = await fetch('/api/bounties', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...bountyData,
+          // Convert deadline to ISO format if provided
+          deadline: bountyData.deadline ? new Date(bountyData.deadline).toISOString() : null,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to create bounty: ${errorData}`);
+      }
+
+      const newBounty = await response.json();
+      setBounties(prev => [newBounty, ...prev]);
+    } catch (error) {
+      throw error; // Re-throw to let the form handle the error
     }
   };
 
@@ -102,6 +130,16 @@ export default function BountyBoard() {
           <h1>💰 Bounty Board</h1>
           <p className="bounty-board-subtitle">Task marketplace for adventurers</p>
         </div>
+        
+        <div className="bounty-board-actions">
+          <button 
+            className="create-bounty-btn"
+            onClick={() => setShowCreateForm(true)}
+          >
+            ➕ Create Bounty
+          </button>
+        </div>
+
         <div className="bounty-filters">
           {(['all', 'open', 'claimed', 'completed'] as const).map((status) => (
             <button
@@ -203,6 +241,12 @@ export default function BountyBoard() {
           </div>
         )}
       </div>
+
+      <CreateBountyForm
+        isOpen={showCreateForm}
+        onClose={() => setShowCreateForm(false)}
+        onSubmit={handleCreateBounty}
+      />
     </div>
   );
 }

@@ -7,6 +7,9 @@
 
 .bounty-board-header {
   margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .bounty-board-title h1 {
@@ -20,6 +23,39 @@
   font-size: 1.1rem;
   opacity: 0.8;
   margin-bottom: 1.5rem;
+}
+
+.bounty-board-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.create-bounty-btn {
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-hover) 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.3);
+}
+
+.create-bounty-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.4);
+  background: linear-gradient(135deg, var(--accent-hover) 0%, var(--accent-color) 100%);
+}
+
+.create-bounty-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.3);
 }
 
 .bounty-filters {
@@ -353,6 +389,19 @@
 @media (max-width: 768px) {
   .bounty-board {
     padding: 1rem;
+  }
+  
+  .bounty-board-header {
+    text-align: center;
+  }
+  
+  .bounty-board-actions {
+    justify-content: center;
+  }
+  
+  .create-bounty-btn {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.9rem;
   }
   
   .bounties-grid {

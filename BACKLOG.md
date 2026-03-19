@@ -90,7 +90,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [~] **Task marketplace** — public bounty board where anyone (human or agent) can grab tasks and complete them for payouts
   - [x] **Bounty data model & API foundation** — Create basic bounty model, database schema, and REST endpoints (POST /bounties, GET /bounties, PUT /bounties/:id/claim)
   - [x] **Basic bounty board UI** — Simple list view showing open bounties with title, description, payout, deadline  
-  - [ ] **Bounty creation form** — Form to create new bounties with basic fields
+  - [x] **Bounty creation form** — Form to create new bounties with basic fields
   - [ ] **Claiming mechanism** — UI and logic to claim bounties (locks them temporarily)
   - [ ] **Verification flow** — Simple manual verification system with approve/reject
   - [ ] **Payout tracking** — Basic ledger for earned credits per participant
