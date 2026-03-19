@@ -70,15 +70,7 @@ func main() {
 	mux.HandleFunc("/ws", hub.ServeWS)
 	mux.HandleFunc("/api/ws/chat", hub.ServeWS) // Chat-specific WebSocket endpoint
 
-	// Health check endpoint
-	startTime := time.Now()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status": "ok",
-			"uptime": time.Since(startTime).String(),
-		})
-	})
+	startTime := time.Now() // Track server startup time for health check
 
 	inberURL := getEnv("INBER_URL", "http://127.0.0.1:8200")
 
@@ -163,6 +155,81 @@ func main() {
 			log.Println("✓ Agent Registry Sync initialized - auto-discovering agents from inber")
 		}
 	}
+
+	// Health check endpoint
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		
+		// Check database connectivity
+		dbStatus := "disconnected"
+		dbError := ""
+		if database != nil {
+			if err := database.Ping(); err != nil {
+				dbStatus = "error"
+				dbError = err.Error()
+			} else {
+				dbStatus = "connected"
+			}
+		}
+		
+		// Check inber connectivity
+		inberStatus := "disconnected"
+		inberError := ""
+		if inberSource != nil {
+			if _, err := inberSource.GetAgents(); err != nil {
+				inberStatus = "error" 
+				inberError = err.Error()
+			} else {
+				inberStatus = "connected"
+			}
+		}
+		
+		// Check WebSocket hub
+		wsStatus := "running"
+		if hub == nil {
+			wsStatus = "error"
+		}
+		
+		// Overall health status
+		overallStatus := "healthy"
+		if dbStatus == "error" || inberStatus == "error" || wsStatus == "error" {
+			overallStatus = "degraded"
+		}
+		if dbStatus == "disconnected" && inberStatus == "disconnected" {
+			overallStatus = "unhealthy"
+		}
+		
+		response := map[string]interface{}{
+			"status": overallStatus,
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"uptime": time.Since(startTime).String(),
+			"services": map[string]interface{}{
+				"database": map[string]interface{}{
+					"status": dbStatus,
+					"error":  dbError,
+				},
+				"inber": map[string]interface{}{
+					"status": inberStatus,
+					"error":  inberError,
+				},
+				"websocket": map[string]interface{}{
+					"status": wsStatus,
+				},
+			},
+			"version": "1.0.0", // TODO: Read from build info
+		}
+		
+		// Set appropriate HTTP status code
+		statusCode := http.StatusOK
+		if overallStatus == "degraded" {
+			statusCode = http.StatusPartialContent // 206
+		} else if overallStatus == "unhealthy" {
+			statusCode = http.StatusServiceUnavailable // 503
+		}
+		
+		w.WriteHeader(statusCode)
+		json.NewEncoder(w).Encode(response)
+	})
 
 	// Proxy /api/run to inber for chat/task functionality
 	mux.HandleFunc("/api/run", func(w http.ResponseWriter, r *http.Request) {
