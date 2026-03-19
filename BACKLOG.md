@@ -112,7 +112,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 - [x] **Error boundaries** — Add React error boundaries to prevent white screen crashes
 - [x] **Auto-refresh inber data** — Poll inber endpoints every 30s or add file watcher for live updates
-- [ ] **Enhanced quest details** — Show tokens used, cost, turns, sub-quests in Quest Board UI
+- [x] **Enhanced quest details** — Show tokens used, cost, turns, sub-quests in Quest Board UI
 - [ ] **Health check endpoint** — Add `/health` endpoint for monitoring
 - [ ] **Graceful shutdown** — Handle SIGTERM/SIGINT properly
 - [ ] **Basic E2E tests** — Playwright tests for core user flows

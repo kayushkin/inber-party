@@ -86,7 +86,7 @@
 /* Quest meta grid */
 .quest-meta-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.5rem;
   margin: 1rem 0;
   padding: 0.75rem;
@@ -148,6 +148,81 @@
 
 .error-label {
   font-weight: bold;
+}
+
+/* Enhanced quest details sections */
+.quest-error-section {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.error-label {
+  color: #ef4444;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.error-text {
+  color: #f87171;
+  word-break: break-word;
+}
+
+.quest-timing-section {
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.timing-label {
+  color: #3b82f6;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.timing-value {
+  color: #60a5fa;
+}
+
+/* Warning indicators for high resource usage */
+.token-warning,
+.cost-warning,
+.turn-warning {
+  margin-left: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.token-warning {
+  color: #f59e0b;
+  title: "High token usage";
+}
+
+.cost-warning {
+  color: #10b981;
+  title: "High cost";
+}
+
+.turn-warning {
+  color: #8b5cf6;
+  title: "Many conversation turns";
+}
+
+/* Sub-quests styling */
+.qm .sub-quests {
+  color: #c084fc;
+  font-weight: bold;
+}
+
+/* Quest runtime in footer */
+.quest-runtime {
+  color: #8b5cf6;
+  font-size: 0.8rem;
 }
 
 .quest-card.expanded {
@@ -385,7 +460,7 @@
   }
 
   .quest-meta-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 
   .quest-card-name {
