@@ -120,6 +120,36 @@ type RPGConversation struct {
 	Type         string             `json:"type"` // "spawn_chain", "session_chat", "inter_agent"
 }
 
+// RPGJournal represents an auto-generated narrative of what an agent did today.
+type RPGJournal struct {
+	AgentID     string             `json:"agent_id"`
+	AgentName   string             `json:"agent_name"`
+	Date        string             `json:"date"`
+	Title       string             `json:"title"`
+	Narrative   string             `json:"narrative"`
+	Highlights  []JournalHighlight `json:"highlights"`
+	Stats       JournalStats       `json:"stats"`
+	GeneratedAt string             `json:"generated_at"`
+}
+
+type JournalHighlight struct {
+	Type        string `json:"type"` // "quest_completed", "level_up", "achievement", "collaboration"
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Time        string `json:"time,omitempty"`
+	Icon        string `json:"icon,omitempty"`
+}
+
+type JournalStats struct {
+	QuestsCompleted int     `json:"quests_completed"`
+	QuestsFailed    int     `json:"quests_failed"`
+	TokensUsed      int     `json:"tokens_used"`
+	CostIncurred    float64 `json:"cost_incurred"`
+	XPGained        int     `json:"xp_gained"`
+	Collaborations  int     `json:"collaborations"`
+	ToolsUsed       int     `json:"tools_used"`
+}
+
 // RPGMessage represents a single message in an agent conversation.
 type RPGMessage struct {
 	ID        string `json:"id"`
@@ -2042,4 +2072,298 @@ func estimateToolDuration(toolName string) float64 {
 	default:
 		return 1.5 // Default duration
 	}
+}
+
+// GetAgentJournal generates a narrative journal entry for an agent's activities on a specific date
+func (s *Store) GetAgentJournal(agentID string, date string) (*RPGJournal, error) {
+	if s.gatewayDB == nil {
+		return &RPGJournal{
+			AgentID:     agentID,
+			AgentName:   titleCase(agentID),
+			Date:        date,
+			Title:       "No Activity Recorded",
+			Narrative:   "The archives are silent about this agent's deeds on this day. Perhaps they were resting, or their adventures went unrecorded.",
+			Highlights:  []JournalHighlight{},
+			Stats:       JournalStats{},
+			GeneratedAt: time.Now().Format(time.RFC3339),
+		}, nil
+	}
+
+	// Get agent information
+	agents, err := s.GetAgents()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get agent info: %w", err)
+	}
+
+	var agent *RPGAgent
+	for _, a := range agents {
+		if a.ID == agentID {
+			agent = &a
+			break
+		}
+	}
+
+	if agent == nil {
+		return &RPGJournal{
+			AgentID:     agentID,
+			AgentName:   titleCase(agentID),
+			Date:        date,
+			Title:       "Unknown Adventurer",
+			Narrative:   "This mysterious agent remains unknown to the guild records. Their deeds, if any, are shrouded in mystery.",
+			Highlights:  []JournalHighlight{},
+			Stats:       JournalStats{},
+			GeneratedAt: time.Now().Format(time.RFC3339),
+		}, nil
+	}
+
+	// Parse the date and get date bounds
+	targetDate, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return nil, fmt.Errorf("invalid date format: %w", err)
+	}
+	startOfDay := targetDate.Format("2006-01-02 00:00:00")
+	endOfDay := targetDate.Format("2006-01-02 23:59:59")
+
+	// Query sessions and requests for this agent on this date
+	var highlights []JournalHighlight
+	var stats JournalStats
+	var activities []string
+	
+	rows, err := s.gatewayDB.Query(`
+		SELECT r.id, r.input_text, r.output_text, r.status, r.started_at, r.completed_at,
+			   r.input_tokens, r.output_tokens, r.cost, r.error_text,
+			   (SELECT COUNT(*) FROM requests c WHERE c.parent_request_id = r.id) as children
+		FROM requests r
+		JOIN sessions s ON s.key = r.session_key
+		WHERE s.agent = ? AND r.started_at BETWEEN ? AND ?
+		ORDER BY r.started_at ASC
+	`, agentID, startOfDay, endOfDay)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to query activities: %w", err)
+	}
+	defer rows.Close()
+
+	questCount := 0
+	for rows.Next() {
+		var (
+			id                                                     int
+			inputText, outputText, status, startedAt, errorText   sql.NullString
+			completedAt                                            sql.NullString
+			inputTokens, outputTokens                             int
+			cost                                                   float64
+			children                                               int
+		)
+
+		if err := rows.Scan(&id, &inputText, &outputText, &status, &startedAt,
+			&completedAt, &inputTokens, &outputTokens, &cost, &errorText, &children); err != nil {
+			continue
+		}
+
+		questCount++
+		totalTokens := inputTokens + outputTokens
+		stats.TokensUsed += totalTokens
+		stats.CostIncurred += cost
+
+		// Analyze the quest
+		if status.Valid {
+			switch status.String {
+			case "completed", "success":
+				stats.QuestsCompleted++
+				stats.XPGained += xpForTokens(totalTokens)
+				
+				// Generate quest completion highlight
+				questName := generateQuestName(inputText.String, status.String)
+				highlights = append(highlights, JournalHighlight{
+					Type:        "quest_completed",
+					Title:       "Quest Completed",
+					Description: fmt.Sprintf("Successfully completed: %s", questName),
+					Time:        startedAt.String,
+					Icon:        "⚔️",
+				})
+				
+				// Add activity description
+				activity := s.generateActivityDescription(inputText.String, outputText.String, totalTokens, children)
+				activities = append(activities, activity)
+
+			case "error", "timeout", "interrupted":
+				stats.QuestsFailed++
+				
+				if errorText.Valid && errorText.String != "" {
+					highlights = append(highlights, JournalHighlight{
+						Type:        "quest_failed",
+						Title:       "Quest Failed",
+						Description: fmt.Sprintf("Encountered difficulties: %s", truncateText(errorText.String, 100)),
+						Time:        startedAt.String,
+						Icon:        "💀",
+					})
+				}
+			}
+		}
+
+		// Check for collaborations (spawned sub-tasks)
+		if children > 0 {
+			stats.Collaborations += children
+			highlights = append(highlights, JournalHighlight{
+				Type:        "collaboration",
+				Title:       "Called for Reinforcements",
+				Description: fmt.Sprintf("Summoned %d ally adventurers to assist with the quest", children),
+				Time:        startedAt.String,
+				Icon:        "🤝",
+			})
+		}
+	}
+
+	// Generate narrative
+	narrative := s.generateNarrative(agent, activities, stats, targetDate)
+	
+	// Generate title
+	title := s.generateJournalTitle(agent, stats, questCount)
+
+	return &RPGJournal{
+		AgentID:     agentID,
+		AgentName:   agent.Name,
+		Date:        date,
+		Title:       title,
+		Narrative:   narrative,
+		Highlights:  highlights,
+		Stats:       stats,
+		GeneratedAt: time.Now().Format(time.RFC3339),
+	}, nil
+}
+
+// generateActivityDescription creates a narrative description of a quest activity
+func (s *Store) generateActivityDescription(inputText, outputText string, tokens, children int) string {
+	input := strings.ToLower(inputText)
+	
+	// Analyze input to determine activity type
+	if strings.Contains(input, "fix") || strings.Contains(input, "debug") || strings.Contains(input, "error") {
+		return fmt.Sprintf("Battled bugs and errors with %d token-spells of debugging magic", tokens)
+	}
+	if strings.Contains(input, "test") || strings.Contains(input, "spec") {
+		return fmt.Sprintf("Forged %d tokens worth of test scrolls to ensure quest quality", tokens)
+	}
+	if strings.Contains(input, "refactor") || strings.Contains(input, "clean") || strings.Contains(input, "organize") {
+		return fmt.Sprintf("Organized the code realm using %d tokens of architectural wisdom", tokens)
+	}
+	if strings.Contains(input, "document") || strings.Contains(input, "readme") || strings.Contains(input, "doc") {
+		return fmt.Sprintf("Inscribed %d tokens of knowledge into the sacred documentation scrolls", tokens)
+	}
+	if strings.Contains(input, "feature") || strings.Contains(input, "implement") || strings.Contains(input, "build") {
+		return fmt.Sprintf("Crafted new magical features using %d tokens of creative energy", tokens)
+	}
+	if strings.Contains(input, "research") || strings.Contains(input, "analyze") || strings.Contains(input, "investigate") {
+		return fmt.Sprintf("Conducted mystical research, weaving %d tokens of investigative power", tokens)
+	}
+	
+	// Default description based on effort
+	if tokens > 1000 {
+		return fmt.Sprintf("Undertook an epic quest requiring %d tokens of concentrated effort", tokens)
+	} else if tokens > 500 {
+		return fmt.Sprintf("Completed a challenging task using %d tokens of focused energy", tokens)
+	} else {
+		return fmt.Sprintf("Handled a routine task with %d tokens of efficient work", tokens)
+	}
+}
+
+// generateNarrative creates the main journal narrative
+func (s *Store) generateNarrative(agent *RPGAgent, activities []string, stats JournalStats, date time.Time) string {
+	if len(activities) == 0 {
+		return fmt.Sprintf("The %s %s spent this day in quiet contemplation, perhaps sharpening their skills or resting after previous adventures. Even the mightiest adventurers need time to recharge their mystical energies.", agent.Class, agent.Name)
+	}
+
+	var narrative strings.Builder
+	
+	// Opening
+	dayName := date.Weekday().String()
+	narrative.WriteString(fmt.Sprintf("On this %s, the %s %s awakened in the guild halls with purpose burning in their eyes. ", dayName, agent.Class, agent.Name))
+	
+	// Activity summary
+	if stats.QuestsCompleted > 0 {
+		if stats.QuestsCompleted == 1 {
+			narrative.WriteString("A single quest called to them, but it would prove to be worthy of their attention. ")
+		} else {
+			narrative.WriteString(fmt.Sprintf("%d quests demanded their expertise, and they rose to meet each challenge. ", stats.QuestsCompleted))
+		}
+	}
+
+	// Main activities
+	if len(activities) > 0 {
+		narrative.WriteString("Through the day, they ")
+		for i, activity := range activities {
+			if i == len(activities)-1 && i > 0 {
+				narrative.WriteString("and finally ")
+			} else if i > 0 {
+				narrative.WriteString(", then ")
+			}
+			narrative.WriteString(strings.ToLower(activity))
+		}
+		narrative.WriteString(". ")
+	}
+
+	// Stats summary
+	if stats.TokensUsed > 0 {
+		if stats.TokensUsed > 2000 {
+			narrative.WriteString("The day's adventures consumed vast amounts of magical energy, ")
+		} else if stats.TokensUsed > 1000 {
+			narrative.WriteString("Their mystical exertions were considerable, ")
+		} else {
+			narrative.WriteString("With measured use of their powers, ")
+		}
+		narrative.WriteString(fmt.Sprintf("totaling %d tokens of concentrated effort. ", stats.TokensUsed))
+	}
+
+	// Collaboration
+	if stats.Collaborations > 0 {
+		if stats.Collaborations == 1 {
+			narrative.WriteString("When the challenges grew complex, they wisely called upon a fellow adventurer to assist. ")
+		} else {
+			narrative.WriteString(fmt.Sprintf("Recognizing the scope of their quests, they summoned %d allies to form a mighty fellowship. ", stats.Collaborations))
+		}
+	}
+
+	// Failures and lessons
+	if stats.QuestsFailed > 0 {
+		if stats.QuestsFailed == 1 {
+			narrative.WriteString("Though one quest did not reach completion, even experienced adventurers know that failure is but another teacher. ")
+		} else {
+			narrative.WriteString(fmt.Sprintf("While %d quests encountered obstacles, a wise %s learns from every setback. ", stats.QuestsFailed, agent.Class))
+		}
+	}
+
+	// Closing
+	if stats.XPGained > 0 {
+		narrative.WriteString(fmt.Sprintf("As the sun set, they had grown stronger, gaining %d experience points from their trials. ", stats.XPGained))
+	}
+	
+	narrative.WriteString(fmt.Sprintf("The guild archives record this as another worthy chapter in the legend of %s.", agent.Name))
+
+	return narrative.String()
+}
+
+// generateJournalTitle creates an engaging title for the journal entry
+func (s *Store) generateJournalTitle(agent *RPGAgent, stats JournalStats, questCount int) string {
+	if questCount == 0 {
+		return fmt.Sprintf("A Day of Rest for %s", agent.Name)
+	}
+
+	if stats.QuestsCompleted >= 3 {
+		return fmt.Sprintf("The Great Endeavors of %s", agent.Name)
+	} else if stats.XPGained >= 500 {
+		return fmt.Sprintf("Epic Trials of %s the %s", agent.Name, agent.Class)
+	} else if stats.Collaborations > 0 {
+		return fmt.Sprintf("%s and the Fellowship", agent.Name)
+	} else if stats.QuestsFailed > 0 {
+		return fmt.Sprintf("Trials and Tribulations: %s's Journey", agent.Name)
+	} else {
+		return fmt.Sprintf("Adventures of %s the %s", agent.Name, agent.Class)
+	}
+}
+
+// truncateText truncates text to a maximum length with ellipsis
+func truncateText(text string, maxLen int) string {
+	if len(text) <= maxLen {
+		return text
+	}
+	return text[:maxLen-3] + "..."
 }

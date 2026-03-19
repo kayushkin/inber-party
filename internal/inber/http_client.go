@@ -412,3 +412,62 @@ func (c *HTTPClient) GetSessionReplay(sessionID string) (*SessionReplay, error) 
 	// HTTP API doesn't expose detailed session replay data yet
 	return nil, fmt.Errorf("session replay not available via HTTP API")
 }
+
+// GetAgentJournal returns a simplified journal for HTTP client (limited data available).
+func (c *HTTPClient) GetAgentJournal(agentID string, date string) (*RPGJournal, error) {
+	// Get basic agent info
+	agents, err := c.GetAgents()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get agent info: %w", err)
+	}
+
+	var agent *RPGAgent
+	for _, a := range agents {
+		if a.ID == agentID {
+			agent = &a
+			break
+		}
+	}
+
+	if agent == nil {
+		return &RPGJournal{
+			AgentID:     agentID,
+			AgentName:   titleCase(agentID),
+			Date:        date,
+			Title:       "Unknown Adventurer",
+			Narrative:   "This agent is known to the guild but their detailed adventures are recorded only in the deeper archives. Connect to the full database for complete journal entries.",
+			Highlights:  []JournalHighlight{},
+			Stats:       JournalStats{},
+			GeneratedAt: time.Now().Format(time.RFC3339),
+		}, nil
+	}
+
+	// Since HTTP API has limited data, create a basic journal based on agent stats
+	narrative := fmt.Sprintf("The %s %s continues their service to the guild. Their overall achievements include %d sessions completed and %d tokens of magical energy expended in service. For detailed daily chronicles, the guild scribes recommend accessing the complete archives.", 
+		agent.Class, agent.Name, agent.SessionCount, agent.TotalTokens)
+
+	highlights := []JournalHighlight{}
+	if agent.Status == "working" {
+		highlights = append(highlights, JournalHighlight{
+			Type:        "status_update",
+			Title:       "Currently Active",
+			Description: fmt.Sprintf("%s is currently on an active quest", agent.Name),
+			Icon:        "⚔️",
+		})
+	}
+
+	return &RPGJournal{
+		AgentID:     agentID,
+		AgentName:   agent.Name,
+		Date:        date,
+		Title:       fmt.Sprintf("Guild Records: %s", agent.Name),
+		Narrative:   narrative,
+		Highlights:  highlights,
+		Stats: JournalStats{
+			TokensUsed: agent.TotalTokens,
+			CostIncurred: agent.TotalCost,
+			// Note: Daily stats not available via HTTP API
+		},
+		GeneratedAt: time.Now().Format(time.RFC3339),
+	}, nil
+}

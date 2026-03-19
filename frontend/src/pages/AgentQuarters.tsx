@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStore, classColor, formatTokens } from '../store';
-import type { RPGAgent, RPGQuest, QuestHistoryEntry } from '../store';
+import type { RPGAgent, RPGQuest, QuestHistoryEntry, RPGJournal } from '../store';
 import Tooltip from '../components/Tooltip';
 import './AgentQuarters.css';
 
@@ -44,6 +44,7 @@ export default function AgentQuarters() {
   const [recentWork, setRecentWork] = useState<WorkSession[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [questHistory, setQuestHistory] = useState<QuestHistoryEntry[]>([]);
+  const [journal, setJournal] = useState<RPGJournal | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useStore((s) => s.fetchAll);
@@ -87,11 +88,18 @@ export default function AgentQuarters() {
         const historyResponse = await fetch(`${API_URL}/api/inber/quest-history?agent=${encodeURIComponent(id)}&limit=15`);
         const questHistory: QuestHistoryEntry[] = historyResponse.ok ? await historyResponse.json() : [];
         setQuestHistory(questHistory);
+
+        // Fetch today's journal
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        const journalResponse = await fetch(`${API_URL}/api/inber/agent-journal?agent=${encodeURIComponent(id)}&date=${today}`);
+        const journalData: RPGJournal = journalResponse.ok ? await journalResponse.json() : null;
+        setJournal(journalData);
       } catch (error) {
         console.error('Failed to fetch agent data:', error);
         setRecentWork([]);
         setConversations([]);
         setQuestHistory([]);
+        setJournal(null);
       } finally {
         setLoading(false);
       }
@@ -272,6 +280,79 @@ export default function AgentQuarters() {
             ) : (
               <div className="empty-area">
                 <p>📊 No activity data available</p>
+              </div>
+            )}
+          </div>
+
+          {/* Daily Journal */}
+          <div className="quarters-section daily-journal">
+            <h2>📖 Today's Journal</h2>
+            <p className="section-subtitle">Auto-generated chronicle of daily adventures</p>
+            {journal ? (
+              <div className="journal-content">
+                <div className="journal-header">
+                  <h3 className="journal-title">{journal.title}</h3>
+                  <div className="journal-date">
+                    {new Date(journal.date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </div>
+                </div>
+
+                <div className="journal-narrative">
+                  <p>{journal.narrative}</p>
+                </div>
+
+                {journal.highlights.length > 0 && (
+                  <div className="journal-highlights">
+                    <h4>🌟 Today's Highlights</h4>
+                    <div className="highlights-list">
+                      {journal.highlights.map((highlight, i) => (
+                        <div key={i} className="highlight-item">
+                          <span className="highlight-icon">{highlight.icon}</span>
+                          <div className="highlight-content">
+                            <div className="highlight-title">{highlight.title}</div>
+                            <div className="highlight-description">{highlight.description}</div>
+                            {highlight.time && (
+                              <div className="highlight-time">
+                                {new Date(highlight.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="journal-stats">
+                  <h4>📊 Daily Statistics</h4>
+                  <div className="journal-stats-grid">
+                    <div className="journal-stat">
+                      <span className="stat-value">{journal.stats.quests_completed}</span>
+                      <span className="stat-label">Quests Completed</span>
+                    </div>
+                    <div className="journal-stat">
+                      <span className="stat-value">{journal.stats.tokens_used.toLocaleString()}</span>
+                      <span className="stat-label">Tokens Used</span>
+                    </div>
+                    <div className="journal-stat">
+                      <span className="stat-value">{journal.stats.xp_gained}</span>
+                      <span className="stat-label">XP Gained</span>
+                    </div>
+                    <div className="journal-stat">
+                      <span className="stat-value">{journal.stats.collaborations}</span>
+                      <span className="stat-label">Collaborations</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="empty-area">
+                <p>📖 Journal entry is being prepared...</p>
               </div>
             )}
           </div>

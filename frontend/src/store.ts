@@ -163,6 +163,35 @@ export interface HealthCheckResponse {
   };
 }
 
+export interface JournalHighlight {
+  type: 'quest_completed' | 'quest_failed' | 'level_up' | 'achievement' | 'collaboration' | 'status_update';
+  title: string;
+  description: string;
+  time?: string;
+  icon?: string;
+}
+
+export interface JournalStats {
+  quests_completed: number;
+  quests_failed: number;
+  tokens_used: number;
+  cost_incurred: number;
+  xp_gained: number;
+  collaborations: number;
+  tools_used: number;
+}
+
+export interface RPGJournal {
+  agent_id: string;
+  agent_name: string;
+  date: string;
+  title: string;
+  narrative: string;
+  highlights: JournalHighlight[];
+  stats: JournalStats;
+  generated_at: string;
+}
+
 // ── Store ──────────────────────────────────────────────────
 
 interface StoreState {

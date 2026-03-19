@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 // DataSource abstracts both SQLite Store and HTTP client.
@@ -16,6 +17,7 @@ type DataSource interface {
 	GetQuestHistory(agentID string, limit int) ([]QuestHistoryEntry, error)
 	GetConversations(limit int) ([]RPGConversation, error)
 	GetSessionReplay(sessionID string) (*SessionReplay, error)
+	GetAgentJournal(agentID string, date string) (*RPGJournal, error)
 }
 
 // Ensure both implement DataSource
@@ -41,6 +43,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/inber/quest-history", h.handleQuestHistory)
 	mux.HandleFunc("/api/inber/conversations", h.handleConversations)
 	mux.HandleFunc("/api/inber/session-replay", h.handleSessionReplay)
+	mux.HandleFunc("/api/inber/agent-journal", h.handleAgentJournal)
 }
 
 func (h *Handler) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -203,4 +206,33 @@ func (h *Handler) handleSessionReplay(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(replay)
+}
+
+func (h *Handler) handleAgentJournal(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	agentID := r.URL.Query().Get("agent")
+	if agentID == "" {
+		http.Error(w, "agent parameter required", http.StatusBadRequest)
+		return
+	}
+
+	date := r.URL.Query().Get("date")
+	if date == "" {
+		// Default to today
+		date = time.Now().Format("2006-01-02")
+	}
+
+	journal, err := h.source.GetAgentJournal(agentID, date)
+	if err != nil {
+		log.Printf("Error getting agent journal: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(journal)
 }

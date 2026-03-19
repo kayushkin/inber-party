@@ -163,7 +163,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 ---
 
 ## 💡 Ideas (unprioritized)
-- Agent journal — auto-generated narrative of what each agent did today
+- [~] Agent journal — auto-generated narrative of what each agent did today
 - Time-lapse view — compressed animation of a day's agent activity
 - "Tavern talk" — generated banter between agents based on their recent work
 - Seasonal events — holiday themes, special quests
