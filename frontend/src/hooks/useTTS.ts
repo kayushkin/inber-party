@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface TTSConfig {
   enabled: boolean;
@@ -17,36 +17,33 @@ const DEFAULT_TTS_CONFIG: TTSConfig = {
 };
 
 export function useTTS() {
-  const [config, setConfig] = useState<TTSConfig>(DEFAULT_TTS_CONFIG);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [speaking, setSpeaking] = useState(false);
-  const [supported, setSupported] = useState(false);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-
-  const loadConfig = (): void => {
+  const [config, setConfig] = useState<TTSConfig>(() => {
     try {
       const saved = localStorage.getItem('ttsConfig');
       if (saved) {
         const parsedConfig = JSON.parse(saved);
-        setConfig({ ...DEFAULT_TTS_CONFIG, ...parsedConfig });
-        return;
+        return { ...DEFAULT_TTS_CONFIG, ...parsedConfig };
       }
     } catch {
       console.warn('Failed to load TTS config from localStorage');
     }
-    setConfig(DEFAULT_TTS_CONFIG);
-  };
+    return DEFAULT_TTS_CONFIG;
+  });
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [speaking, setSpeaking] = useState(false);
+  const [supported] = useState(() => 'speechSynthesis' in window);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const saveConfig = (newConfig: TTSConfig): void => {
+  const saveConfig = useCallback((newConfig: TTSConfig): void => {
     try {
       localStorage.setItem('ttsConfig', JSON.stringify(newConfig));
       setConfig(newConfig);
     } catch {
       console.warn('Failed to save TTS config to localStorage');
     }
-  };
+  }, []);
 
-  const loadVoices = (): void => {
+  const loadVoices = useCallback((): void => {
     const availableVoices = speechSynthesis.getVoices();
     setVoices(availableVoices);
     
@@ -66,7 +63,7 @@ export function useTTS() {
         saveConfig(newConfig);
       }
     }
-  };
+  }, [config, saveConfig]);
 
   const speak = (text: string, options?: Partial<TTSConfig>): void => {
     if (!supported || !config.enabled || !text.trim()) return;
@@ -152,13 +149,9 @@ export function useTTS() {
     saveConfig(newConfig);
   };
 
-  // Initialize TTS support and load config
+  // Initialize TTS support and load voices
   useEffect(() => {
-    const isSupported = 'speechSynthesis' in window;
-    setSupported(isSupported);
-    
-    if (isSupported) {
-      loadConfig();
+    if (supported) {
       loadVoices();
       
       // Listen for voice changes (async loading)
@@ -166,7 +159,7 @@ export function useTTS() {
         speechSynthesis.onvoiceschanged = loadVoices;
       }
     }
-  }, []);
+  }, [supported, loadVoices]);
 
   // Helper to clean text for better speech
   const cleanTextForSpeech = (text: string): string => {
@@ -179,7 +172,7 @@ export function useTTS() {
       .replace(/#{1,6}\s/g, '') // Headers
       .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // Links
       // Remove special characters that don't read well
-      .replace(/[📊🎉🔥⚡️🎯🏆💡🚀]/g, '')
+      .replace(/[📊🎉🔥⚡️🎯🏆💡🚀]/gu, '')
       // Clean up whitespace
       .replace(/\s+/g, ' ')
       .trim();

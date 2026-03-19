@@ -90,11 +90,13 @@ export default function CharacterSheet() {
   // Trigger animations when agent data is loaded
   useEffect(() => {
     if (agent) {
-      // Reset animation state when agent changes
-      setShowAnimations(false);
-      // Trigger animation after a short delay to ensure DOM is ready
-      const timer = setTimeout(() => setShowAnimations(true), 100);
-      return () => clearTimeout(timer);
+      // Reset and trigger animation after a short delay to ensure DOM is ready
+      const resetTimer = setTimeout(() => setShowAnimations(false), 0);
+      const animateTimer = setTimeout(() => setShowAnimations(true), 100);
+      return () => {
+        clearTimeout(resetTimer);
+        clearTimeout(animateTimer);
+      };
     }
   }, [agent]);
 

@@ -9,13 +9,23 @@ export default function ComparisonView() {
   const [searchParams, setSearchParams] = useSearchParams();
   const agents = useStore((s) => s.agents);
   const fetchAll = useStore((s) => s.fetchAll);
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
-
   // Parse agent IDs from URL params
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(() => {
+    return searchParams.getAll('agent');
+  });
+
+  // Update selected agents when URL params change
   useEffect(() => {
     const agentIds = searchParams.getAll('agent');
-    setSelectedAgentIds(agentIds);
-  }, [searchParams]);
+    // Use a ref to track if we need to update to avoid setState in effect
+    const shouldUpdate = selectedAgentIds.join(',') !== agentIds.join(',');
+    if (shouldUpdate) {
+      const timer = setTimeout(() => {
+        setSelectedAgentIds(agentIds);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, selectedAgentIds]);
 
   useEffect(() => {
     if (agents.length === 0) fetchAll();

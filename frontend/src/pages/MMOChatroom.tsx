@@ -13,7 +13,16 @@ interface ChatMessage {
 export default function MMOChatroom() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(() => {
+    const savedUsername = localStorage.getItem('mmo_username');
+    if (savedUsername) {
+      return savedUsername;
+    } else {
+      const newUsername = prompt('Choose your username for the chatroom:') || `Player${Math.floor(Math.random() * 1000)}`;
+      localStorage.setItem('mmo_username', newUsername);
+      return newUsername;
+    }
+  });
   const [isConnected, setIsConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -25,18 +34,6 @@ export default function MMOChatroom() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  // Get username from localStorage or prompt user
-  useEffect(() => {
-    const savedUsername = localStorage.getItem('mmo_username');
-    if (savedUsername) {
-      setUsername(savedUsername);
-    } else {
-      const newUsername = prompt('Choose your username for the chatroom:') || `Player${Math.floor(Math.random() * 1000)}`;
-      setUsername(newUsername);
-      localStorage.setItem('mmo_username', newUsername);
-    }
-  }, []);
 
   // Connect to WebSocket for real-time chat
   useEffect(() => {

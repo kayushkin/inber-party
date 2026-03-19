@@ -18,16 +18,17 @@ export default function Forge() {
   // Use real health data or fallback to mock data for development
   const infrastructureServices = healthData?.services || [];
 
-  // Use useMemo to create build logs with stable timestamps
+  // Create build logs with stable timestamps
   const buildLogs = useMemo(() => {
-    const now = Date.now();
+    // Use stable timestamps relative to a fixed point
+    const baseTimestamp = new Date('2024-03-19T14:00:00Z').getTime();
     return [
       {
         id: 1,
         service: 'inber-party-frontend',
         status: 'success',
         duration: '2m 14s',
-        timestamp: new Date(now - 1000 * 60 * 60 * 2),
+        timestamp: new Date(baseTimestamp - 1000 * 60 * 60 * 2),
         commit: '7f3a9b2',
         message: 'Add Forge room implementation'
       },
@@ -36,7 +37,7 @@ export default function Forge() {
         service: 'inber-party-backend',
         status: 'success',
         duration: '1m 45s',
-        timestamp: new Date(now - 1000 * 60 * 60 * 6),
+        timestamp: new Date(baseTimestamp - 1000 * 60 * 60 * 6),
         commit: '4e8c1d5',
         message: 'Update quest API endpoints'
       },
@@ -45,7 +46,7 @@ export default function Forge() {
         service: 'openclaw-gateway',
         status: 'warning',
         duration: '3m 22s',
-        timestamp: new Date(now - 1000 * 60 * 60 * 24 * 2),
+        timestamp: new Date(baseTimestamp - 1000 * 60 * 60 * 24 * 2),
         commit: 'a9f2c7e',
         message: 'Fix memory leak in WebSocket handler'
       }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './CreateBountyForm.css';
 
 interface Verifier {
@@ -50,14 +50,7 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
   const [verifierTypes, setVerifierTypes] = useState<Record<string, unknown>>({});
   const [showVerifierConfig, setShowVerifierConfig] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchAgents();
-      fetchVerifierTypes();
-    }
-  }, [isOpen]);
-
-  const fetchAgents = async () => {
+  const fetchAgents = useCallback(async () => {
     try {
       const response = await fetch('/api/agents');
       if (response.ok) {
@@ -71,9 +64,9 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
     } catch (error) {
       console.error('Error fetching agents:', error);
     }
-  };
+  }, [form.creator_id]);
 
-  const fetchVerifierTypes = async () => {
+  const fetchVerifierTypes = useCallback(async () => {
     try {
       const response = await fetch('/api/verifiers/types');
       if (response.ok) {
@@ -83,7 +76,14 @@ export default function CreateBountyForm({ isOpen, onClose, onSubmit }: CreateBo
     } catch (error) {
       console.error('Error fetching verifier types:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchAgents();
+      fetchVerifierTypes();
+    }
+  }, [isOpen, fetchAgents, fetchVerifierTypes]);
 
   const handleInputChange = (field: keyof CreateBountyFormData, value: string | number | string[] | Verifier[]) => {
     setForm(prev => ({ ...prev, [field]: value }));

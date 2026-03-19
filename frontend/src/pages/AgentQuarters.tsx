@@ -56,12 +56,13 @@ export default function AgentQuarters() {
   useEffect(() => {
     if (!id) return;
 
-    setLoading(true);
-    
-    // Fetch agent's recent work (quests)
-    fetch(`${API_URL}/api/inber/quests?agent=${encodeURIComponent(id)}&limit=10`)
-      .then((r) => r.ok ? r.json() : [])
-      .then((quests: RPGQuest[]) => {
+    const fetchData = async () => {
+      setLoading(true);
+      
+      try {
+        // Fetch agent's recent work (quests)
+        const questsResponse = await fetch(`${API_URL}/api/inber/quests?agent=${encodeURIComponent(id)}&limit=10`);
+        const quests: RPGQuest[] = questsResponse.ok ? await questsResponse.json() : [];
         const workSessions: WorkSession[] = quests.map(q => ({
           id: q.id,
           name: q.name,
@@ -72,28 +73,31 @@ export default function AgentQuarters() {
           description: `${q.turns} turns, ${formatTokens(q.tokens_used)} tokens`
         }));
         setRecentWork(workSessions);
-      })
-      .catch(() => setRecentWork([]));
 
-    // Fetch conversations involving this agent
-    fetch(`${API_URL}/api/inber/conversations?limit=50`)
-      .then((r) => r.ok ? r.json() : [])
-      .then((allConvos: Conversation[]) => {
+        // Fetch conversations involving this agent
+        const convosResponse = await fetch(`${API_URL}/api/inber/conversations?limit=50`);
+        const allConvos: Conversation[] = convosResponse.ok ? await convosResponse.json() : [];
         // Filter conversations that involve this agent
         const agentConvos = allConvos.filter(c => 
           c.participant_ids.includes(id) || c.messages.some((m: Message) => m.from_agent === id)
         );
         setConversations(agentConvos.slice(0, 8)); // Latest 8 conversations
-      })
-      .catch(() => setConversations([]));
 
-    // Fetch quest history for activity timeline
-    fetch(`${API_URL}/api/inber/quest-history?agent=${encodeURIComponent(id)}&limit=15`)
-      .then((r) => r.ok ? r.json() : [])
-      .then(setQuestHistory)
-      .catch(() => setQuestHistory([]));
+        // Fetch quest history for activity timeline
+        const historyResponse = await fetch(`${API_URL}/api/inber/quest-history?agent=${encodeURIComponent(id)}&limit=15`);
+        const questHistory: QuestHistoryEntry[] = historyResponse.ok ? await historyResponse.json() : [];
+        setQuestHistory(questHistory);
+      } catch (error) {
+        console.error('Failed to fetch agent data:', error);
+        setRecentWork([]);
+        setConversations([]);
+        setQuestHistory([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    setLoading(false);
+    fetchData();
   }, [id]);
 
   if (!agent) {
