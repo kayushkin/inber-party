@@ -13,6 +13,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/db"
 	"github.com/kayushkin/inber-party/internal/logstack"
 	"github.com/kayushkin/inber-party/internal/mood"
+	"github.com/kayushkin/inber-party/internal/notifications"
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/sync"
 	"github.com/kayushkin/inber-party/internal/verifiers"
@@ -30,6 +31,7 @@ type Server struct {
 	VerifierRegistry  *verifiers.VerifierRegistry
 	BountyRepo        *bounty.Repository
 	AutoBountyService *bounty.AutoBountyService
+	NotificationSvc   *notifications.Service
 }
 
 func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dailyquests.DailyQuestManager) *Server {
@@ -41,6 +43,9 @@ func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dai
 	bountyRepo := bounty.NewRepository(database.DB)
 	autoBountyService := bounty.NewAutoBountyService(bountyRepo)
 	
+	// Initialize notification service
+	notificationSvc := notifications.NewService(database.DB, hub)
+	
 	return &Server{
 		DB:                database, 
 		Hub:               hub, 
@@ -51,6 +56,7 @@ func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dai
 		VerifierRegistry:  verifierRegistry,
 		BountyRepo:        bountyRepo,
 		AutoBountyService: autoBountyService,
+		NotificationSvc:   notificationSvc,
 	}
 }
 
@@ -103,6 +109,11 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/ratings/agent/", s.handleAgentRatings)
 	mux.HandleFunc("/api/ratings/stats/", s.handleRatingStats)
 	mux.HandleFunc("/api/ratings/leaderboard", s.handleRatingLeaderboard)
+	// Notification endpoints
+	mux.HandleFunc("/api/notifications", s.handleNotifications)
+	mux.HandleFunc("/api/notifications/", s.handleNotificationDetail)
+	mux.HandleFunc("/api/notifications/unread-count", s.handleUnreadCount)
+	mux.HandleFunc("/api/notifications/mark-all-read", s.handleMarkAllRead)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -2050,6 +2061,17 @@ func (s *Server) createBounty(w http.ResponseWriter, r *http.Request) {
 	// Broadcast bounty creation
 	s.Hub.Broadcast(ws.Message{Type: "bounty_created", Data: bounty})
 
+	// Send skill-based notifications for new bounty
+	if s.NotificationSvc != nil {
+		s.NotificationSvc.NotifySkillMatch(
+			bounty.ID,
+			bounty.Title,
+			bounty.RequiredSkills,
+			bounty.PayoutAmount,
+			bounty.Tier,
+		)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(bounty)
@@ -2112,6 +2134,21 @@ func (s *Server) claimBounty(w http.ResponseWriter, r *http.Request, bountyID in
 		"claimer_id": req.ClaimerID,
 	}})
 
+	// Send notification to bounty creator
+	if s.NotificationSvc != nil {
+		// Get bounty details for notification
+		bountyDetail, err := s.DB.GetBountyDetail(bountyID)
+		if err == nil && bountyDetail != nil {
+			s.NotificationSvc.NotifyBountyClaimed(
+				bountyID,
+				bountyDetail.Creator.ID,
+				req.ClaimerID,
+				bountyDetail.Title,
+				bountyDetail.PayoutAmount,
+			)
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "claimed"})
 }
@@ -2151,6 +2188,21 @@ func (s *Server) submitWork(w http.ResponseWriter, r *http.Request, bountyID int
 		"bounty_id": bountyID,
 	}})
 
+	// Send notification to bounty creator
+	if s.NotificationSvc != nil {
+		// Get bounty details for notification
+		bountyDetail, err := s.DB.GetBountyDetail(bountyID)
+		if err == nil && bountyDetail != nil && bountyDetail.Claimer != nil {
+			s.NotificationSvc.NotifyBountyCompleted(
+				bountyID,
+				bountyDetail.Creator.ID,
+				bountyDetail.Claimer.ID,
+				bountyDetail.Title,
+				bountyDetail.PayoutAmount,
+			)
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "submitted"})
 }
@@ -2186,6 +2238,21 @@ func (s *Server) verifyBounty(w http.ResponseWriter, r *http.Request, bountyID i
 		"bounty_id": bountyID,
 		"approved":  req.Approved,
 	}})
+
+	// Send notification to claimer if work was rejected
+	if s.NotificationSvc != nil && !req.Approved {
+		// Get bounty details for notification
+		bountyDetail, err := s.DB.GetBountyDetail(bountyID)
+		if err == nil && bountyDetail != nil && bountyDetail.Claimer != nil {
+			s.NotificationSvc.NotifyBountyRejected(
+				bountyID,
+				bountyDetail.Claimer.ID,
+				bountyDetail.Creator.ID,
+				bountyDetail.Title,
+				req.Notes,
+			)
+		}
+	}
 
 	status := "rejected"
 	if req.Approved {
@@ -2408,6 +2475,21 @@ func (s *Server) createDispute(w http.ResponseWriter, r *http.Request) {
 	
 	// Broadcast the dispute creation
 	s.Hub.Broadcast(ws.Message{Type: "dispute_created", Data: dispute})
+
+	// Send notification to bounty creator about the dispute
+	if s.NotificationSvc != nil {
+		// Get bounty details for notification
+		bountyDetail, err := s.DB.GetBountyDetail(dispute.BountyID)
+		if err == nil && bountyDetail != nil {
+			s.NotificationSvc.NotifyBountyDisputed(
+				dispute.BountyID,
+				bountyDetail.Creator.ID,
+				dispute.ClaimerID,
+				bountyDetail.Title,
+				dispute.Reason,
+			)
+		}
+	}
 	
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -2474,6 +2556,17 @@ func (s *Server) resolveDispute(w http.ResponseWriter, r *http.Request, id int) 
 	if err == nil && disputeDetail != nil {
 		// Broadcast the dispute resolution
 		s.Hub.Broadcast(ws.Message{Type: "dispute_resolved", Data: disputeDetail})
+
+		// Send notification to claimer about the resolution
+		if s.NotificationSvc != nil {
+			s.NotificationSvc.NotifyDisputeResolved(
+				id,
+				disputeDetail.Claimer.ID,
+				disputeDetail.Bounty.Title,
+				req.InFavorOfClaimer,
+				req.Resolution,
+			)
+		}
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
@@ -3037,6 +3130,224 @@ func (s *Server) handleRatingLeaderboard(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(agents)
+}
+
+// Notification system handlers
+
+func (s *Server) handleNotifications(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.listNotifications(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleNotificationDetail(w http.ResponseWriter, r *http.Request) {
+	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/notifications/"), "/")
+	if len(pathParts) == 0 || pathParts[0] == "" {
+		http.Error(w, "Notification ID required", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(pathParts[0])
+	if err != nil {
+		http.Error(w, "Invalid notification ID", http.StatusBadRequest)
+		return
+	}
+
+	// Handle sub-routes like /api/notifications/123/read
+	if len(pathParts) > 1 && pathParts[1] == "read" {
+		if r.Method == http.MethodPost {
+			s.markNotificationAsRead(w, r, id)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+		return
+	}
+
+	http.Error(w, "Invalid endpoint", http.StatusBadRequest)
+}
+
+func (s *Server) listNotifications(w http.ResponseWriter, r *http.Request) {
+	if s.NotificationSvc == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+
+	// Parse query parameters
+	agentIDStr := r.URL.Query().Get("agent_id")
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+	unreadStr := r.URL.Query().Get("unread")
+
+	var agentID *int
+	if agentIDStr != "" {
+		if parsed, err := strconv.Atoi(agentIDStr); err == nil {
+			agentID = &parsed
+		}
+	}
+
+	limit := 50 // default
+	if limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+			if limit > 100 {
+				limit = 100 // cap at 100
+			}
+		}
+	}
+
+	offset := 0
+	if offsetStr != "" {
+		if parsed, err := strconv.Atoi(offsetStr); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	var unread *bool
+	if unreadStr != "" {
+		if unreadStr == "true" {
+			u := true
+			unread = &u
+		} else if unreadStr == "false" {
+			u := false
+			unread = &u
+		}
+	}
+
+	filter := notifications.NotificationFilter{
+		RecipientID: agentID,
+		Unread:      unread,
+		Limit:       limit,
+		Offset:      offset,
+	}
+
+	notificationList, err := s.NotificationSvc.GetNotifications(filter)
+	if err != nil {
+		log.Printf("Error getting notifications: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(notificationList)
+}
+
+func (s *Server) markNotificationAsRead(w http.ResponseWriter, r *http.Request, notificationID int) {
+	if s.NotificationSvc == nil {
+		http.Error(w, "Notification service not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		AgentID int `json:"agent_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.AgentID <= 0 {
+		http.Error(w, "Agent ID is required", http.StatusBadRequest)
+		return
+	}
+
+	err := s.NotificationSvc.MarkAsRead(notificationID, req.AgentID)
+	if err != nil {
+		log.Printf("Error marking notification as read: %v", err)
+		if err.Error() == "notification not found or not owned by agent" {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Broadcast the change via WebSocket
+	s.Hub.Broadcast(ws.Message{Type: "notification_read", Data: map[string]interface{}{
+		"notification_id": notificationID,
+		"agent_id":        req.AgentID,
+	}})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func (s *Server) handleUnreadCount(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.NotificationSvc == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]int{"count": 0})
+		return
+	}
+
+	agentIDStr := r.URL.Query().Get("agent_id")
+	if agentIDStr == "" {
+		http.Error(w, "Agent ID is required", http.StatusBadRequest)
+		return
+	}
+
+	agentID, err := strconv.Atoi(agentIDStr)
+	if err != nil {
+		http.Error(w, "Invalid agent ID", http.StatusBadRequest)
+		return
+	}
+
+	count, err := s.NotificationSvc.GetUnreadCount(agentID)
+	if err != nil {
+		log.Printf("Error getting unread count: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"count": count})
+}
+
+func (s *Server) handleMarkAllRead(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.NotificationSvc == nil {
+		http.Error(w, "Notification service not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		AgentID int `json:"agent_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.AgentID <= 0 {
+		http.Error(w, "Agent ID is required", http.StatusBadRequest)
+		return
+	}
+
+	err := s.NotificationSvc.MarkAllAsRead(req.AgentID)
+	if err != nil {
+		log.Printf("Error marking all notifications as read: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Broadcast the change via WebSocket
+	s.Hub.Broadcast(ws.Message{Type: "notifications_all_read", Data: map[string]interface{}{
+		"agent_id": req.AgentID,
+	}})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
 func stringPtr(s string) *string {

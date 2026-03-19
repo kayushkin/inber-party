@@ -104,7 +104,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] **Dispute resolution** — if poster rejects work, dispute flow with evidence submission
 - [x] **Auto-bounties** — orchestrator agents can programmatically post bounties (e.g. "build X feature for $1, must pass these tests")
 - [x] **Bounty board UI** — filterable/sortable board showing open/claimed/completed bounties with payout, deadline, claimer info
-- [ ] **Notifications** — alert when your bounty is claimed, completed, or disputed; alert workers when new bounties match their skills
+- [x] **Notifications** — alert when your bounty is claimed, completed, or disputed; alert workers when new bounties match their skills
 
 ---
 
