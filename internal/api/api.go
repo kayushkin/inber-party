@@ -17,6 +17,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/sync"
 	"github.com/kayushkin/inber-party/internal/verifiers"
+	"github.com/kayushkin/inber-party/internal/version"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
 
@@ -1531,8 +1532,8 @@ func (s *Server) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	port := 8080
 	backendHealth.Port = &port
-	version := "v1.0.0" // You could read this from a version file
-	backendHealth.Version = &version
+	versionStr := version.Short()
+	backendHealth.Version = &versionStr
 
 	// Check OpenClaw Gateway (attempt connection to typical port)
 	gatewayHealth := ServiceHealth{

@@ -26,8 +26,14 @@ build: build-frontend build-backend
 # Build backend binary
 build-backend:
 	@echo "🔨 Building backend..."
-	go build -o bin/milparty cmd/server/main.go
-	@echo "✅ Backend built: bin/milparty"
+	@$(eval VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD))
+	@$(eval COMMIT := $(shell git rev-parse --short HEAD))
+	@$(eval BUILD_TIME := $(shell date -u '+%Y-%m-%d_%H:%M:%S'))
+	go build -ldflags "-X github.com/kayushkin/inber-party/internal/version.Version=$(VERSION) \
+		-X github.com/kayushkin/inber-party/internal/version.GitCommit=$(COMMIT) \
+		-X github.com/kayushkin/inber-party/internal/version.BuildTime=$(BUILD_TIME)" \
+		-o bin/inber-party cmd/server/main.go
+	@echo "✅ Backend built: bin/inber-party (version: $(VERSION))"
 
 # Build frontend for production
 build-frontend:
@@ -38,7 +44,7 @@ build-frontend:
 # Run migrations (database must be running)
 migrate:
 	@echo "🔄 Migrations run automatically on server start"
-	@echo "To run server: make dev or ./bin/milparty"
+	@echo "To run server: make dev or ./bin/inber-party"
 
 # Clean build artifacts
 clean:
@@ -57,11 +63,11 @@ test:
 # Run production build
 run: build
 	@echo "🚀 Starting production server..."
-	./bin/milparty
+	./bin/inber-party
 
 # Help
 help:
-	@echo "Míl Party - Available commands:"
+	@echo "Inber Party - Available commands:"
 	@echo ""
 	@echo "  make install       - Install all dependencies"
 	@echo "  make dev          - Run backend in development mode"
@@ -75,5 +81,5 @@ help:
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  DATABASE_URL - PostgreSQL connection string"
-	@echo "                 (default: postgres://localhost:5432/milparty?sslmode=disable)"
+	@echo "                 (default: postgres://localhost:5432/inber_party?sslmode=disable)"
 	@echo "  PORT         - Server port (default: 8080)"

@@ -18,6 +18,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/inber"
 	"github.com/kayushkin/inber-party/internal/mood"
 	"github.com/kayushkin/inber-party/internal/questgiver"
+	"github.com/kayushkin/inber-party/internal/version"
 	"github.com/kayushkin/inber-party/internal/sync"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
@@ -220,7 +221,7 @@ func main() {
 					"status": wsStatus,
 				},
 			},
-			"version": "1.0.0", // TODO: Read from build info
+			"version": version.Short(),
 		}
 		
 		// Set appropriate HTTP status code
