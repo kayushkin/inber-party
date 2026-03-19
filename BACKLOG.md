@@ -87,7 +87,13 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 🏪 MMO Task Board (Bounty System)
 
-- [ ] **Task marketplace** — public bounty board where anyone (human or agent) can grab tasks and complete them for payouts
+- [~] **Task marketplace** — public bounty board where anyone (human or agent) can grab tasks and complete them for payouts
+  - [x] **Bounty data model & API foundation** — Create basic bounty model, database schema, and REST endpoints (POST /bounties, GET /bounties, PUT /bounties/:id/claim)
+  - [ ] **Basic bounty board UI** — Simple list view showing open bounties with title, description, payout, deadline  
+  - [ ] **Bounty creation form** — Form to create new bounties with basic fields
+  - [ ] **Claiming mechanism** — UI and logic to claim bounties (locks them temporarily)
+  - [ ] **Verification flow** — Simple manual verification system with approve/reject
+  - [ ] **Payout tracking** — Basic ledger for earned credits per participant
 - [ ] **Bounty creation** — orchestrators/users post tasks with: description, requirements/acceptance criteria, payout amount (e.g. $1.00), deadline (optional), required skills/tags
 - [ ] **Bounty claiming** — workers claim a task (locks it for a time window), submit work, orchestrator or automated checks verify completion
 - [ ] **Verification system** — arbitrary requirements per bounty: test suite must pass, PR review approved, benchmark met, manual approval, etc. Pluggable verifiers.

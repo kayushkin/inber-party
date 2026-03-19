@@ -130,6 +130,32 @@ func (db *DB) Migrate() error {
 		`CREATE INDEX IF NOT EXISTS cost_entries_agent_date_idx ON cost_entries(agent_id, date)`,
 		`CREATE INDEX IF NOT EXISTS cost_entries_date_idx ON cost_entries(date)`,
 		`CREATE INDEX IF NOT EXISTS cost_entries_session_idx ON cost_entries(session_id)`,
+		// Add bounty marketplace system
+		`CREATE TABLE IF NOT EXISTS bounties (
+			id SERIAL PRIMARY KEY,
+			title VARCHAR(255) NOT NULL,
+			description TEXT NOT NULL,
+			requirements TEXT NOT NULL DEFAULT '',
+			payout_amount INTEGER NOT NULL DEFAULT 0,
+			status VARCHAR(50) NOT NULL DEFAULT 'open',
+			deadline TIMESTAMP,
+			creator_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			claimer_id INTEGER REFERENCES agents(id) ON DELETE SET NULL,
+			work_submission TEXT,
+			verification_notes TEXT,
+			required_skills JSONB DEFAULT '[]',
+			tier VARCHAR(20) NOT NULL DEFAULT 'bronze',
+			claimed_at TIMESTAMP,
+			submitted_at TIMESTAMP,
+			completed_at TIMESTAMP,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS bounties_status_idx ON bounties(status)`,
+		`CREATE INDEX IF NOT EXISTS bounties_creator_id_idx ON bounties(creator_id)`,
+		`CREATE INDEX IF NOT EXISTS bounties_claimer_id_idx ON bounties(claimer_id)`,
+		`CREATE INDEX IF NOT EXISTS bounties_tier_idx ON bounties(tier)`,
+		`CREATE INDEX IF NOT EXISTS bounties_created_at_idx ON bounties(created_at DESC)`,
 	}
 
 	for i, migration := range migrations {
@@ -185,4 +211,26 @@ func (db *DB) Seed() error {
 // NewAgentSyncService creates a new agent sync service for this database
 func (db *DB) NewAgentSyncService() *AgentSyncService {
 	return NewAgentSyncService(db)
+}
+
+// GetAgentByID returns an agent by ID
+func (db *DB) GetAgentByID(id int) (*Agent, error) {
+	var agent Agent
+	err := db.QueryRow(`
+		SELECT id, name, title, class, level, xp, gold, energy, status, avatar_emoji, 
+		       mood, mood_score, workload, last_active, created_at, updated_at
+		FROM agents WHERE id = $1
+	`, id).Scan(&agent.ID, &agent.Name, &agent.Title, &agent.Class, &agent.Level, 
+		&agent.XP, &agent.Gold, &agent.Energy, &agent.Status, &agent.AvatarEmoji,
+		&agent.Mood, &agent.MoodScore, &agent.Workload, &agent.LastActive, 
+		&agent.CreatedAt, &agent.UpdatedAt)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get agent: %w", err)
+	}
+	
+	return &agent, nil
 }

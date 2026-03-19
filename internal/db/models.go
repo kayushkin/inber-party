@@ -122,6 +122,35 @@ type CostSummary struct {
 	DateRange     string  `json:"date_range"`   // e.g., "2026-03-18" or "2026-03-11 to 2026-03-18"
 }
 
+// Bounty represents a task posted to the marketplace that can be claimed and completed
+type Bounty struct {
+	ID                int        `json:"id"`
+	Title             string     `json:"title"`
+	Description       string     `json:"description"`
+	Requirements      string     `json:"requirements"`       // acceptance criteria
+	PayoutAmount      int        `json:"payout_amount"`      // gold reward
+	Status            string     `json:"status"`             // "open", "claimed", "completed", "rejected", "paid"
+	Deadline          *time.Time `json:"deadline,omitempty"` // optional deadline
+	CreatorID         int        `json:"creator_id"`         // agent/user who posted the bounty
+	ClaimerID         *int       `json:"claimer_id,omitempty"` // agent who claimed it
+	WorkSubmission    *string    `json:"work_submission,omitempty"` // submitted work/evidence
+	VerificationNotes *string    `json:"verification_notes,omitempty"` // reviewer feedback
+	RequiredSkills    []string   `json:"required_skills"`    // array of skill tags
+	Tier             string     `json:"tier"`               // bronze, silver, gold, legendary based on payout
+	ClaimedAt        *time.Time `json:"claimed_at,omitempty"`
+	SubmittedAt      *time.Time `json:"submitted_at,omitempty"`
+	CompletedAt      *time.Time `json:"completed_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+// BountyDetail includes related data for full bounty view
+type BountyDetail struct {
+	Bounty
+	Creator Agent  `json:"creator"`
+	Claimer *Agent `json:"claimer,omitempty"`
+}
+
 type Stats struct {
 	TotalAgents        int     `json:"total_agents"`
 	ActiveTasks        int     `json:"active_tasks"`

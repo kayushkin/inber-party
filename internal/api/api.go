@@ -67,6 +67,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/health", s.handleHealthCheck)
 	mux.HandleFunc("/api/costs", s.handleCosts)
 	mux.HandleFunc("/api/costs/summary", s.handleCostsSummary)
+	// Bounty marketplace endpoints
+	mux.HandleFunc("/api/bounties", s.handleBounties)
+	mux.HandleFunc("/api/bounties/", s.handleBountyDetail)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -1863,4 +1866,375 @@ func (s *Server) handleCostsSummary(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(summaries)
+}
+
+// Bounty marketplace handlers
+
+func (s *Server) handleBounties(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.listBounties(w, r)
+	case http.MethodPost:
+		s.createBounty(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleBountyDetail(w http.ResponseWriter, r *http.Request) {
+	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/bounties/"), "/")
+	if len(pathParts) == 0 || pathParts[0] == "" {
+		http.Error(w, "Bounty ID required", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(pathParts[0])
+	if err != nil {
+		http.Error(w, "Invalid bounty ID", http.StatusBadRequest)
+		return
+	}
+
+	// Handle sub-routes
+	if len(pathParts) > 1 {
+		action := pathParts[1]
+		switch action {
+		case "claim":
+			if r.Method == http.MethodPost {
+				s.claimBounty(w, r, id)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+			return
+		case "submit":
+			if r.Method == http.MethodPost {
+				s.submitWork(w, r, id)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+			return
+		case "verify":
+			if r.Method == http.MethodPost {
+				s.verifyBounty(w, r, id)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+			return
+		}
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		s.getBountyDetail(w, r, id)
+	case http.MethodPatch:
+		s.updateBounty(w, r, id)
+	case http.MethodDelete:
+		s.deleteBounty(w, r, id)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) listBounties(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+
+	// Parse query parameters
+	status := r.URL.Query().Get("status")
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit := 50 // default
+	if limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	offset := 0
+	if offsetStr != "" {
+		if parsed, err := strconv.Atoi(offsetStr); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	bounties, err := s.DB.GetBounties(status, limit, offset)
+	if err != nil {
+		log.Printf("Error listing bounties: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(bounties)
+}
+
+func (s *Server) createBounty(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var bounty db.Bounty
+	if err := json.NewDecoder(r.Body).Decode(&bounty); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if bounty.Title == "" {
+		http.Error(w, "Title is required", http.StatusBadRequest)
+		return
+	}
+	if bounty.Description == "" {
+		http.Error(w, "Description is required", http.StatusBadRequest)
+		return
+	}
+	if bounty.CreatorID == 0 {
+		http.Error(w, "Creator ID is required", http.StatusBadRequest)
+		return
+	}
+	if bounty.PayoutAmount <= 0 {
+		http.Error(w, "Payout amount must be positive", http.StatusBadRequest)
+		return
+	}
+
+	err := s.DB.CreateBounty(&bounty)
+	if err != nil {
+		log.Printf("Error creating bounty: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Broadcast bounty creation
+	s.Hub.Broadcast(ws.Message{Type: "bounty_created", Data: bounty})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(bounty)
+}
+
+func (s *Server) getBountyDetail(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	detail, err := s.DB.GetBountyDetail(id)
+	if err != nil {
+		log.Printf("Error getting bounty detail: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	if detail == nil {
+		http.Error(w, "Bounty not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(detail)
+}
+
+func (s *Server) claimBounty(w http.ResponseWriter, r *http.Request, bountyID int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		ClaimerID int `json:"claimer_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.ClaimerID <= 0 {
+		http.Error(w, "Claimer ID is required", http.StatusBadRequest)
+		return
+	}
+
+	err := s.DB.ClaimBounty(bountyID, req.ClaimerID)
+	if err != nil {
+		log.Printf("Error claiming bounty: %v", err)
+		if err.Error() == "bounty not found or already claimed" {
+			http.Error(w, err.Error(), http.StatusConflict)
+		} else {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Broadcast bounty claimed
+	s.Hub.Broadcast(ws.Message{Type: "bounty_claimed", Data: map[string]interface{}{
+		"bounty_id":  bountyID,
+		"claimer_id": req.ClaimerID,
+	}})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "claimed"})
+}
+
+func (s *Server) submitWork(w http.ResponseWriter, r *http.Request, bountyID int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		WorkSubmission string `json:"work_submission"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.WorkSubmission == "" {
+		http.Error(w, "Work submission is required", http.StatusBadRequest)
+		return
+	}
+
+	err := s.DB.SubmitWork(bountyID, req.WorkSubmission)
+	if err != nil {
+		log.Printf("Error submitting work: %v", err)
+		if err.Error() == "bounty not found or not in claimed status" {
+			http.Error(w, err.Error(), http.StatusConflict)
+		} else {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Broadcast work submitted
+	s.Hub.Broadcast(ws.Message{Type: "bounty_work_submitted", Data: map[string]interface{}{
+		"bounty_id": bountyID,
+	}})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "submitted"})
+}
+
+func (s *Server) verifyBounty(w http.ResponseWriter, r *http.Request, bountyID int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		Approved bool   `json:"approved"`
+		Notes    string `json:"notes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err := s.DB.VerifyBounty(bountyID, req.Approved, req.Notes)
+	if err != nil {
+		log.Printf("Error verifying bounty: %v", err)
+		if err.Error() == "bounty not found or not in submitted status" {
+			http.Error(w, err.Error(), http.StatusConflict)
+		} else {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Broadcast bounty verified
+	s.Hub.Broadcast(ws.Message{Type: "bounty_verified", Data: map[string]interface{}{
+		"bounty_id": bountyID,
+		"approved":  req.Approved,
+	}})
+
+	status := "rejected"
+	if req.Approved {
+		status = "completed"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": status})
+}
+
+func (s *Server) updateBounty(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var updates map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// For now, implement basic updates (title, description, requirements)
+	// More complex status changes should use specific endpoints (claim, submit, verify)
+	allowedUpdates := []string{"title", "description", "requirements", "deadline", "payout_amount"}
+	query := "UPDATE bounties SET updated_at = CURRENT_TIMESTAMP"
+	args := []interface{}{}
+	argCount := 1
+
+	for field, value := range updates {
+		found := false
+		for _, allowed := range allowedUpdates {
+			if field == allowed {
+				found = true
+				break
+			}
+		}
+		if !found {
+			continue
+		}
+
+		query += ", " + field + " = $" + strconv.Itoa(argCount)
+		args = append(args, value)
+		argCount++
+	}
+
+	query += " WHERE id = $" + strconv.Itoa(argCount) + " AND status = 'open'"
+	args = append(args, id)
+
+	result, err := s.DB.Exec(query, args...)
+	if err != nil {
+		log.Printf("Error updating bounty: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "Bounty not found or cannot be updated", http.StatusNotFound)
+		return
+	}
+
+	s.Hub.Broadcast(ws.Message{Type: "bounty_updated", Data: map[string]interface{}{"id": id, "updates": updates}})
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) deleteBounty(w http.ResponseWriter, r *http.Request, id int) {
+	if s.DB == nil {
+		http.Error(w, "PostgreSQL not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Only allow deletion of open bounties
+	result, err := s.DB.Exec("DELETE FROM bounties WHERE id = $1 AND status = 'open'", id)
+	if err != nil {
+		log.Printf("Error deleting bounty: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "Bounty not found or cannot be deleted", http.StatusNotFound)
+		return
+	}
+
+	s.Hub.Broadcast(ws.Message{Type: "bounty_deleted", Data: map[string]interface{}{"id": id}})
+
+	w.WriteHeader(http.StatusNoContent)
 }
