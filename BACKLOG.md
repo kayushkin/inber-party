@@ -162,6 +162,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 CRITICAL: Build Failures
+
+- [x] **Fix TypeScript Build Errors** — ✅ COMPLETED: Fixed 12 TypeScript errors across AgentConversations.tsx, BountyBoard.tsx, Library.tsx, and errorBoundaryUtils.ts. Issues included property type mismatches (start_time/started_at), import/export problems (Props type export), snake_case vs camelCase inconsistencies, and type array mismatches (string[] vs string). Project now builds successfully for both Go backend and React frontend.
+
+---
+
 ## 🚨 New Critical Issues
 
 - [x] **Fix Frontend Linting Errors** — Clean up 18 linting issues including TypeScript `any` types, React hooks dependencies, setState in effects, character class regex issues, and Fast Refresh violations. Improve code quality and maintainability. ✅ COMPLETED: Reduced from 18 linting issues to 0. Fixed Fast Refresh violations by separating context exports, removed unused variables, fixed dependency arrays, and resolved function hoisting issues.

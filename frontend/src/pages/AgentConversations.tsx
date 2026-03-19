@@ -77,8 +77,8 @@ export default function AgentConversations() {
           ...conv,
           source: 'logstack' as const,
           participants: conv.agent_name ? [conv.agent_name] : [],
-          started_at: conv.start_time,
-          last_active: conv.end_time,
+          started_at: conv.started_at,
+          last_active: conv.last_active,
           type: 'session_chat'
         }));
         allConversations.push(...logstackConvs);

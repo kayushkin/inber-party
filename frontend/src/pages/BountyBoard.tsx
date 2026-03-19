@@ -45,7 +45,7 @@ interface CreateBountyData {
   requirements: string;
   payout_amount: number;
   deadline?: string;
-  required_skills?: string;
+  required_skills?: string[];
 }
 
 export default function BountyBoard() {

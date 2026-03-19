@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { ApiError, OfflineError } from '../services/apiClient';
 import './ErrorBoundary.css';
 
-interface Props {
+export interface Props {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;

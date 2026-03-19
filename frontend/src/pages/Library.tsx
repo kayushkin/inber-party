@@ -45,11 +45,18 @@ interface RawSessionResponse {
   agent_name?: string;
   status: string;
   lastActive: string;
+  last_active?: string;
+  updated_at?: string;
   messageCount: number;
+  message_count?: number;
   totalTokens: number;
+  total_tokens?: number;
   totalCost: number;
+  total_cost?: number;
   created: string;
+  created_at?: string;
   summary?: string;
+  title?: string;
 }
 
 export default function Library() {
