@@ -172,6 +172,8 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 - [x] **Fix Frontend Linting Errors** — Clean up 18 linting issues including TypeScript `any` types, React hooks dependencies, setState in effects, character class regex issues, and Fast Refresh violations. Improve code quality and maintainability. ✅ COMPLETED: Reduced from 18 linting issues to 0. Fixed Fast Refresh violations by separating context exports, removed unused variables, fixed dependency arrays, and resolved function hoisting issues.
 
+- [x] **Fix E2E Test Infrastructure** — ✅ COMPLETED: Fixed E2E tests that were failing due to missing backend server and test issues. Updated Playwright config to start both frontend and backend servers, fixed page title in index.html, improved console error filtering, fixed navigation test locator issues, and resolved HTML structure test bugs. All stable core flow tests now pass (7/7).
+
 ---
 
 ## 🚀 Performance Optimizations

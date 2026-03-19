@@ -42,9 +42,22 @@ export default defineConfig({
     // },
   ],
 
-  webServer: {
-    command: 'npm run dev',
-    port: 5173,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: 'cd .. && go run cmd/server/main.go',
+      port: 8080,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30 * 1000,
+      env: {
+        'PORT': '8080',
+        'NODE_ENV': 'test',
+      },
+    },
+    {
+      command: 'npm run dev',
+      port: 5173,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30 * 1000,
+    },
+  ],
 });
