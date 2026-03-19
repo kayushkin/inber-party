@@ -189,7 +189,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 🚨 CRITICAL: Persistent React Key Errors
 
-- [~] **Fix Persistent React Key Duplication** — E2E tests show multiple "Encountered two children with the same key" errors still occurring despite previous fix. Need to audit all list rendering components for timestamp-based keys and implement more robust unique key generation.
+- [x] **Fix Persistent React Key Duplication** — E2E tests show multiple "Encountered two children with the same key" errors still occurring despite previous fix. Need to audit all list rendering components for timestamp-based keys and implement more robust unique key generation. ✅ COMPLETED: Fixed timestamp-based ID generation in GuildMasterChat/MMOChatroom components and achievement toast key duplication. Implemented counter-primary unique IDs and agent-specific achievement toast keys.
 
 ---
 
