@@ -1,5 +1,13 @@
 import { create } from 'zustand';
 import { loadChatHistory, saveChatHistoryForAgent, saveChatHistory } from './utils/chatHistory';
+import { 
+  getActiveSeasonalEvent, 
+  applySeasonalTheme, 
+  removeSeasonalTheme,
+  getSeasonalXpMultiplier,
+  getSeasonalDecorations,
+  type SeasonalEvent 
+} from './utils/seasonalEvents';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -238,6 +246,14 @@ interface StoreState {
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
 
+  // Seasonal events state
+  seasonalEvent: SeasonalEvent | null;
+  seasonalDecorations: string[];
+  seasonalXpMultiplier: number;
+  seasonalEnabled: boolean;
+  updateSeasonalEvent: () => void;
+  toggleSeasonalEvents: () => void;
+
   // Level-up detection
   previousAgentLevels: Record<string, number>;
   levelUpTriggers: Record<string, number>; // timestamp of level up for animation trigger
@@ -333,6 +349,53 @@ export const useStore = create<StoreState>((set, get) => ({
     const currentTheme = get().theme;
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     get().setTheme(newTheme);
+  },
+
+  // Initialize seasonal events
+  seasonalEvent: null,
+  seasonalDecorations: [],
+  seasonalXpMultiplier: 1,
+  seasonalEnabled: localStorage.getItem('seasonalEnabled') !== 'false', // Default to enabled
+
+  updateSeasonalEvent: () => {
+    const { seasonalEnabled } = get();
+    if (!seasonalEnabled) {
+      set({
+        seasonalEvent: null,
+        seasonalDecorations: [],
+        seasonalXpMultiplier: 1
+      });
+      removeSeasonalTheme();
+      return;
+    }
+
+    const activeEvent = getActiveSeasonalEvent();
+    const decorations = getSeasonalDecorations();
+    const xpMultiplier = getSeasonalXpMultiplier();
+    
+    set({ 
+      seasonalEvent: activeEvent,
+      seasonalDecorations: decorations,
+      seasonalXpMultiplier: xpMultiplier
+    });
+    
+    // Apply theme changes
+    if (activeEvent) {
+      applySeasonalTheme(activeEvent);
+    } else {
+      removeSeasonalTheme();
+    }
+  },
+
+  toggleSeasonalEvents: () => {
+    const { seasonalEnabled } = get();
+    const newEnabled = !seasonalEnabled;
+    
+    localStorage.setItem('seasonalEnabled', newEnabled.toString());
+    set({ seasonalEnabled: newEnabled });
+    
+    // Update seasonal event state immediately
+    get().updateSeasonalEvent();
   },
 
   triggerLevelUp: (agentId) => set((state) => ({

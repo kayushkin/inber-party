@@ -8,6 +8,7 @@ import SoundEffects from './SoundEffects';
 import AnimatedBackground from './AnimatedBackground';
 import PageTransition from './PageTransition';
 import Minimap from './Minimap';
+import SeasonalEventBanner from './SeasonalEventBanner';
 import './Layout.css';
 
 export default function Layout() {
@@ -115,6 +116,7 @@ export default function Layout() {
       )}
       
       <SoundEffects />
+      <SeasonalEventBanner />
     </div>
   );
 }

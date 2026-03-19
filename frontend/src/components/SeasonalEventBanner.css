@@ -1,0 +1,245 @@
+/* SeasonalEventBanner.css */
+
+.seasonal-event-banner {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  min-width: 300px;
+  max-width: 400px;
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid var(--seasonal-primary, var(--gold));
+  border-radius: 8px;
+  padding: 12px;
+  backdrop-filter: blur(8px);
+  z-index: 999;
+  font-family: 'Courier New', Courier, monospace;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 20px var(--seasonal-primary, var(--gold))30;
+  transition: all 0.3s ease;
+}
+
+.seasonal-event-banner.disabled {
+  opacity: 0.6;
+  border-color: var(--text-muted);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.seasonal-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.seasonal-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.seasonal-icon {
+  font-size: 2rem;
+  filter: drop-shadow(0 0 6px var(--seasonal-primary, var(--gold)));
+  animation: gentle-glow 3s ease-in-out infinite;
+}
+
+@keyframes gentle-glow {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+.seasonal-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.seasonal-name {
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: var(--seasonal-primary, var(--gold));
+  text-shadow: 0 0 4px var(--seasonal-primary, var(--gold))50;
+}
+
+.seasonal-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.seasonal-bonus {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-left: 1px solid var(--seasonal-secondary, var(--border-color));
+  padding-left: 8px;
+  margin-left: 8px;
+}
+
+.bonus-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.bonus-value {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: var(--seasonal-accent, var(--gold));
+  text-shadow: 0 0 4px var(--seasonal-accent, var(--gold));
+}
+
+.seasonal-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: var(--text-primary);
+}
+
+.seasonal-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--seasonal-primary, var(--gold));
+  transform: scale(1.05);
+}
+
+.seasonal-toggle.enabled {
+  border-color: var(--seasonal-primary, var(--gold));
+  box-shadow: 0 0 8px var(--seasonal-primary, var(--gold))30;
+}
+
+.seasonal-toggle.disabled {
+  opacity: 0.6;
+  border-color: var(--text-muted);
+}
+
+.seasonal-progress {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--seasonal-secondary, var(--border-color));
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    var(--seasonal-primary, var(--gold)), 
+    var(--seasonal-accent, var(--gold-dark))
+  );
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px var(--seasonal-primary, var(--gold))50;
+}
+
+.progress-text {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Seasonal theme variants */
+.seasonal-event-banner.seasonal-halloween {
+  border-color: #ff4500;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 20px #ff450030,
+    0 0 40px #9932cc20;
+}
+
+.seasonal-event-banner.seasonal-christmas {
+  border-color: #dc143c;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 20px #dc143c30,
+    0 0 40px #228b2220;
+}
+
+.seasonal-event-banner.seasonal-new-years {
+  border-color: #ffd700;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 20px #ffd70030,
+    0 0 40px #00ffff20;
+}
+
+.seasonal-event-banner.seasonal-valentines {
+  border-color: #ff69b4;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 20px #ff69b430,
+    0 0 40px #ff149320;
+}
+
+.seasonal-event-banner.seasonal-st-patricks {
+  border-color: #00ff00;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 20px #00ff0030,
+    0 0 40px #ffd70020;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .seasonal-event-banner {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    min-width: auto;
+    max-width: none;
+  }
+  
+  .seasonal-content {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .seasonal-bonus {
+    border-left: none;
+    border-top: 1px solid var(--seasonal-secondary, var(--border-color));
+    padding-left: 0;
+    padding-top: 8px;
+    margin-left: 0;
+    margin-top: 8px;
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  
+  .seasonal-toggle {
+    margin-left: auto;
+  }
+}
+
+/* Accessibility - reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-icon {
+    animation: none;
+  }
+  
+  .seasonal-toggle {
+    transition: none;
+  }
+  
+  .progress-fill {
+    transition: none;
+  }
+}

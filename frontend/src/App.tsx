@@ -8,6 +8,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import { AchievementToastContainer } from './components/AchievementToast';
 import { NotificationProvider } from './contexts/NotificationContextProvider';
 import NotificationContainer from './components/NotificationContainer';
+import SeasonalDecorations from './components/SeasonalDecorations';
 import './App.css';
 
 // Lazy load page components for code splitting
@@ -40,15 +41,24 @@ function App() {
   const theme = useStore((s) => s.theme);
   const achievementToasts = useStore((s) => s.achievementToasts);
   const removeAchievementToast = useStore((s) => s.removeAchievementToast);
+  const updateSeasonalEvent = useStore((s) => s.updateSeasonalEvent);
 
   useEffect(() => {
     connectWebSocket();
     startPolling(10000);
+    
+    // Initialize seasonal events
+    updateSeasonalEvent();
+    
+    // Check for seasonal event changes every hour
+    const seasonalInterval = setInterval(updateSeasonalEvent, 60 * 60 * 1000);
+    
     return () => {
       disconnectWebSocket();
       stopPolling();
+      clearInterval(seasonalInterval);
     };
-  }, [connectWebSocket, disconnectWebSocket, startPolling, stopPolling]);
+  }, [connectWebSocket, disconnectWebSocket, startPolling, stopPolling, updateSeasonalEvent]);
 
   // Apply theme on mount and when theme changes
   useEffect(() => {
@@ -184,6 +194,7 @@ function App() {
         </ErrorBoundary>
         
         <NotificationContainer />
+        <SeasonalDecorations />
       </BrowserRouter>
       </NotificationProvider>
     </ErrorBoundary>

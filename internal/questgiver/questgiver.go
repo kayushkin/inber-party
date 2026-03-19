@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/kayushkin/inber-party/internal/db"
 	"github.com/kayushkin/inber-party/internal/inber"
@@ -449,10 +450,25 @@ func skillDescription(skills []string) string {
 
 // ── Procedural Quest Name Generation ──────────────────────
 
+// SeasonalEvent represents a seasonal event that can affect quest names
+type SeasonalEvent struct {
+	Name        string
+	StartMonth  int
+	StartDay    int
+	EndMonth    int
+	EndDay      int
+	Prefixes    []string
+	Suffixes    []string
+	Themes      []string
+	Decorations []string
+}
+
 // QuestNameGenerator generates immersive, contextual quest names based on task content
 type QuestNameGenerator struct {
 	// Name templates organized by task type and theme
 	nameTemplates map[string][]QuestNameTemplate
+	// Seasonal events that can modify quest names
+	seasonalEvents []SeasonalEvent
 }
 
 // QuestNameTemplate represents a template for generating quest names
@@ -465,19 +481,97 @@ type QuestNameTemplate struct {
 // NewQuestNameGenerator creates a new quest name generator with predefined templates
 func NewQuestNameGenerator() *QuestNameGenerator {
 	return &QuestNameGenerator{
-		nameTemplates: initQuestNameTemplates(),
+		nameTemplates:  initQuestNameTemplates(),
+		seasonalEvents: initSeasonalEvents(),
 	}
 }
 
 // GenerateQuestName creates an immersive quest name based on task analysis
 func (qng *QuestNameGenerator) GenerateQuestName(analysis *TaskAnalysis, originalName string) string {
+	var questName string
+	
 	// If we have templates for this task type, use them
 	if templates, exists := qng.nameTemplates[analysis.TaskType]; exists {
-		return qng.generateFromTemplate(templates, analysis, originalName)
+		questName = qng.generateFromTemplate(templates, analysis, originalName)
+	} else {
+		// Fall back to generic epic name generation
+		questName = qng.generateGenericEpicName(analysis, originalName)
 	}
 	
-	// Fall back to generic epic name generation
-	return qng.generateGenericEpicName(analysis, originalName)
+	// Apply seasonal modifications if there's an active seasonal event
+	return qng.applySeasonalModifications(questName, analysis)
+}
+
+// applySeasonalModifications enhances quest names with seasonal themes
+func (qng *QuestNameGenerator) applySeasonalModifications(questName string, analysis *TaskAnalysis) string {
+	activeEvent := qng.getActiveSeasonalEvent()
+	if activeEvent == nil {
+		return questName
+	}
+	
+	// Apply seasonal prefix (25% chance)
+	if len(activeEvent.Prefixes) > 0 && analysis.Complexity >= 2 {
+		prefix := activeEvent.Prefixes[len(analysis.RequiredSkills)%len(activeEvent.Prefixes)]
+		questName = prefix + " " + questName
+	}
+	
+	// Apply seasonal suffix (20% chance)
+	if len(activeEvent.Suffixes) > 0 && analysis.Complexity >= 3 {
+		suffix := activeEvent.Suffixes[analysis.EstimatedXP%len(activeEvent.Suffixes)]
+		questName = questName + " " + suffix
+	}
+	
+	// Replace generic themes with seasonal themes (30% chance)
+	if len(activeEvent.Themes) > 0 && len(analysis.RequiredSkills) > 0 {
+		for _, theme := range activeEvent.Themes {
+			// Replace common words with seasonal equivalents
+			questName = strings.ReplaceAll(questName, "Great", theme)
+			questName = strings.ReplaceAll(questName, "Epic", theme)
+			questName = strings.ReplaceAll(questName, "Mighty", theme)
+		}
+	}
+	
+	return questName
+}
+
+// getActiveSeasonalEvent returns the currently active seasonal event, if any
+func (qng *QuestNameGenerator) getActiveSeasonalEvent() *SeasonalEvent {
+	now := time.Now()
+	currentMonth := int(now.Month())
+	currentDay := now.Day()
+	
+	for _, event := range qng.seasonalEvents {
+		if qng.isEventActive(event, currentMonth, currentDay) {
+			return &event
+		}
+	}
+	
+	return nil
+}
+
+// isEventActive checks if a seasonal event is currently active
+func (qng *QuestNameGenerator) isEventActive(event SeasonalEvent, month, day int) bool {
+	// Handle events that span across year boundary (e.g., Christmas to New Year)
+	if event.StartMonth > event.EndMonth {
+		return (month > event.StartMonth || month < event.EndMonth) ||
+			(month == event.StartMonth && day >= event.StartDay) ||
+			(month == event.EndMonth && day <= event.EndDay)
+	}
+	
+	// Handle events within the same year
+	if month < event.StartMonth || month > event.EndMonth {
+		return false
+	}
+	
+	if month == event.StartMonth && day < event.StartDay {
+		return false
+	}
+	
+	if month == event.EndMonth && day > event.EndDay {
+		return false
+	}
+	
+	return true
 }
 
 // generateFromTemplate generates a name using task-specific templates
@@ -748,6 +842,100 @@ func initQuestNameTemplates() map[string][]QuestNameTemplate {
 				Themes:      []string{"Noble", "Sacred", "Epic", "Heroic", "Legendary"},
 				Descriptors: []string{"Important", "Critical", "Essential", "Vital", "Sacred"},
 			},
+		},
+	}
+}
+
+// initSeasonalEvents defines seasonal events that can modify quest names
+func initSeasonalEvents() []SeasonalEvent {
+	return []SeasonalEvent{
+		{
+			Name:        "New Year's Resolutions",
+			StartMonth:  1,  // January
+			StartDay:    1,
+			EndMonth:    1,
+			EndDay:      3,
+			Prefixes:    []string{"New Year's", "Resolution", "Fresh Start", "Renewed"},
+			Suffixes:    []string{"of New Beginnings", "of Fresh Starts", "of Resolutions"},
+			Themes:      []string{"Sparkling", "Golden", "Celebratory", "Ambitious"},
+			Decorations: []string{"✨", "🎆", "🥳", "🎊"},
+		},
+		{
+			Name:       "Valentine's Festival",
+			StartMonth: 2,  // February
+			StartDay:   13,
+			EndMonth:   2,
+			EndDay:     16,
+			Prefixes:   []string{"Romantic", "Lovely", "Heartfelt", "Passionate"},
+			Suffixes:   []string{"of Love", "of Hearts", "of Romance", "of Harmony"},
+			Themes:     []string{"Pink", "Rosy", "Loving", "Harmonious"},
+			Decorations: []string{"💖", "🌹", "💕", "💝"},
+		},
+		{
+			Name:       "St. Patrick's Luck",
+			StartMonth: 3,  // March
+			StartDay:   17,
+			EndMonth:   3,
+			EndDay:     17,
+			Prefixes:   []string{"Lucky", "Emerald", "Golden", "Fortunate"},
+			Suffixes:   []string{"of Luck", "of Fortune", "of Prosperity", "of the Emerald Isle"},
+			Themes:     []string{"Green", "Lucky", "Golden", "Magical"},
+			Decorations: []string{"🍀", "🌈", "🪙", "🎩"},
+		},
+		{
+			Name:       "Easter Renewal",
+			StartMonth: 3,  // March/April (simplified to March)
+			StartDay:   25,
+			EndMonth:   4,
+			EndDay:     10,
+			Prefixes:   []string{"Easter", "Spring", "Renewal", "Blooming"},
+			Suffixes:   []string{"of Renewal", "of Spring", "of Rebirth", "of Growth"},
+			Themes:     []string{"Blooming", "Fresh", "Colorful", "Vibrant"},
+			Decorations: []string{"🐰", "🥚", "🌷", "🌸"},
+		},
+		{
+			Name:       "Halloween Haunt",
+			StartMonth: 10, // October
+			StartDay:   25,
+			EndMonth:   10,
+			EndDay:     31,
+			Prefixes:   []string{"Spooky", "Haunted", "Eerie", "Phantom", "Ghostly"},
+			Suffixes:   []string{"of Shadows", "of the Haunted", "of Dark Magic", "of Spirits"},
+			Themes:     []string{"Spooky", "Haunted", "Mysterious", "Dark"},
+			Decorations: []string{"🎃", "👻", "🦇", "🕷️", "💀"},
+		},
+		{
+			Name:       "Thanksgiving Gratitude",
+			StartMonth: 11, // November
+			StartDay:   22,
+			EndMonth:   11,
+			EndDay:     28,
+			Prefixes:   []string{"Thankful", "Grateful", "Harvest", "Abundant"},
+			Suffixes:   []string{"of Gratitude", "of Abundance", "of Harvest", "of Blessing"},
+			Themes:     []string{"Golden", "Abundant", "Grateful", "Warm"},
+			Decorations: []string{"🦃", "🍂", "🌽", "🥧"},
+		},
+		{
+			Name:       "Winter Solstice Magic",
+			StartMonth: 12, // December
+			StartDay:   20,
+			EndMonth:   12,
+			EndDay:     26,
+			Prefixes:   []string{"Festive", "Magical", "Winter", "Holiday", "Enchanted"},
+			Suffixes:   []string{"of Wonder", "of Magic", "of the Holidays", "of Winter Solstice"},
+			Themes:     []string{"Magical", "Festive", "Sparkling", "Enchanted"},
+			Decorations: []string{"🎄", "❄️", "🎁", "⭐", "🔔"},
+		},
+		{
+			Name:       "Independence Day",
+			StartMonth: 7, // July
+			StartDay:   4,
+			EndMonth:   7,
+			EndDay:     4,
+			Prefixes:   []string{"Patriotic", "Freedom", "Liberty", "Independence"},
+			Suffixes:   []string{"of Freedom", "of Liberty", "of Independence", "of the Republic"},
+			Themes:     []string{"Patriotic", "Free", "Bold", "Courageous"},
+			Decorations: []string{"🇺🇸", "🎆", "🗽", "🎇"},
 		},
 	}
 }
