@@ -42,6 +42,7 @@ export default function BountyBoard() {
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'payout-high' | 'payout-low' | 'deadline'>('newest');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [showClaimModal, setShowClaimModal] = useState(false);
@@ -297,9 +298,40 @@ export default function BountyBoard() {
     }
   };
 
-  const filteredBounties = filter === 'all' 
-    ? bounties 
-    : bounties.filter(bounty => bounty.status === filter);
+  const filteredAndSortedBounties = (() => {
+    let filtered = filter === 'all' 
+      ? bounties 
+      : bounties.filter(bounty => bounty.status === filter);
+
+    // Apply sorting
+    switch (sortBy) {
+      case 'newest':
+        filtered = [...filtered].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+      case 'oldest':
+        filtered = [...filtered].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        break;
+      case 'payout-high':
+        filtered = [...filtered].sort((a, b) => b.payout_amount - a.payout_amount);
+        break;
+      case 'payout-low':
+        filtered = [...filtered].sort((a, b) => a.payout_amount - b.payout_amount);
+        break;
+      case 'deadline':
+        filtered = [...filtered].sort((a, b) => {
+          // Bounties with deadlines come first, sorted by deadline
+          if (!a.deadline && !b.deadline) return 0;
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        });
+        break;
+      default:
+        break;
+    }
+
+    return filtered;
+  })();
 
   const counts = {
     all: bounties.length,
@@ -366,17 +398,35 @@ export default function BountyBoard() {
           </button>
         </div>
 
-        <div className="bounty-filters">
-          {(['all', 'open', 'claimed', 'submitted', 'completed', 'disputed'] as const).map((status) => (
-            <button
-              key={status}
-              className={`filter-btn ${filter === status ? 'active' : ''} filter-${status}`}
-              onClick={() => setFilter(status)}
+        <div className="bounty-controls">
+          <div className="bounty-filters">
+            {(['all', 'open', 'claimed', 'submitted', 'completed', 'disputed'] as const).map((status) => (
+              <button
+                key={status}
+                className={`filter-btn ${filter === status ? 'active' : ''} filter-${status}`}
+                onClick={() => setFilter(status)}
+              >
+                {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
+                <span className="filter-count">{counts[status as keyof typeof counts]}</span>
+              </button>
+            ))}
+          </div>
+          
+          <div className="bounty-sort">
+            <label htmlFor="sort-select">Sort by:</label>
+            <select 
+              id="sort-select"
+              className="sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             >
-              {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
-              <span className="filter-count">{counts[status as keyof typeof counts]}</span>
-            </button>
-          ))}
+              <option value="newest">🕐 Newest First</option>
+              <option value="oldest">🕑 Oldest First</option>
+              <option value="payout-high">💰 Highest Payout</option>
+              <option value="payout-low">🪙 Lowest Payout</option>
+              <option value="deadline">⏰ Deadline Soon</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -387,7 +437,7 @@ export default function BountyBoard() {
             <SkeletonQuestCard key={`skeleton-bounty-${i}`} />
           ))
         ) : (
-          filteredBounties.map((bounty) => (
+          filteredAndSortedBounties.map((bounty) => (
             <div key={bounty.id} className={`bounty-card tier-${bounty.tier} status-${bounty.status}`}>
               <div className="bounty-card-header">
                 <div className="bounty-title-row">
@@ -431,9 +481,60 @@ export default function BountyBoard() {
                   <span className="meta-value">{new Date(bounty.created_at).toLocaleDateString()}</span>
                 </div>
                 {bounty.deadline && (
-                  <div className="meta-item deadline">
+                  <div className={`meta-item deadline ${formatTimeRemaining(bounty.deadline) === 'Expired' ? 'expired' : ''}`}>
                     <span className="meta-label">Deadline:</span>
                     <span className="meta-value">{formatTimeRemaining(bounty.deadline)}</span>
+                  </div>
+                )}
+                {bounty.claimer_id && (
+                  <div className="meta-item claimer-info">
+                    <span className="meta-label">
+                      {bounty.status === 'claimed' && 'Claimed by:'}
+                      {bounty.status === 'submitted' && 'Submitted by:'}
+                      {bounty.status === 'completed' && 'Completed by:'}
+                      {bounty.status === 'rejected' && 'Worked on by:'}
+                      {bounty.status === 'paid' && 'Completed by:'}
+                      {bounty.status === 'disputed' && 'Disputed by:'}
+                    </span>
+                    <span className="meta-value claimer-name">
+                      {(() => {
+                        const claimer = agents.find(agent => agent.id === bounty.claimer_id);
+                        if (claimer) {
+                          return (
+                            <span className="claimer-details">
+                              <span className="claimer-avatar">{claimer.avatar_emoji}</span>
+                              <span className="claimer-info-text">
+                                {claimer.name} 
+                                <span className="claimer-level">L{claimer.level}</span>
+                              </span>
+                            </span>
+                          );
+                        }
+                        return `Agent #${bounty.claimer_id}`;
+                      })()}
+                    </span>
+                  </div>
+                )}
+                {bounty.claimed_at && bounty.status !== 'open' && (
+                  <div className="meta-item claimed-time">
+                    <span className="meta-label">
+                      {bounty.status === 'claimed' && 'Claimed:'}
+                      {bounty.status === 'submitted' && 'Submitted:'}
+                      {bounty.status === 'completed' && 'Completed:'}
+                      {bounty.status === 'rejected' && 'Rejected:'}
+                      {bounty.status === 'paid' && 'Paid:'}
+                      {bounty.status === 'disputed' && 'Disputed:'}
+                    </span>
+                    <span className="meta-value">
+                      {(() => {
+                        const targetDate = bounty.status === 'submitted' && bounty.submitted_at 
+                          ? bounty.submitted_at 
+                          : bounty.status === 'completed' && bounty.completed_at 
+                          ? bounty.completed_at 
+                          : bounty.claimed_at;
+                        return targetDate ? new Date(targetDate).toLocaleDateString() : 'Unknown';
+                      })()}
+                    </span>
                   </div>
                 )}
               </div>
@@ -512,7 +613,7 @@ export default function BountyBoard() {
           ))
         )}
         
-        {!isLoading && filteredBounties.length === 0 && (
+        {!isLoading && filteredAndSortedBounties.length === 0 && (
           <div className="no-bounties">
             <div className="no-bounties-icon">💰</div>
             <h3>No bounties found</h3>

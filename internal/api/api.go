@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kayushkin/inber-party/internal/bounty"
 	"github.com/kayushkin/inber-party/internal/dailyquests"
 	"github.com/kayushkin/inber-party/internal/db"
 	"github.com/kayushkin/inber-party/internal/logstack"
@@ -19,28 +20,37 @@ import (
 )
 
 type Server struct {
-	DB               *db.DB
-	Hub              *ws.Hub
-	QuestGiver       *questgiver.QuestGiver
-	DailyQuestMgr    *dailyquests.DailyQuestManager
-	MoodCalc         *mood.MoodCalculator
-	LogstackClient   *logstack.LogstackClient
-	AgentSync        *sync.AgentRegistrySync
-	VerifierRegistry *verifiers.VerifierRegistry
+	DB                *db.DB
+	Hub               *ws.Hub
+	QuestGiver        *questgiver.QuestGiver
+	DailyQuestMgr     *dailyquests.DailyQuestManager
+	MoodCalc          *mood.MoodCalculator
+	LogstackClient    *logstack.LogstackClient
+	AgentSync         *sync.AgentRegistrySync
+	VerifierRegistry  *verifiers.VerifierRegistry
+	BountyRepo        *bounty.Repository
+	AutoBountyService *bounty.AutoBountyService
 }
 
 func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dailyquests.DailyQuestManager) *Server {
 	moodCalc := mood.NewMoodCalculator(database)
 	logstackClient := logstack.NewLogstackClient()
 	verifierRegistry := verifiers.NewVerifierRegistry()
+	
+	// Initialize bounty services
+	bountyRepo := bounty.NewRepository(database.DB)
+	autoBountyService := bounty.NewAutoBountyService(bountyRepo)
+	
 	return &Server{
-		DB:               database, 
-		Hub:              hub, 
-		QuestGiver:       qg, 
-		DailyQuestMgr:    dqm, 
-		MoodCalc:         moodCalc,
-		LogstackClient:   logstackClient,
-		VerifierRegistry: verifierRegistry,
+		DB:                database, 
+		Hub:               hub, 
+		QuestGiver:        qg, 
+		DailyQuestMgr:     dqm, 
+		MoodCalc:          moodCalc,
+		LogstackClient:    logstackClient,
+		VerifierRegistry:  verifierRegistry,
+		BountyRepo:        bountyRepo,
+		AutoBountyService: autoBountyService,
 	}
 }
 
@@ -71,6 +81,11 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/health", s.handleHealthCheck)
 	mux.HandleFunc("/api/costs", s.handleCosts)
 	mux.HandleFunc("/api/costs/summary", s.handleCostsSummary)
+	
+	// Auto-bounty system routes (new)
+	// TODO: Implement these handlers
+	// mux.HandleFunc("/api/auto-bounties", s.handleAutoBounties)
+	// mux.HandleFunc("/api/auto-bounties/from-text", s.handleAutoBountyFromText)
 	// Bounty marketplace endpoints
 	mux.HandleFunc("/api/bounties", s.handleBounties)
 	mux.HandleFunc("/api/bounties/", s.handleBountyDetail)

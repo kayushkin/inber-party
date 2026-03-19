@@ -58,10 +58,53 @@
   box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.3);
 }
 
+.bounty-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .bounty-filters {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.bounty-sort {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bounty-sort label {
+  font-weight: 500;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.sort-select {
+  background: var(--card-bg);
+  border: 2px solid var(--border-color);
+  color: var(--text-color);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 160px;
+  font-size: 0.9rem;
+}
+
+.sort-select:hover {
+  border-color: var(--accent-color);
+  background: var(--hover-bg);
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
 }
 
 .filter-btn {
@@ -429,6 +472,63 @@
   font-weight: 500;
 }
 
+.meta-item.deadline.expired .meta-value {
+  color: #f44336;
+  font-weight: 600;
+  animation: pulse-red 2s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.meta-item.claimer-info {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+}
+
+.claimer-details {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.claimer-avatar {
+  font-size: 1rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-color);
+  flex-shrink: 0;
+}
+
+.claimer-info-text {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.claimer-level {
+  background: var(--accent-bg);
+  color: var(--accent-color);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid rgba(var(--accent-color-rgb), 0.3);
+}
+
+.meta-item.claimed-time {
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+}
+
 .bounty-actions {
   display: flex;
   gap: 0.5rem;
@@ -749,8 +849,22 @@
     padding: 1rem;
   }
   
+  .bounty-controls {
+    align-items: center;
+  }
+  
   .bounty-filters {
     justify-content: center;
+  }
+  
+  .bounty-sort {
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .sort-select {
+    min-width: 140px;
+    font-size: 0.85rem;
   }
   
   .filter-btn {
