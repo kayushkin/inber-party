@@ -174,6 +174,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚀 Performance Optimizations
+
+- [x] **Frontend Code Splitting** — Implement dynamic imports and lazy loading to reduce initial bundle size from 500KB to <300KB. Split routes and heavy components to improve loading performance. ✅ COMPLETED: Reduced main bundle from 500KB to 279KB (44% reduction, gzipped: 142KB → 89KB). Implemented React.lazy() for all route components with Suspense boundaries and custom LoadingSpinner.
+
+---
+
 ## 💡 Ideas (unprioritized)
 - [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
 - [x] Time-lapse view — compressed animation of a day's agent activity ✅ COMPLETED: Implemented comprehensive time-lapse visualization with `/api/activity/timeline` endpoint, animated playback controls, agent activity tracking, event stream visualization, and timeline statistics

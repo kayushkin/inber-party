@@ -1,33 +1,36 @@
-import { useEffect } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useStore } from './store';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineIndicator from './components/OfflineIndicator';
-import TavernView from './pages/TavernView';
-import CharacterSheet from './pages/CharacterSheet';
-import QuestBoard from './pages/QuestBoard';
-import BountyBoard from './pages/BountyBoard';
-import WarRoom from './pages/WarRoom';
-import StatsView from './pages/StatsView';
-import ComparisonView from './pages/ComparisonView';
-import GuildMasterChat from './pages/GuildMasterChat';
-import AgentConversations from './pages/AgentConversations';
-import Library from './pages/Library';
-import TrainingGrounds from './pages/TrainingGrounds';
-import Forge from './pages/Forge';
-import AgentQuarters from './pages/AgentQuarters';
-import CreateAdventurer from './pages/CreateAdventurer';
-import Parties from './pages/Parties';
-import Leaderboard from './pages/Leaderboard';
-import CostDashboard from './pages/CostDashboard';
-import PayoutDashboard from './pages/PayoutDashboard';
-import MMOChatroom from './pages/MMOChatroom';
-import TimeLapseView from './pages/TimeLapseView';
+import LoadingSpinner from './components/LoadingSpinner';
 import { AchievementToastContainer } from './components/AchievementToast';
 import { NotificationProvider } from './contexts/NotificationContextProvider';
 import NotificationContainer from './components/NotificationContainer';
 import './App.css';
+
+// Lazy load page components for code splitting
+const TavernView = lazy(() => import('./pages/TavernView'));
+const CharacterSheet = lazy(() => import('./pages/CharacterSheet'));
+const QuestBoard = lazy(() => import('./pages/QuestBoard'));
+const BountyBoard = lazy(() => import('./pages/BountyBoard'));
+const WarRoom = lazy(() => import('./pages/WarRoom'));
+const StatsView = lazy(() => import('./pages/StatsView'));
+const ComparisonView = lazy(() => import('./pages/ComparisonView'));
+const GuildMasterChat = lazy(() => import('./pages/GuildMasterChat'));
+const AgentConversations = lazy(() => import('./pages/AgentConversations'));
+const Library = lazy(() => import('./pages/Library'));
+const TrainingGrounds = lazy(() => import('./pages/TrainingGrounds'));
+const Forge = lazy(() => import('./pages/Forge'));
+const AgentQuarters = lazy(() => import('./pages/AgentQuarters'));
+const CreateAdventurer = lazy(() => import('./pages/CreateAdventurer'));
+const Parties = lazy(() => import('./pages/Parties'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard'));
+const CostDashboard = lazy(() => import('./pages/CostDashboard'));
+const PayoutDashboard = lazy(() => import('./pages/PayoutDashboard'));
+const MMOChatroom = lazy(() => import('./pages/MMOChatroom'));
+const TimeLapseView = lazy(() => import('./pages/TimeLapseView'));
 
 function App() {
   const connectWebSocket = useStore((s) => s.connectWebSocket);
@@ -62,42 +65,114 @@ function App() {
         <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<TavernView />} />
+            <Route index element={
+              <Suspense fallback={<LoadingSpinner message="Loading Tavern..." />}>
+                <TavernView />
+              </Suspense>
+            } />
             <Route path="agent/:id" element={
               <ErrorBoundary>
-                <CharacterSheet />
+                <Suspense fallback={<LoadingSpinner message="Loading Character Sheet..." />}>
+                  <CharacterSheet />
+                </Suspense>
               </ErrorBoundary>
             } />
             <Route path="quarters/:id" element={
               <ErrorBoundary>
-                <AgentQuarters />
+                <Suspense fallback={<LoadingSpinner message="Loading Agent Quarters..." />}>
+                  <AgentQuarters />
+                </Suspense>
               </ErrorBoundary>
             } />
             <Route path="quests" element={
               <ErrorBoundary>
-                <QuestBoard />
+                <Suspense fallback={<LoadingSpinner message="Loading Quest Board..." />}>
+                  <QuestBoard />
+                </Suspense>
               </ErrorBoundary>
             } />
             <Route path="bounties" element={
               <ErrorBoundary>
-                <BountyBoard />
+                <Suspense fallback={<LoadingSpinner message="Loading Bounty Board..." />}>
+                  <BountyBoard />
+                </Suspense>
               </ErrorBoundary>
             } />
-            <Route path="war-room" element={<WarRoom />} />
-            <Route path="guild-chat" element={<GuildMasterChat />} />
-            <Route path="conversations" element={<AgentConversations />} />
-            <Route path="library" element={<Library />} />
-            <Route path="training" element={<TrainingGrounds />} />
-            <Route path="forge" element={<Forge />} />
-            <Route path="stats" element={<StatsView />} />
-            <Route path="compare" element={<ComparisonView />} />
-            <Route path="parties" element={<Parties />} />
-            <Route path="leaderboard" element={<Leaderboard />} />
-            <Route path="costs" element={<CostDashboard />} />
-            <Route path="payouts" element={<PayoutDashboard />} />
-            <Route path="chatroom" element={<MMOChatroom />} />
-            <Route path="timelapse" element={<TimeLapseView />} />
-            <Route path="create-adventurer" element={<CreateAdventurer />} />
+            <Route path="war-room" element={
+              <Suspense fallback={<LoadingSpinner message="Loading War Room..." />}>
+                <WarRoom />
+              </Suspense>
+            } />
+            <Route path="guild-chat" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Guild Chat..." />}>
+                <GuildMasterChat />
+              </Suspense>
+            } />
+            <Route path="conversations" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Conversations..." />}>
+                <AgentConversations />
+              </Suspense>
+            } />
+            <Route path="library" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Library..." />}>
+                <Library />
+              </Suspense>
+            } />
+            <Route path="training" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Training Grounds..." />}>
+                <TrainingGrounds />
+              </Suspense>
+            } />
+            <Route path="forge" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Forge..." />}>
+                <Forge />
+              </Suspense>
+            } />
+            <Route path="stats" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Stats..." />}>
+                <StatsView />
+              </Suspense>
+            } />
+            <Route path="compare" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Comparison..." />}>
+                <ComparisonView />
+              </Suspense>
+            } />
+            <Route path="parties" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Parties..." />}>
+                <Parties />
+              </Suspense>
+            } />
+            <Route path="leaderboard" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Leaderboard..." />}>
+                <Leaderboard />
+              </Suspense>
+            } />
+            <Route path="costs" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Cost Dashboard..." />}>
+                <CostDashboard />
+              </Suspense>
+            } />
+            <Route path="payouts" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Payout Dashboard..." />}>
+                <PayoutDashboard />
+              </Suspense>
+            } />
+            <Route path="chatroom" element={
+              <Suspense fallback={<LoadingSpinner message="Loading MMO Chatroom..." />}>
+                <MMOChatroom />
+              </Suspense>
+            } />
+            <Route path="timelapse" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Time-lapse View..." />}>
+                <TimeLapseView />
+              </Suspense>
+            } />
+            <Route path="create-adventurer" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Adventurer Creator..." />}>
+                <CreateAdventurer />
+              </Suspense>
+            } />
           </Route>
         </Routes>
         
