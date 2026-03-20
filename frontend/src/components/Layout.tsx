@@ -21,6 +21,7 @@ export default function Layout() {
     { to: '/quests', label: '📜 Quests', match: '/quests' },
     { to: '/bounties', label: '💰 Bounties', match: '/bounties' },
     { to: '/parties', label: '🏰 Parties', match: '/parties' },
+    { to: '/relationships', label: '🤝 Relationships', match: '/relationships' },
     { to: '/war-room', label: '⚔️ War Room', match: '/war-room' },
     { to: '/leaderboard', label: '🏆 Leaderboard', match: '/leaderboard' },
     { to: '/guild-chat', label: '👑 Guild Hall', match: '/guild-chat' },
@@ -45,6 +46,7 @@ export default function Layout() {
     if (path === '/quests') return 'room-quests';
     if (path === '/bounties') return 'room-bounties';
     if (path === '/parties') return 'room-parties';
+    if (path === '/relationships') return 'room-relationships';
     if (path === '/war-room') return 'room-war-room';
     if (path === '/leaderboard') return 'room-leaderboard';
     if (path === '/guild-chat') return 'room-guild-hall';

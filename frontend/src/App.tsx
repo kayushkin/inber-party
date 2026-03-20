@@ -34,6 +34,7 @@ const MMOChatroom = lazy(() => import('./pages/MMOChatroom'));
 const TimeLapseView = lazy(() => import('./pages/TimeLapseView'));
 const MapView = lazy(() => import('./pages/MapView'));
 const SpectatorMode = lazy(() => import('./pages/SpectatorMode'));
+const RelationshipsView = lazy(() => import('./pages/RelationshipsView'));
 
 function App() {
   const connectWebSocket = useStore((s) => s.connectWebSocket);
@@ -188,6 +189,11 @@ function App() {
             <Route path="spectator" element={
               <Suspense fallback={<LoadingSpinner message="Loading Spectator Mode..." />}>
                 <SpectatorMode />
+              </Suspense>
+            } />
+            <Route path="relationships" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Relationships..." />}>
+                <RelationshipsView />
               </Suspense>
             } />
             <Route path="create-adventurer" element={

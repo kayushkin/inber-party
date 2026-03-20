@@ -45,6 +45,7 @@ export default function CharacterSheet() {
   const [achievements, setAchievements] = useState<RPGAchievement[]>([]);
   const [questHistory, setQuestHistory] = useState<QuestHistoryEntry[]>([]);
   const [showAnimations, setShowAnimations] = useState(false);
+  const [relationships, setRelationships] = useState<any[]>([]);
   const selectedAgent = useStore((s) => s.selectedAgent);
   const setSelectedAgent = useStore((s) => s.setSelectedAgent);
   const levelUpTriggers = useStore((s) => s.levelUpTriggers);
@@ -72,16 +73,18 @@ export default function CharacterSheet() {
     
     const loadAgentData = async () => {
       // Load all agent-related data
-      const [questsResult, achievementsResult, historyResult] = await Promise.all([
+      const [questsResult, achievementsResult, historyResult, relationshipsResult] = await Promise.all([
         loadAgentQuests(id, 100),
         loadAgentAchievements(id),
-        loadAgentQuestHistory(id, 20)
+        loadAgentQuestHistory(id, 20),
+        fetch(`/api/relationships?agent_id=${id}`).then(r => r.ok ? r.json() : []).catch(() => [])
       ]);
 
       // Update state with successful results
       if (questsResult?.data) setQuests(questsResult.data);
       if (achievementsResult?.data) setAchievements(achievementsResult.data);
       if (historyResult?.data) setQuestHistory(historyResult.data);
+      if (relationshipsResult) setRelationships(relationshipsResult);
     };
 
     loadAgentData();
@@ -533,6 +536,68 @@ export default function CharacterSheet() {
                   </div>
                 ));
               })()}
+            </div>
+          </div>
+        )}
+
+        {/* Relationships Section */}
+        {relationships.length > 0 && (
+          <div className="section">
+            <h3>🤝 Relationships</h3>
+            <div className="relationships-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
+              {relationships.map((rel: any) => {
+                const otherAgent = rel.agent1.id === agent.id ? rel.agent2 : rel.agent1;
+                const getRelationshipIcon = (type: string) => {
+                  switch (type) {
+                    case 'friendship': return '👥';
+                    case 'rivalry': return '⚔️';
+                    case 'neutral': return '🤝';
+                    default: return '❓';
+                  }
+                };
+                const getStrengthColor = (strength: number) => {
+                  if (strength >= 80) return '#00ff88';
+                  if (strength >= 60) return '#88ff00';
+                  if (strength >= 40) return '#ffff00';
+                  if (strength >= 20) return '#ff8800';
+                  return '#ff4444';
+                };
+                
+                return (
+                  <div 
+                    key={rel.id} 
+                    className="relationship-card" 
+                    style={{ 
+                      background: 'rgba(212,175,55,0.1)', 
+                      border: `2px solid ${rel.relationship_type === 'friendship' ? '#66bb6a' : rel.relationship_type === 'rivalry' ? '#ef5350' : '#78909c'}`,
+                      borderRadius: '8px', 
+                      padding: '1rem',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => navigate(`/agent/${otherAgent.id}`)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '1.5rem' }}>{getRelationshipIcon(rel.relationship_type)}</span>
+                      <span style={{ fontSize: '1.5rem' }}>{otherAgent.avatar_emoji}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', color: cc }}>{otherAgent.name}</div>
+                        <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{otherAgent.title}</div>
+                      </div>
+                      <span style={{ color: getStrengthColor(rel.strength), fontWeight: '700' }}>
+                        {rel.strength}%
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.9rem', color: cc, textTransform: 'capitalize', marginBottom: '0.5rem' }}>
+                      {rel.relationship_type}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', opacity: 0.8 }}>
+                      <span>🤝 {rel.collaboration_count}</span>
+                      <span>✅ {rel.successful_collabs}</span>
+                      <span>⚔️ {rel.competition_count}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
