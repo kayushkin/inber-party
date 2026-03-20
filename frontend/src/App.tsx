@@ -32,6 +32,7 @@ const CostDashboard = lazy(() => import('./pages/CostDashboard'));
 const PayoutDashboard = lazy(() => import('./pages/PayoutDashboard'));
 const MMOChatroom = lazy(() => import('./pages/MMOChatroom'));
 const TimeLapseView = lazy(() => import('./pages/TimeLapseView'));
+const MapView = lazy(() => import('./pages/MapView'));
 
 function App() {
   const connectWebSocket = useStore((s) => s.connectWebSocket);
@@ -176,6 +177,11 @@ function App() {
             <Route path="timelapse" element={
               <Suspense fallback={<LoadingSpinner message="Loading Time-lapse View..." />}>
                 <TimeLapseView />
+              </Suspense>
+            } />
+            <Route path="map" element={
+              <Suspense fallback={<LoadingSpinner message="Loading Codebase Map..." />}>
+                <MapView />
               </Suspense>
             } />
             <Route path="create-adventurer" element={

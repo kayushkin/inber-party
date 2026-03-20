@@ -247,6 +247,38 @@ type DisputeDetail struct {
 	Resolver *Agent      `json:"resolver,omitempty"`
 }
 
+// AgentRelationship represents friendship/rivalry dynamics between agents
+type AgentRelationship struct {
+	ID                    int       `json:"id"`
+	Agent1ID              int       `json:"agent1_id"`              // First agent in the relationship (always smaller ID)
+	Agent2ID              int       `json:"agent2_id"`              // Second agent in the relationship
+	RelationshipType      string    `json:"relationship_type"`      // "friendship", "rivalry", "neutral"
+	Strength              int       `json:"strength"`               // 0-100, how strong the relationship is
+	CollaborationCount    int       `json:"collaboration_count"`    // Number of times they worked together
+	SuccessfulCollabs     int       `json:"successful_collabs"`     // Number of successful collaborations
+	CompetitionCount      int       `json:"competition_count"`      // Times they competed for same tasks
+	LastInteraction       *time.Time `json:"last_interaction"`      // Last time they worked together or competed
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
+// AgentRelationshipDetail includes agent details for easier display
+type AgentRelationshipDetail struct {
+	AgentRelationship
+	Agent1  Agent   `json:"agent1"`
+	Agent2  Agent   `json:"agent2"`
+}
+
+// RelationshipStats provides aggregated relationship data for an agent
+type RelationshipStats struct {
+	AgentID         int                        `json:"agent_id"`
+	TotalFriends    int                        `json:"total_friends"`
+	TotalRivals     int                        `json:"total_rivals"`
+	BestFriend      *AgentRelationshipDetail   `json:"best_friend,omitempty"`      // Strongest friendship
+	BiggestRival    *AgentRelationshipDetail   `json:"biggest_rival,omitempty"`    // Strongest rivalry
+	Relationships   []AgentRelationshipDetail  `json:"relationships"`              // All relationships
+}
+
 type Stats struct {
 	TotalAgents        int     `json:"total_agents"`
 	ActiveTasks        int     `json:"active_tasks"`

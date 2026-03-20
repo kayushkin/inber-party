@@ -124,6 +124,10 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/notifications/mark-all-read", s.handleMarkAllRead)
 	// Tavern Talk endpoint
 	mux.HandleFunc("/api/tavern-talk", s.handleTavernTalk)
+	// Agent relationships endpoints
+	mux.HandleFunc("/api/relationships", s.handleRelationships)
+	mux.HandleFunc("/api/relationships/analyze", s.handleAnalyzeRelationships)
+	mux.HandleFunc("/api/relationships/stats/", s.handleAgentRelationshipStats)
 }
 
 // Validation helper functions
@@ -4305,4 +4309,120 @@ func (s *Server) getWorkloadMessage(agentA, agentB AgentWorkSummary) string {
 		}
 		return messages[time.Now().Unix()%int64(len(messages))]
 	}
+}
+
+// handleRelationships handles GET requests for all relationships
+func (s *Server) handleRelationships(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+		return
+	}
+	
+	// Check for agent-specific query parameter
+	agentIDStr := r.URL.Query().Get("agent_id")
+	if agentIDStr != "" {
+		agentID, err := strconv.Atoi(agentIDStr)
+		if err != nil {
+			http.Error(w, "Invalid agent_id parameter", http.StatusBadRequest)
+			return
+		}
+		
+		relationships, err := s.DB.GetAgentRelationships(agentID)
+		if err != nil {
+			log.Printf("Error getting agent relationships: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(relationships)
+		return
+	}
+	
+	// Get all relationships
+	relationships, err := s.DB.GetAllRelationships()
+	if err != nil {
+		log.Printf("Error getting all relationships: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(relationships)
+}
+
+// handleAnalyzeRelationships triggers relationship analysis and updates
+func (s *Server) handleAnalyzeRelationships(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if s.DB == nil {
+		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		return
+	}
+	
+	log.Println("🔍 Starting relationship analysis...")
+	
+	// Run the analysis in the background
+	go func() {
+		err := s.DB.AnalyzeAndUpdateRelationships()
+		if err != nil {
+			log.Printf("Error analyzing relationships: %v", err)
+			return
+		}
+		
+		// Broadcast update via WebSocket
+		s.Hub.Broadcast(ws.Message{
+			Type: "relationships_updated",
+			Data: map[string]string{
+				"message": "Agent relationships have been analyzed and updated",
+			},
+		})
+		
+		log.Println("✅ Relationship analysis complete")
+	}()
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": "Relationship analysis started",
+	})
+}
+
+// handleAgentRelationshipStats handles GET requests for agent relationship statistics
+func (s *Server) handleAgentRelationshipStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if s.DB == nil {
+		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		return
+	}
+	
+	// Extract agent ID from path
+	id, valid := s.parseAndValidateID(w, r.URL.Path, "/api/relationships/stats/", "agent_id")
+	if !valid {
+		return
+	}
+	
+	// Get relationship stats for the agent
+	stats, err := s.DB.GetRelationshipStats(id)
+	if err != nil {
+		log.Printf("Error getting relationship stats for agent %d: %v", id, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
 }

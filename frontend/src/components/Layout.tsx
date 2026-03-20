@@ -33,6 +33,7 @@ export default function Layout() {
     { to: '/costs', label: '💰 Costs', match: '/costs' },
     { to: '/payouts', label: '💳 Payouts', match: '/payouts' },
     { to: '/timelapse', label: '🎬 Time-lapse', match: '/timelapse' },
+    { to: '/map', label: '🗺️ Map', match: '/map' },
     { to: '/compare', label: '🔍 Compare', match: '/compare' },
   ];
 
@@ -55,6 +56,7 @@ export default function Layout() {
     if (path === '/costs') return 'room-costs';
     if (path === '/payouts') return 'room-payouts';
     if (path === '/timelapse') return 'room-timelapse';
+    if (path === '/map') return 'room-map';
     if (path === '/compare') return 'room-compare';
     return 'room-default';
   };

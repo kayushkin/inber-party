@@ -273,6 +273,28 @@ func (db *DB) Migrate() error {
 		SELECT id FROM agents
 		WHERE id NOT IN (SELECT agent_id FROM notification_preferences)
 		ON CONFLICT (agent_id) DO NOTHING`,
+		// Add agent relationships system for friendships/rivalries
+		`CREATE TABLE IF NOT EXISTS agent_relationships (
+			id SERIAL PRIMARY KEY,
+			agent1_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			agent2_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			relationship_type VARCHAR(20) NOT NULL DEFAULT 'neutral',
+			strength INTEGER NOT NULL DEFAULT 0,
+			collaboration_count INTEGER NOT NULL DEFAULT 0,
+			successful_collabs INTEGER NOT NULL DEFAULT 0,
+			competition_count INTEGER NOT NULL DEFAULT 0,
+			last_interaction TIMESTAMP,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			CONSTRAINT agent_relationships_unique UNIQUE(agent1_id, agent2_id),
+			CONSTRAINT agent_relationships_order CHECK (agent1_id < agent2_id),
+			CONSTRAINT agent_relationships_type CHECK (relationship_type IN ('friendship', 'rivalry', 'neutral')),
+			CONSTRAINT agent_relationships_strength CHECK (strength >= 0 AND strength <= 100)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_agent_relationships_agent1 ON agent_relationships(agent1_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_agent_relationships_agent2 ON agent_relationships(agent2_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_agent_relationships_type ON agent_relationships(relationship_type)`,
+		`CREATE INDEX IF NOT EXISTS idx_agent_relationships_strength ON agent_relationships(strength DESC)`,
 	}
 
 	for i, migration := range migrations {
