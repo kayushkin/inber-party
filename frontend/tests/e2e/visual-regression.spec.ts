@@ -329,7 +329,7 @@ test.describe('Visual Regression Tests', () => {
       await page.waitForSelector('[data-testid="quest-board"], .quest-board, .main-content', { timeout: 15000 });
     } catch (error) {
       // If specific quest board elements aren't found, continue with general page
-      console.log('Quest board specific elements not found, proceeding with general page screenshot');
+      console.log('Quest board specific elements not found, proceeding with general page screenshot:', error.message);
     }
     
     await expect(page).toHaveScreenshot('quest-board-page.png', {
