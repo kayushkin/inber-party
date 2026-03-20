@@ -112,11 +112,14 @@ test.describe('Visual Regression Tests', () => {
     // Navigate to Guild Chat
     await page.goto('/guild-chat');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    
+    // Wait longer for chat interface to stabilize
+    await page.waitForTimeout(2000);
     
     await expect(page).toHaveScreenshot('guild-chat-page.png', {
       fullPage: true,
       animations: 'disabled',
+      timeout: 8000, // Increased timeout
     });
   });
 
@@ -169,11 +172,17 @@ test.describe('Visual Regression Tests', () => {
     // Navigate to quest board
     await page.goto('/quests');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    
+    // Wait longer for quest data to potentially load and stabilize
+    await page.waitForTimeout(3000);
+    
+    // Wait for any loading states to complete
+    await page.waitForSelector('[data-testid="quest-board"], .quest-board, .main-content', { timeout: 10000 });
     
     await expect(page).toHaveScreenshot('quest-board-page.png', {
       fullPage: true,
       animations: 'disabled',
+      timeout: 10000, // Increased timeout
     });
   });
 

@@ -188,6 +188,10 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 CRITICAL: Visual Regression Test Failures
+
+- [~] **Fix Visual Regression Test Failures** — Multiple E2E visual regression tests failing due to layout changes. Page dimensions changed significantly (e.g., expected 1918px×878px, received 2643px×878px). Affects tavern page, navigation header, agent cards, war room, and responsive layouts. Also missing Firefox baseline snapshots. Need to update test snapshots and ensure layout consistency across browsers.
+
 ## 🚨 CRITICAL: Persistent React Key Errors
 
 - [x] **Fix Persistent React Key Duplication** — E2E tests show multiple "Encountered two children with the same key" errors still occurring despite previous fix. Need to audit all list rendering components for timestamp-based keys and implement more robust unique key generation. ✅ COMPLETED: Fixed timestamp-based ID generation in GuildMasterChat/MMOChatroom components and achievement toast key duplication. Implemented counter-primary unique IDs and agent-specific achievement toast keys.
@@ -206,5 +210,5 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] "Tavern talk" — generated banter between agents based on their recent work ✅ COMPLETED: Implemented contextual banter generation with mood-based conversations, real-time API integration, and immersive tavern chat experience
 - [x] **Seasonal events** — holiday themes, special quests, seasonal UI decorations ✅ COMPLETED: Implemented comprehensive seasonal event system with 8 major holidays, dynamic theming, animated decorations, seasonal quest name generation, XP bonuses, and configurable toggle controls. Supports Halloween, Christmas, New Year's, Valentine's, St. Patrick's Day, Easter, Independence Day, and Thanksgiving with full visual effects.
 - [x] Agent rivalries/friendships based on collaboration patterns ✅ COMPLETED: Implemented comprehensive relationship system with collaboration analysis, friendship/rivalry detection, visual relationship cards, agent stats, and full UI integration
-- [~] Map view — visual representation of the codebase as a game world, agents as characters on the map
+- [x] Map view — visual representation of the codebase as a game world, agents as characters on the map ✅ COMPLETED: Enhanced existing MapView component with real codebase structure API. Added `/api/codebase/structure` endpoint that returns actual project layout. Map displays inber-party directory structure (frontend, backend, internal, docs) with agents positioned as game characters. Includes zoom controls, interactive node selection, and proper visual hierarchy.
 - [x] Spectator mode — watch an agent work in real-time with RPG overlay

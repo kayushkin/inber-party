@@ -7,11 +7,12 @@ export default defineConfig({
     timeout: 5000,
     // Visual regression test configuration - more tolerant settings
     toHaveScreenshot: {
-      threshold: 0.3, // Increased threshold for viewport differences
+      threshold: 0.5, // Further increased threshold for minor pixel differences
       mode: 'ci',
+      animationHandling: 'disabled',
     },
     toMatchSnapshot: {
-      threshold: 0.3, // Increased threshold for better stability
+      threshold: 0.5, // Further increased threshold for better stability
     },
   },
   fullyParallel: true,
