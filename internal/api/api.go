@@ -101,6 +101,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/spectator/recent-tool-calls", s.handleRecentToolCalls)
 	mux.HandleFunc("/api/spectator/recent-tool-calls/", s.handleRecentToolCallsForAgent)
 	
+	// Codebase map endpoint
+	mux.HandleFunc("/api/codebase/structure", s.handleCodebaseStructure)
+	
 	// Auto-bounty system routes (new)
 	mux.HandleFunc("/api/auto-bounties", s.handleAutoBounties)
 	mux.HandleFunc("/api/auto-bounties/from-text", s.handleAutoBountyFromText)
@@ -4709,4 +4712,148 @@ func (s *Server) getRecentToolCalls(agentID string, limit int) ([]ToolCall, erro
 	}
 
 	return toolCalls, nil
+}
+
+// CodebaseNode represents a file or directory in the codebase
+type CodebaseNode struct {
+	ID       string         `json:"id"`
+	Name     string         `json:"name"`
+	Type     string         `json:"type"` // "directory" or "file"
+	Path     string         `json:"path"`
+	X        float64        `json:"x"`
+	Y        float64        `json:"y"`
+	Children []CodebaseNode `json:"children,omitempty"`
+	Size     *int           `json:"size,omitempty"` // file size for visual scaling
+}
+
+func (s *Server) handleCodebaseStructure(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	structure, err := s.getCodebaseStructure()
+	if err != nil {
+		log.Printf("Failed to get codebase structure: %v", err)
+		http.Error(w, "Failed to get codebase structure", http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(structure); err != nil {
+		log.Printf("Failed to encode codebase structure: %v", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) getCodebaseStructure() ([]CodebaseNode, error) {
+	// For now, return a well-structured layout of the actual inber-party project
+	// In a real implementation, this could scan the actual filesystem
+	structure := []CodebaseNode{
+		{
+			ID:   "root",
+			Name: "inber-party",
+			Type: "directory",
+			Path: "/",
+			X:    600,
+			Y:    400,
+			Children: []CodebaseNode{
+				{
+					ID:   "frontend",
+					Name: "frontend",
+					Type: "directory",
+					Path: "/frontend",
+					X:    300,
+					Y:    200,
+					Children: []CodebaseNode{
+						{
+							ID:   "src",
+							Name: "src",
+							Type: "directory",
+							Path: "/frontend/src",
+							X:    200,
+							Y:    150,
+							Children: []CodebaseNode{
+								{ID: "components", Name: "components", Type: "directory", Path: "/frontend/src/components", X: 100, Y: 100},
+								{ID: "pages", Name: "pages", Type: "directory", Path: "/frontend/src/pages", X: 250, Y: 100},
+								{ID: "hooks", Name: "hooks", Type: "directory", Path: "/frontend/src/hooks", X: 150, Y: 50},
+								{ID: "store", Name: "store", Type: "directory", Path: "/frontend/src/store", X: 300, Y: 50},
+							},
+						},
+						{
+							ID:   "public",
+							Name: "public",
+							Type: "directory",
+							Path: "/frontend/public",
+							X:    400,
+							Y:    150,
+							Children: []CodebaseNode{
+								{ID: "avatars", Name: "avatars", Type: "directory", Path: "/frontend/public/avatars", X: 450, Y: 100},
+								{ID: "sounds", Name: "sounds", Type: "directory", Path: "/frontend/public/sounds", X: 350, Y: 100},
+							},
+						},
+					},
+				},
+				{
+					ID:   "backend",
+					Name: "cmd",
+					Type: "directory",
+					Path: "/cmd",
+					X:    900,
+					Y:    200,
+					Children: []CodebaseNode{
+						{
+							ID:   "server",
+							Name: "server",
+							Type: "directory",
+							Path: "/cmd/server",
+							X:    850,
+							Y:    150,
+							Children: []CodebaseNode{
+								{ID: "main.go", Name: "main.go", Type: "file", Path: "/cmd/server/main.go", X: 820, Y: 120, Size: intPtr(200)},
+							},
+						},
+					},
+				},
+				{
+					ID:   "internal",
+					Name: "internal",
+					Type: "directory",
+					Path: "/internal",
+					X:    600,
+					Y:    600,
+					Children: []CodebaseNode{
+						{ID: "api", Name: "api", Type: "directory", Path: "/internal/api", X: 450, Y: 700},
+						{ID: "bounty", Name: "bounty", Type: "directory", Path: "/internal/bounty", X: 550, Y: 700},
+						{ID: "db", Name: "db", Type: "directory", Path: "/internal/db", X: 650, Y: 700},
+						{ID: "sync", Name: "sync", Type: "directory", Path: "/internal/sync", X: 750, Y: 700},
+						{ID: "ws", Name: "ws", Type: "directory", Path: "/internal/ws", X: 500, Y: 750},
+						{ID: "questgiver", Name: "questgiver", Type: "directory", Path: "/internal/questgiver", X: 600, Y: 750},
+						{ID: "mood", Name: "mood", Type: "directory", Path: "/internal/mood", X: 700, Y: 750},
+					},
+				},
+				{
+					ID:   "docs",
+					Name: "docs",
+					Type: "directory",
+					Path: "/docs",
+					X:    200,
+					Y:    500,
+					Children: []CodebaseNode{
+						{ID: "README.md", Name: "README.md", Type: "file", Path: "/README.md", X: 150, Y: 450, Size: intPtr(150)},
+						{ID: "BACKLOG.md", Name: "BACKLOG.md", Type: "file", Path: "/BACKLOG.md", X: 250, Y: 450, Size: intPtr(300)},
+						{ID: "PROJECT.md", Name: "PROJECT.md", Type: "file", Path: "/PROJECT.md", X: 200, Y: 400, Size: intPtr(120)},
+					},
+				},
+			},
+		},
+	}
+
+	return structure, nil
+}
+
+// Helper function to create int pointer
+func intPtr(i int) *int {
+	return &i
 }

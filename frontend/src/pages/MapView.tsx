@@ -31,61 +31,16 @@ export default function MapView() {
   const fetchCodebaseStructure = async () => {
     setLoading(true);
     try {
-      // Mock data for now - in a real implementation, this would fetch from an API
-      // that analyzes the git repository structure
-      const mockNodes: CodebaseNode[] = [
-        {
-          id: 'root',
-          name: 'inber-party',
-          type: 'directory',
-          path: '/',
-          x: 600,
-          y: 400,
-          children: [
-            {
-              id: 'frontend',
-              name: 'frontend',
-              type: 'directory',
-              path: '/frontend',
-              x: 300,
-              y: 200,
-              children: [
-                { id: 'src', name: 'src', type: 'directory', path: '/frontend/src', x: 200, y: 150 },
-                { id: 'components', name: 'components', type: 'directory', path: '/frontend/src/components', x: 100, y: 100 },
-                { id: 'pages', name: 'pages', type: 'directory', path: '/frontend/src/pages', x: 300, y: 100 }
-              ]
-            },
-            {
-              id: 'backend',
-              name: 'cmd/server',
-              type: 'directory',
-              path: '/cmd/server',
-              x: 900,
-              y: 200,
-              children: [
-                { id: 'main.go', name: 'main.go', type: 'file', path: '/cmd/server/main.go', x: 850, y: 150, size: 500 },
-                { id: 'handlers.go', name: 'handlers.go', type: 'file', path: '/cmd/server/handlers.go', x: 950, y: 150, size: 1200 }
-              ]
-            },
-            {
-              id: 'internal',
-              name: 'internal',
-              type: 'directory',
-              path: '/internal',
-              x: 600,
-              y: 600,
-              children: [
-                { id: 'models', name: 'models', type: 'directory', path: '/internal/models', x: 500, y: 700 },
-                { id: 'store', name: 'store', type: 'directory', path: '/internal/store', x: 700, y: 700 }
-              ]
-            }
-          ]
-        }
-      ];
-      
-      setCodebaseNodes(mockNodes);
+      const response = await fetch('/api/codebase/structure');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const structure: CodebaseNode[] = await response.json();
+      setCodebaseNodes(structure);
     } catch (error) {
       console.error('Failed to fetch codebase structure:', error);
+      // Fallback to empty structure
+      setCodebaseNodes([]);
     } finally {
       setLoading(false);
     }
