@@ -92,8 +92,22 @@ export default function QuestBoard() {
   const fetchAll = useStore((s) => s.fetchAll);
   const [filter, setFilter] = useState<string>('all');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20; // Limit to 20 quests per page
 
   const filtered = filter === 'all' ? quests : quests.filter((q) => q.status === filter);
+  
+  // Pagination calculations
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedQuests = filtered.slice(startIndex, endIndex);
+  
+  // Reset to page 1 when filter changes
+  const handleFilterChange = (newFilter: string) => {
+    setFilter(newFilter);
+    setCurrentPage(1);
+  };
 
   const counts = {
     all: quests.length,
@@ -120,7 +134,7 @@ export default function QuestBoard() {
             <button
               key={s}
               className={`filter-btn ${filter === s ? 'active' : ''} filter-${s}`}
-              onClick={() => setFilter(s)}
+              onClick={() => handleFilterChange(s)}
             >
               {s === 'all' ? 'All' : s === 'in_progress' ? 'Active' : s.charAt(0).toUpperCase() + s.slice(1)}
               <span className="filter-count">{counts[s]}</span>
@@ -136,7 +150,7 @@ export default function QuestBoard() {
             <SkeletonQuestCard key={`skeleton-quest-${i}`} />
           ))
         ) : (
-          filtered.map((q) => {
+          paginatedQuests.map((q) => {
             const questDetails = parseQuestDetails(q);
             return (
             <div key={q.id} className={`quest-card status-${q.status} quest-type-${questDetails.type}`}>
@@ -268,6 +282,47 @@ export default function QuestBoard() {
           <div className="no-quests">No quests match this filter.</div>
         )}
       </div>
+
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <div className="pagination-controls">
+          <button 
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+            className="pagination-btn"
+            title="First page"
+          >
+            ⏮️
+          </button>
+          <button 
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="pagination-btn"
+            title="Previous page"
+          >
+            ⬅️
+          </button>
+          <span className="pagination-info">
+            Page {currentPage} of {totalPages} ({filtered.length} total quests)
+          </span>
+          <button 
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="pagination-btn"
+            title="Next page"
+          >
+            ➡️
+          </button>
+          <button 
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+            className="pagination-btn"
+            title="Last page"
+          >
+            ⏭️
+          </button>
+        </div>
+      )}
 
       {/* Quest completion animations */}
       {Object.entries(questCompletionTriggers).map(([questId, data]) => (

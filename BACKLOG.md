@@ -208,7 +208,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 🚨 MINOR ISSUES FOUND (March 2026)
 
-- [ ] **Fix Visual Regression Test Failures** — E2E tests show 3 visual regression failures for Tavern page, Library page, and War Room page. Issues appear to be minor pixel differences (~0.01 ratio) likely due to font rendering or layout changes. Update baseline screenshots and improve test stability.
+- [~] **Fix Visual Regression Test Failures** — E2E tests show 3 visual regression failures for Tavern page, Library page, and War Room page. Issues appear to be minor pixel differences (~0.01 ratio) likely due to font rendering or layout changes. Update baseline screenshots and improve test stability.
 - [x] **Update Makefile Test Command** — ✅ COMPLETED: Fixed Makefile test command to use `npm run test:e2e` instead of non-existent `npm test` script. Now `make test` runs both Go tests and E2E tests correctly.
 - [ ] **Optimize WebSocket Connection Handling** — E2E test logs show frequent WebSocket connect/disconnect cycles during testing. Consider implementing connection pooling or more stable connection management for better performance.
 
