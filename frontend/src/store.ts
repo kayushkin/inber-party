@@ -409,12 +409,17 @@ export const useStore = create<StoreState>((set, get) => ({
     }
   })),
 
-  addAchievementToast: (achievement) => set((state) => ({
-    achievementToasts: [...state.achievementToasts, {
-      ...achievement,
-      timestamp: Date.now()
-    }]
-  })),
+  addAchievementToast: (achievement) => set((state) => {
+    const timestamp = Date.now();
+    const uniqueId = `${achievement.id}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`;
+    return {
+      achievementToasts: [...state.achievementToasts, {
+        ...achievement,
+        id: uniqueId, // Override with guaranteed unique ID
+        timestamp
+      }]
+    };
+  }),
 
   removeAchievementToast: (timestamp) => set((state) => ({
     achievementToasts: state.achievementToasts.filter(toast => toast.timestamp !== timestamp)

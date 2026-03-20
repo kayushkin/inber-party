@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store';
+import type { RPGAgent } from '../store';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorDisplay from '../components/ErrorDisplay';
 import './RelationshipsView.css';
@@ -14,17 +15,8 @@ interface AgentRelationship {
   successful_collabs: number;
   competition_count: number;
   last_interaction?: string;
-  agent1: Agent;
-  agent2: Agent;
-}
-
-interface Agent {
-  id: number;
-  name: string;
-  title: string;
-  class: string;
-  level: number;
-  avatar_emoji: string;
+  agent1: RPGAgent;
+  agent2: RPGAgent;
 }
 
 interface RelationshipStats {
@@ -39,7 +31,7 @@ interface RelationshipStats {
 function RelationshipsView() {
   const agents = useStore((s) => s.agents);
   const [relationships, setRelationships] = useState<AgentRelationship[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [selectedAgentStats, setSelectedAgentStats] = useState<RelationshipStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -53,7 +45,7 @@ function RelationshipsView() {
   // Load agent-specific stats when an agent is selected
   useEffect(() => {
     if (selectedAgent) {
-      loadAgentStats(selectedAgent);
+      loadAgentStats(Number(selectedAgent));
     } else {
       setSelectedAgentStats(null);
     }
@@ -101,7 +93,7 @@ function RelationshipsView() {
         setTimeout(() => {
           loadRelationships();
           if (selectedAgent) {
-            loadAgentStats(selectedAgent);
+            loadAgentStats(Number(selectedAgent));
           }
         }, 1000);
       } else {
@@ -194,7 +186,7 @@ function RelationshipsView() {
               <div className="rvac-emoji">🌐</div>
               <div className="rvac-name">All Relationships</div>
             </div>
-            {agents.map((agent: any) => (
+            {agents.map((agent: RPGAgent) => (
               <div 
                 key={agent.id}
                 className={`rv-agent-card ${selectedAgent === agent.id ? 'active' : ''}`}
@@ -262,7 +254,7 @@ function RelationshipsView() {
         <div className="rv-relationships">
           <h3>
             {selectedAgent 
-              ? `Relationships for ${agents.find((a: any) => a.id === selectedAgent)?.name}` 
+              ? `Relationships for ${agents.find((a: RPGAgent) => a.id === selectedAgent)?.name}` 
               : 'All Relationships'
             }
           </h3>

@@ -178,6 +178,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 🚨 CRITICAL: Fix React Key Errors
 - [x] **Fix Duplicate React Keys** — Multiple React errors: "Encountered two children with the same key" causing rendering issues. Need to audit all list rendering components and ensure unique keys are used. Critical for UI stability and performance. ✅ COMPLETED: Fixed Date.now() based ID generation in GuildMasterChat and MMOChatroom components by adding counter+timestamp combination. Prevents duplicate keys during rapid message creation.
+- [x] **Fix Persistent Achievement Key Duplication** — E2E tests show massive React key duplication errors for achievements (claxon_first_quest, brigid_marathon, run_1k_tokens, etc.). Multiple identical achievement keys are being rendered causing "Encountered two children with the same key" warnings. Need to implement unique key generation for achievement toast notifications and list rendering. ✅ COMPLETED: Fixed by implementing guaranteed unique ID generation for achievement toasts using combination of achievement ID, timestamp, and random string. Updated AchievementToastContainer to use composite key with ID and timestamp.
 
 ---
 

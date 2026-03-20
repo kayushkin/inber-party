@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { 
   FaPlay, 
@@ -34,7 +34,7 @@ interface LiveSession {
 interface ToolCall {
   id: string;
   tool_name: string;
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
   timestamp: string;
   duration?: number;
   success?: boolean;
@@ -54,14 +54,7 @@ const SpectatorMode: React.FC = () => {
     agent.status === 'working' || agent.status === 'thinking'
   );
 
-  useEffect(() => {
-    if (isWatching) {
-      const interval = setInterval(fetchLiveData, refreshInterval);
-      return () => clearInterval(interval);
-    }
-  }, [isWatching, selectedAgent, refreshInterval]);
-
-  const fetchLiveData = async () => {
+  const fetchLiveData = useCallback(async () => {
     if (!selectedAgent && !showAllAgents) return;
 
     try {
@@ -93,7 +86,14 @@ const SpectatorMode: React.FC = () => {
     } catch (error) {
       console.error('Failed to fetch live data:', error);
     }
-  };
+  }, [selectedAgent, showAllAgents]);
+
+  useEffect(() => {
+    if (isWatching) {
+      const interval = setInterval(fetchLiveData, refreshInterval);
+      return () => clearInterval(interval);
+    }
+  }, [isWatching, selectedAgent, refreshInterval, fetchLiveData]);
 
   const startWatching = () => {
     setIsWatching(true);

@@ -1,4 +1,5 @@
 import { useStore } from '../store';
+import type { SeasonalEvent } from '../utils/seasonalEvents';
 import './SeasonalEventBanner.css';
 
 const SeasonalEventBanner: React.FC = () => {
@@ -60,7 +61,7 @@ const SeasonalEventBanner: React.FC = () => {
 };
 
 // Helper function to calculate event progress
-function getEventProgress(event: any): number {
+function getEventProgress(event: SeasonalEvent): number {
   const now = new Date().getTime();
   const start = event.startDate.getTime();
   const end = event.endDate.getTime();
@@ -72,7 +73,7 @@ function getEventProgress(event: any): number {
 }
 
 // Helper function to get days remaining
-function getDaysRemaining(event: any): number {
+function getDaysRemaining(event: SeasonalEvent): number {
   const now = new Date().getTime();
   const end = event.endDate.getTime();
   

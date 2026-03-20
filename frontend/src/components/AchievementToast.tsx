@@ -62,7 +62,7 @@ export const AchievementToastContainer: React.FC<AchievementToastContainerProps>
     <div className="achievement-toast-container">
       {achievements.map((achievement) => (
         <AchievementToast
-          key={achievement.id}
+          key={`${achievement.id}-${achievement.timestamp}`}
           achievement={achievement}
           onComplete={() => onRemove(achievement.timestamp)}
         />

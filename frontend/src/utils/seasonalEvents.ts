@@ -202,7 +202,7 @@ export function getActiveSeasonalEvent(): SeasonalEvent | null {
 }
 
 // Get seasonal quest name variations
-export function getSeasonalQuestName(baseQuestName: string, season: Season, _holiday?: Holiday): string {
+export function getSeasonalQuestName(baseQuestName: string, season: Season): string {
   const activeEvent = getActiveSeasonalEvent();
   
   if (activeEvent) {

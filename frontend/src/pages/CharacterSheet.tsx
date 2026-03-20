@@ -2,6 +2,20 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStore, classColor, formatTokens, formatCost } from '../store';
 import type { RPGAgent, RPGQuest, RPGAchievement, QuestHistoryEntry } from '../store';
+
+interface AgentRelationship {
+  id: number;
+  agent1_id: number;
+  agent2_id: number;
+  relationship_type: 'friendship' | 'rivalry' | 'neutral';
+  strength: number;
+  collaboration_count: number;
+  successful_collabs: number;
+  competition_count: number;
+  last_interaction?: string;
+  agent1: RPGAgent;
+  agent2: RPGAgent;
+}
 import ChatPanel from '../components/ChatPanel';
 import LevelUpAnimation from '../components/LevelUpAnimation';
 import Tooltip from '../components/Tooltip';
@@ -45,7 +59,7 @@ export default function CharacterSheet() {
   const [achievements, setAchievements] = useState<RPGAchievement[]>([]);
   const [questHistory, setQuestHistory] = useState<QuestHistoryEntry[]>([]);
   const [showAnimations, setShowAnimations] = useState(false);
-  const [relationships, setRelationships] = useState<any[]>([]);
+  const [relationships, setRelationships] = useState<AgentRelationship[]>([]);
   const selectedAgent = useStore((s) => s.selectedAgent);
   const setSelectedAgent = useStore((s) => s.setSelectedAgent);
   const levelUpTriggers = useStore((s) => s.levelUpTriggers);
@@ -545,7 +559,7 @@ export default function CharacterSheet() {
           <div className="section">
             <h3>🤝 Relationships</h3>
             <div className="relationships-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
-              {relationships.map((rel: any) => {
+              {relationships.map((rel: AgentRelationship) => {
                 const otherAgent = rel.agent1.id === agent.id ? rel.agent2 : rel.agent1;
                 const getRelationshipIcon = (type: string) => {
                   switch (type) {

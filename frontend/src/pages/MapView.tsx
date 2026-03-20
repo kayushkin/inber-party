@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useStore } from '../store';
 import './MapView.css';
 
@@ -27,13 +27,6 @@ export default function MapView() {
   const [selectedNode, setSelectedNode] = useState<CodebaseNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, width: 1200, height: 800 });
-
-  useEffect(() => {
-    // Fetch codebase structure
-    fetchCodebaseStructure();
-    // Initialize agent positions
-    initializeAgentPositions();
-  }, []);
 
   const fetchCodebaseStructure = async () => {
     setLoading(true);
@@ -98,7 +91,7 @@ export default function MapView() {
     }
   };
 
-  const initializeAgentPositions = () => {
+  const initializeAgentPositions = useCallback(() => {
     // Initialize agents at random positions on the map
     const positions = agents.map((agent, index) => ({
       agentId: agent.id,
@@ -107,7 +100,14 @@ export default function MapView() {
       currentPath: undefined
     }));
     setAgentPositions(positions);
-  };
+  }, [agents]);
+
+  useEffect(() => {
+    // Fetch codebase structure
+    fetchCodebaseStructure();
+    // Initialize agent positions
+    initializeAgentPositions();
+  }, [initializeAgentPositions]);
 
   const renderCodebaseNode = (node: CodebaseNode) => {
     const isDirectory = node.type === 'directory';
