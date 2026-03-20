@@ -199,5 +199,5 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] "Tavern talk" — generated banter between agents based on their recent work ✅ COMPLETED: Implemented contextual banter generation with mood-based conversations, real-time API integration, and immersive tavern chat experience
 - [x] **Seasonal events** — holiday themes, special quests, seasonal UI decorations ✅ COMPLETED: Implemented comprehensive seasonal event system with 8 major holidays, dynamic theming, animated decorations, seasonal quest name generation, XP bonuses, and configurable toggle controls. Supports Halloween, Christmas, New Year's, Valentine's, St. Patrick's Day, Easter, Independence Day, and Thanksgiving with full visual effects.
 - [~] Agent rivalries/friendships based on collaboration patterns
-- [~] Map view — visual representation of the codebase as a game world, agents as characters on the map
+- [x] Map view — visual representation of the codebase as a game world, agents as characters on the map
 - [ ] Spectator mode — watch an agent work in real-time with RPG overlay
