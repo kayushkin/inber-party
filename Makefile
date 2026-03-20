@@ -57,8 +57,8 @@ clean:
 test:
 	@echo "🧪 Running Go tests..."
 	go test ./...
-	@echo "🧪 Running frontend tests..."
-	cd frontend && npm test
+	@echo "🧪 Running frontend E2E tests..."
+	cd frontend && npm run test:e2e
 
 # Run production build
 run: build

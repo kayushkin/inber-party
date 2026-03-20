@@ -206,6 +206,14 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 MINOR ISSUES FOUND (March 2026)
+
+- [ ] **Fix Visual Regression Test Failures** — E2E tests show 3 visual regression failures for Tavern page, Library page, and War Room page. Issues appear to be minor pixel differences (~0.01 ratio) likely due to font rendering or layout changes. Update baseline screenshots and improve test stability.
+- [x] **Update Makefile Test Command** — ✅ COMPLETED: Fixed Makefile test command to use `npm run test:e2e` instead of non-existent `npm test` script. Now `make test` runs both Go tests and E2E tests correctly.
+- [ ] **Optimize WebSocket Connection Handling** — E2E test logs show frequent WebSocket connect/disconnect cycles during testing. Consider implementing connection pooling or more stable connection management for better performance.
+
+---
+
 ## 💡 Ideas (unprioritized)
 - [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
 - [x] Time-lapse view — compressed animation of a day's agent activity ✅ COMPLETED: Implemented comprehensive time-lapse visualization with `/api/activity/timeline` endpoint, animated playback controls, agent activity tracking, event stream visualization, and timeline statistics
