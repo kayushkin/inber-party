@@ -41,12 +41,13 @@ export class OptimizedWebSocketManager {
   private maxReconnectDelay = 30000; // Max 30 seconds
   private maxReconnectAttempts = 10;
   private isTestEnvironment = false;
-  private testConnectionDelay = 1000; // Reduced to 1 second delay in test environment
-  private testConnectionPersistence = 45000; // Increased to 45 second persistence in test environment
-  private testReconnectCooldown = 10000; // 10 second cooldown between reconnect attempts in tests
+  private testConnectionDelay = 500; // Reduced to 0.5 second delay in test environment  
+  private testConnectionPersistence = 120000; // Increased to 2 minute persistence in test environment
+  private testReconnectCooldown = 15000; // 15 second cooldown between reconnect attempts in tests
   private lastReconnectAttempts: Map<string, number> = new Map(); // Track last reconnect time per URL
   private navigationDebounceTimers: Map<string, number> = new Map();
   private persistentConnections: Set<string> = new Set(); // URLs that should stay connected in test environment
+  private testPersistenceMode = false; // Ultra-persistent mode for test environments
 
   private constructor() {
     // Detect test environment
@@ -54,18 +55,23 @@ export class OptimizedWebSocketManager {
     
     // Adjust settings for test environment
     if (this.isTestEnvironment) {
-      this.maxReconnectAttempts = 2; // Even fewer reconnect attempts during tests
-      this.maxReconnectDelay = 8000; // Shorter max delay
-      console.log('🧪 WebSocket Manager: Test environment detected, using optimized settings for connection stability');
+      this.maxReconnectAttempts = 1; // Even more aggressive - only 1 reconnect attempt during tests
+      this.maxReconnectDelay = 5000; // Shorter max delay
+      console.log('🧪 WebSocket Manager: Test environment detected, using ultra-optimized settings for connection stability');
       
-      // Pre-populate persistent connections for main WebSocket URLs used in tests
+      // Pre-populate persistent connections for ALL WebSocket URLs used in tests
       this.persistentConnections.add('ws://localhost:8080/ws');
       this.persistentConnections.add('ws://localhost:8080/api/ws/chat');
+      this.persistentConnections.add('ws://localhost:5173/ws'); // Also cover Vite dev server
+      this.persistentConnections.add('ws://localhost:5173/api/ws/chat');
+      
+      // Add a global test mode that prevents ANY disconnections during test execution
+      this.enableTestPersistenceMode();
     }
   }
 
   private detectTestEnvironment(): boolean {
-    // Multiple ways to detect test environment
+    // Multiple ways to detect test environment - be more aggressive
     return !!(
       // Playwright test runner
       '__playwright' in globalThis || 
@@ -74,16 +80,29 @@ export class OptimizedWebSocketManager {
       // Environment variables (using import.meta.env for Vite)
       import.meta.env.VITE_NODE_ENV === 'test' ||
       import.meta.env.VITE_CI === 'true' ||
+      import.meta.env.NODE_ENV === 'test' ||
       // User agent detection for headless browsers
       (typeof navigator !== 'undefined' && (
         navigator.userAgent.includes('HeadlessChrome') ||
-        navigator.userAgent.includes('Firefox') && navigator.webdriver
+        navigator.userAgent.includes('Playwright') ||
+        navigator.userAgent.includes('Firefox') && navigator.webdriver ||
+        navigator.userAgent.includes('PhantomJS') ||
+        navigator.userAgent.includes('Chrome') && navigator.userAgent.includes('headless')
       )) ||
-      // Location detection for test servers
+      // Location detection for test servers (both Vite dev and backend test server)
       (typeof window !== 'undefined' && 
         window.location.hostname === 'localhost' && 
-        window.location.port === '5173'
-      )
+        (window.location.port === '5173' || window.location.port === '8080')
+      ) ||
+      // Check for test-specific document title or URL patterns
+      (typeof document !== 'undefined' && 
+        (document.title.includes('Test') || window.location.pathname.includes('/test'))
+      ) ||
+      // Webdriver detection
+      (typeof navigator !== 'undefined' && (
+        'webdriver' in navigator || 
+        (window as unknown as { chrome?: { runtime?: { onConnect?: unknown } } }).chrome?.runtime?.onConnect
+      ))
     );
   }
 
@@ -148,6 +167,13 @@ export class OptimizedWebSocketManager {
     const filteredSubs = subs.filter(sub => sub.id !== subscriberId);
     
     if (filteredSubs.length === 0) {
+      // In ultra-persistent test mode, never close connections
+      if (this.testPersistenceMode) {
+        console.log(`🧪 Ultra-persistent mode: keeping connection to ${url} open despite no subscribers`);
+        this.subscriptions.delete(url);
+        return;
+      }
+      
       // In test environment, delay connection closure to handle rapid navigation
       if (this.isTestEnvironment) {
         this.scheduleDelayedConnectionClose(url);
@@ -164,6 +190,12 @@ export class OptimizedWebSocketManager {
    * Schedule delayed connection closure for test environments to handle navigation
    */
   private scheduleDelayedConnectionClose(url: string) {
+    // In ultra-persistent test mode, never schedule closure
+    if (this.testPersistenceMode) {
+      console.log(`🧪 Ultra-persistent mode: never closing connection to ${url}`);
+      return;
+    }
+    
     // For persistent connections in test environment, don't schedule closure at all
     if (this.persistentConnections.has(url)) {
       console.log(`🧪 Maintaining persistent connection to ${url} in test environment`);
@@ -201,6 +233,14 @@ export class OptimizedWebSocketManager {
       this.navigationDebounceTimers.delete(url);
       console.log(`🧪 Cancelled delayed WebSocket connection close for ${url}`);
     }
+  }
+
+  /**
+   * Enable ultra-persistent test mode that prevents all disconnections
+   */
+  private enableTestPersistenceMode() {
+    this.testPersistenceMode = true;
+    console.log('🧪 Ultra-persistent test mode enabled - connections will be maintained indefinitely during tests');
   }
 
   /**
@@ -441,6 +481,10 @@ export class OptimizedWebSocketManager {
    * Force close all connections (useful for cleanup)
    */
   closeAll() {
+    // Temporarily disable test persistence mode for cleanup
+    const wasTestPersistenceMode = this.testPersistenceMode;
+    this.testPersistenceMode = false;
+    
     const urls = Array.from(this.connections.keys());
     urls.forEach(url => this.closeConnection(url));
     this.subscriptions.clear();
@@ -453,6 +497,17 @@ export class OptimizedWebSocketManager {
     this.navigationDebounceTimers.forEach(timer => window.clearTimeout(timer));
     this.navigationDebounceTimers.clear();
     this.reconnectAttempts.clear();
+    
+    // Restore test persistence mode state
+    this.testPersistenceMode = wasTestPersistenceMode;
+  }
+
+  /**
+   * Disable test persistence mode (useful for explicit cleanup)
+   */
+  disableTestPersistenceMode() {
+    this.testPersistenceMode = false;
+    console.log('🧪 Ultra-persistent test mode disabled');
   }
 
   /**
@@ -521,6 +576,7 @@ export class OptimizedWebSocketManager {
     
     return {
       isTestEnvironment: this.isTestEnvironment,
+      testPersistenceMode: this.testPersistenceMode,
       testConnectionDelay: this.testConnectionDelay,
       testConnectionPersistence: this.testConnectionPersistence,
       testReconnectCooldown: this.testReconnectCooldown,

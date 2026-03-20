@@ -253,6 +253,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 NEW CRITICAL: Further WebSocket Connection Optimization (March 2026 - Session 7)
+
+- [~] **Eliminate Remaining WebSocket Connection Churn During E2E Tests** — Despite previous optimizations, E2E test runs still show excessive connection/disconnection cycles (observed ~30+ cycles during test run). During `make test` execution, WebSocket logs show frequent "WebSocket client connected/disconnected" messages every few seconds. Need to implement more aggressive connection persistence and reduce connection cycling to improve test performance and stability. Target: reduce connection events from 30+ to <5 during full test suite execution.
+
+---
+
 ## 💡 Ideas (unprioritized)
 - [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
 - [x] Time-lapse view — compressed animation of a day's agent activity ✅ COMPLETED: Implemented comprehensive time-lapse visualization with `/api/activity/timeline` endpoint, animated playback controls, agent activity tracking, event stream visualization, and timeline statistics
