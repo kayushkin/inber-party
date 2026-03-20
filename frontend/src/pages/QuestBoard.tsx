@@ -103,7 +103,7 @@ export default function QuestBoard() {
   };
 
   return (
-    <div className="quest-board">
+    <div className="quest-board" data-testid="quest-board">
       <div className="quest-board-header">
         <div className="quest-board-title">
           <h1>📜 Quest Board</h1>

@@ -66,12 +66,12 @@ test.describe('Core App Flows', () => {
       await expect(page).toHaveURL('/guild-chat');
       
       // Check that chat interface is visible - look for input field
-      await expect(page.locator('input[type="text"], textarea')).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('.guild-input, input, textarea')).toBeVisible({ timeout: 5000 });
     } else {
       // Alternative: Navigate directly to guild chat URL
       await page.goto('/guild-chat');
       await expect(page).toHaveURL('/guild-chat');
-      await expect(page.locator('input[type="text"], textarea')).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('.guild-input, input, textarea')).toBeVisible({ timeout: 5000 });
     }
   });
 
@@ -118,7 +118,7 @@ test.describe('Core App Flows', () => {
       await expect(page).toHaveURL('/quests');
       
       // Check that quest board content is visible
-      await expect(page.locator('h1, h2, [data-testid="quest-board"], .quest')).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('[data-testid="quest-board"]')).toBeVisible({ timeout: 5000 });
     }
   });
 
