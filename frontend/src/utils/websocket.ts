@@ -20,6 +20,7 @@ interface WSConnectionStats {
   reconnectAttempts: number;
   hasReconnectTimer: boolean;
   hasConnectionTimer: boolean;
+  hasNavigationTimer: boolean;
   isTestEnvironment: boolean;
 }
 
@@ -41,6 +42,8 @@ export class OptimizedWebSocketManager {
   private maxReconnectAttempts = 10;
   private isTestEnvironment = false;
   private testConnectionDelay = 2000; // 2 second delay in test environment
+  private testConnectionPersistence = 30000; // 30 second persistence in test environment
+  private navigationDebounceTimers: Map<string, number> = new Map();
 
   private constructor() {
     // Detect test environment
@@ -138,15 +141,61 @@ export class OptimizedWebSocketManager {
     const filteredSubs = subs.filter(sub => sub.id !== subscriberId);
     
     if (filteredSubs.length === 0) {
-      // No more subscribers, close connection
-      this.closeConnection(url);
+      // In test environment, delay connection closure to handle rapid navigation
+      if (this.isTestEnvironment) {
+        this.scheduleDelayedConnectionClose(url);
+      } else {
+        this.closeConnection(url);
+      }
       this.subscriptions.delete(url);
     } else {
       this.subscriptions.set(url, filteredSubs);
     }
   }
 
+  /**
+   * Schedule delayed connection closure for test environments to handle navigation
+   */
+  private scheduleDelayedConnectionClose(url: string) {
+    // Cancel any existing delayed closure
+    const existingTimer = this.navigationDebounceTimers.get(url);
+    if (existingTimer) {
+      window.clearTimeout(existingTimer);
+    }
+
+    console.log(`🧪 Delaying WebSocket connection close for ${url} by ${this.testConnectionPersistence}ms to handle navigation`);
+
+    const timer = window.setTimeout(() => {
+      // Only close if no new subscribers have appeared
+      const subs = this.subscriptions.get(url);
+      if (!subs || subs.length === 0) {
+        console.log(`🧪 Closing delayed WebSocket connection to ${url}`);
+        this.closeConnection(url);
+      }
+      this.navigationDebounceTimers.delete(url);
+    }, this.testConnectionPersistence);
+
+    this.navigationDebounceTimers.set(url, timer);
+  }
+
+  /**
+   * Cancel scheduled connection closure (used when new subscribers appear)
+   */
+  private cancelDelayedConnectionClose(url: string) {
+    const timer = this.navigationDebounceTimers.get(url);
+    if (timer) {
+      window.clearTimeout(timer);
+      this.navigationDebounceTimers.delete(url);
+      console.log(`🧪 Cancelled delayed WebSocket connection close for ${url}`);
+    }
+  }
+
   private ensureConnection(url: string) {
+    // Cancel any delayed connection closure since we have a new subscriber
+    if (this.isTestEnvironment) {
+      this.cancelDelayedConnectionClose(url);
+    }
+
     if (this.connections.has(url)) {
       const ws = this.connections.get(url)!;
       if (ws.readyState === WebSocket.OPEN) {
@@ -311,6 +360,13 @@ export class OptimizedWebSocketManager {
       this.connectionTimers.delete(url);
     }
 
+    // Clear navigation debounce timer
+    const navigationTimer = this.navigationDebounceTimers.get(url);
+    if (navigationTimer) {
+      window.clearTimeout(navigationTimer);
+      this.navigationDebounceTimers.delete(url);
+    }
+
     // Reset reconnect attempts
     this.reconnectAttempts.delete(url);
   }
@@ -353,6 +409,8 @@ export class OptimizedWebSocketManager {
     this.reconnectTimers.clear();
     this.connectionTimers.forEach(timer => window.clearTimeout(timer));
     this.connectionTimers.clear();
+    this.navigationDebounceTimers.forEach(timer => window.clearTimeout(timer));
+    this.navigationDebounceTimers.clear();
     this.reconnectAttempts.clear();
   }
 
@@ -373,6 +431,7 @@ export class OptimizedWebSocketManager {
         reconnectAttempts: attempts,
         hasReconnectTimer: this.reconnectTimers.has(url),
         hasConnectionTimer: this.connectionTimers.has(url),
+        hasNavigationTimer: this.navigationDebounceTimers.has(url),
         isTestEnvironment: this.isTestEnvironment,
       };
     }
@@ -386,6 +445,7 @@ export class OptimizedWebSocketManager {
           reconnectAttempts: this.reconnectAttempts.get(url) || 0,
           hasReconnectTimer: this.reconnectTimers.has(url),
           hasConnectionTimer: this.connectionTimers.has(url),
+          hasNavigationTimer: this.navigationDebounceTimers.has(url),
           isTestEnvironment: this.isTestEnvironment,
         };
       }

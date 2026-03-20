@@ -284,3 +284,9 @@ Add new ideas at the bottom. Re-prioritize as needed.
 ## 🚨 CRITICAL: Fix Visual Regression Test Instability (March 2026 - Session 5)
 
 - [x] **Fix Persistent Visual Regression Test Failures** — ✅ COMPLETED: Visual regression tests now pass consistently (20/20 tests). Fixed issues with dynamic content causing instability, improved tolerance thresholds, and enhanced UI stabilization timing. Test suite reliability restored with comprehensive improvements to Playwright configuration and test stability mechanisms.
+
+---
+
+## 🚨 NEW CRITICAL: Optimize E2E Test WebSocket Connection Handling (March 2026 - Session 6)
+
+- [~] **Reduce E2E Test WebSocket Connection Churn** — Despite previous WebSocket optimizations, E2E tests still show excessive connection/disconnection cycles during test navigation (observed pattern: connect → 7-15 seconds → disconnect → repeat). This indicates that page navigation in tests is triggering full component unmount/mount cycles that bypass the WebSocket connection pooling. Need to implement better test-specific connection persistence or improve component lifecycle management during navigation. Target: Reduce connection churn from observed 20+ cycles per test run to <5 stable connections.
