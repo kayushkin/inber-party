@@ -9,6 +9,7 @@ import { AchievementToastContainer } from './components/AchievementToast';
 import { NotificationProvider } from './contexts/NotificationContextProvider';
 import NotificationContainer from './components/NotificationContainer';
 import SeasonalDecorations from './components/SeasonalDecorations';
+import WSDebugPanel from './components/WSDebugPanel';
 import './App.css';
 
 // Lazy load page components for code splitting
@@ -213,6 +214,9 @@ function App() {
         
         <NotificationContainer />
         <SeasonalDecorations />
+        
+        {/* WebSocket Debug Panel - only visible in development */}
+        {import.meta.env.DEV && <WSDebugPanel />}
       </BrowserRouter>
       </NotificationProvider>
     </ErrorBoundary>

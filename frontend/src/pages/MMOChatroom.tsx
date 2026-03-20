@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useOptimizedWebSocket } from '../utils/websocket';
 import './MMOChatroom.css';
 
 interface ChatMessage {
@@ -34,7 +35,6 @@ export default function MMOChatroom() {
   });
   const [isConnected, setIsConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const wsRef = useRef<WebSocket | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -44,79 +44,51 @@ export default function MMOChatroom() {
     scrollToBottom();
   }, [messages]);
 
-  // Connect to WebSocket for real-time chat
-  useEffect(() => {
-    if (!username) return;
-
-    const connectChat = () => {
-      const wsUrl = 'ws://localhost:8080/api/ws/chat';
-      const ws = new WebSocket(wsUrl);
+  const wsUrl = 'ws://localhost:8080/api/ws/chat';
+  
+  // Use optimized WebSocket connection
+  const { send } = useOptimizedWebSocket(
+    wsUrl,
+    `mmo-chat-${username}`,
+    (data) => {
+      // Handle incoming messages
+      if (data.type === 'chat_message') {
+        setMessages(prev => [...prev, data.message]);
+      } else if (data.type === 'chat_history') {
+        setMessages(data.messages || []);
+      } else if (data.type === 'user_joined') {
+        setMessages(prev => [...prev, {
+          id: generateChatMessageId('user_joined'),
+          username: 'System',
+          message: `${data.username} joined the chatroom`,
+          timestamp: new Date().toISOString(),
+          type: 'system'
+        }]);
+      } else if (data.type === 'user_left') {
+        setMessages(prev => [...prev, {
+          id: generateChatMessageId('user_left'),
+          username: 'System',
+          message: `${data.username} left the chatroom`,
+          timestamp: new Date().toISOString(),
+          type: 'system'
+        }]);
+      }
+    },
+    (connected) => {
+      setIsConnected(connected);
       
-      ws.onopen = () => {
-        console.log('Connected to chat server');
-        setIsConnected(true);
-        
-        // Send join message
-        ws.send(JSON.stringify({
+      // Send join message when connected
+      if (connected && username) {
+        send({
           type: 'join',
           username: username
-        }));
-      };
-
-      ws.onclose = () => {
-        console.log('Disconnected from chat server');
-        setIsConnected(false);
-        // Attempt to reconnect after 3 seconds
-        setTimeout(connectChat, 3000);
-      };
-
-      ws.onerror = (error) => {
-        console.error('Chat WebSocket error:', error);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'chat_message') {
-            setMessages(prev => [...prev, data.message]);
-          } else if (data.type === 'chat_history') {
-            setMessages(data.messages || []);
-          } else if (data.type === 'user_joined') {
-            setMessages(prev => [...prev, {
-              id: generateChatMessageId('user_joined'),
-              username: 'System',
-              message: `${data.username} joined the chatroom`,
-              timestamp: new Date().toISOString(),
-              type: 'system'
-            }]);
-          } else if (data.type === 'user_left') {
-            setMessages(prev => [...prev, {
-              id: generateChatMessageId('user_left'),
-              username: 'System',
-              message: `${data.username} left the chatroom`,
-              timestamp: new Date().toISOString(),
-              type: 'system'
-            }]);
-          }
-        } catch (error) {
-          console.error('Error parsing chat message:', error);
-        }
-      };
-
-      wsRef.current = ws;
-    };
-
-    connectChat();
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
+        });
       }
-    };
-  }, [username]);
+    }
+  );
 
   const sendMessage = () => {
-    if (!inputMessage.trim() || !wsRef.current || !isConnected) return;
+    if (!inputMessage.trim() || !isConnected) return;
 
     const message = {
       type: 'chat_message',
@@ -126,8 +98,10 @@ export default function MMOChatroom() {
       avatar: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${username}&size=32`
     };
 
-    wsRef.current.send(JSON.stringify(message));
-    setInputMessage('');
+    const success = send(message);
+    if (success) {
+      setInputMessage('');
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -137,19 +111,7 @@ export default function MMOChatroom() {
     }
   };
 
-  const changeUsername = () => {
-    const newUsername = prompt('Choose a new username:', username);
-    if (newUsername && newUsername.trim() && newUsername !== username) {
-      setUsername(newUsername.trim());
-      localStorage.setItem('mmo_username', newUsername.trim());
-      // Reconnect with new username
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    }
-  };
-
-  const formatTime = (timestamp: string) => {
+  const formatTimestamp = (timestamp: string) => {
     try {
       const date = new Date(timestamp);
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -158,51 +120,64 @@ export default function MMOChatroom() {
     }
   };
 
-  const getMessageTypeClass = (type: string) => {
-    switch (type) {
-      case 'system': return 'message-system';
-      case 'bounty': return 'message-bounty';
-      case 'quest': return 'message-quest';
-      default: return 'message-chat';
+  const changeUsername = () => {
+    const newUsername = prompt('Enter new username:', username);
+    if (newUsername && newUsername !== username) {
+      localStorage.setItem('mmo_username', newUsername);
+      setUsername(newUsername);
+      
+      // Send leave message for old username and join for new one
+      if (isConnected) {
+        send({
+          type: 'username_changed',
+          oldUsername: username,
+          newUsername: newUsername
+        });
+      }
     }
   };
 
   return (
     <div className="mmo-chatroom">
-      <div className="chatroom-header">
-        <h1>🌍 MMO Trade Chat</h1>
-        <div className="chatroom-info">
-          <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
-            {isConnected ? '🟢 Online' : '🔴 Connecting...'}
-          </span>
-          <button className="username-btn" onClick={changeUsername}>
-            👤 {username}
+      <div className="chat-header">
+        <div className="chat-title">
+          <h2>🏰 Tavern Chat</h2>
+          <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+            {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+          </div>
+        </div>
+        <div className="user-info">
+          <span>👤 {username}</span>
+          <button onClick={changeUsername} className="change-username-btn" title="Change username">
+            ✏️
           </button>
         </div>
       </div>
 
-      <div className="chat-container">
-        <div className="messages-area">
+      <div className="messages-container">
+        <div className="messages-scroll">
           {messages.length === 0 ? (
             <div className="no-messages">
-              <p>Welcome to the guild chatroom! 🏰</p>
-              <p>This is where bounty hunters and quest givers meet to discuss tasks, negotiate terms, and share information.</p>
-              <p>Be the first to break the ice!</p>
+              <p>Welcome to the tavern! Start chatting with fellow adventurers...</p>
             </div>
           ) : (
             messages.map((msg) => (
-              <div key={msg.id} className={`message ${getMessageTypeClass(msg.type)}`}>
-                {msg.type !== 'system' && msg.avatar && (
-                  <img 
-                    src={msg.avatar} 
-                    alt={msg.username}
-                    className="message-avatar"
-                  />
+              <div key={msg.id} className={`message ${msg.type === 'system' ? 'system-message' : 'chat-message'}`}>
+                {msg.type !== 'system' && (
+                  <div className="message-avatar">
+                    {msg.avatar ? (
+                      <img src={msg.avatar} alt={`${msg.username} avatar`} />
+                    ) : (
+                      <div className="default-avatar">
+                        {msg.username.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
                 )}
                 <div className="message-content">
                   <div className="message-header">
-                    <span className="message-username">{msg.username}</span>
-                    <span className="message-time">{formatTime(msg.timestamp)}</span>
+                    <span className="username">{msg.username}</span>
+                    <span className="timestamp">{formatTimestamp(msg.timestamp)}</span>
                   </div>
                   <div className="message-text">{msg.message}</div>
                 </div>
@@ -211,30 +186,32 @@ export default function MMOChatroom() {
           )}
           <div ref={messagesEndRef} />
         </div>
+      </div>
 
-        <div className="chat-input-area">
-          <div className="chat-input-container">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={isConnected ? "Type your message..." : "Connecting to chat..."}
-              disabled={!isConnected}
-              className="chat-input"
-              maxLength={500}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!isConnected || !inputMessage.trim()}
-              className="send-button"
-            >
-              📨
-            </button>
-          </div>
-          <div className="chat-tips">
-            <p>💡 <strong>Tips:</strong> Discuss bounties, ask for clarification on tasks, negotiate terms, or just chat with fellow adventurers!</p>
-          </div>
+      <div className="message-input-container">
+        <div className="input-wrapper">
+          <input
+            type="text"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={isConnected ? "Type a message..." : "Connecting..."}
+            disabled={!isConnected}
+            maxLength={500}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!inputMessage.trim() || !isConnected}
+            className="send-button"
+          >
+            📤
+          </button>
+        </div>
+        <div className="input-info">
+          <span className="char-count">{inputMessage.length}/500</span>
+          {!isConnected && (
+            <span className="connection-warning">⚠️ Reconnecting...</span>
+          )}
         </div>
       </div>
     </div>

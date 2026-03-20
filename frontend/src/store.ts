@@ -8,6 +8,7 @@ import {
   getSeasonalDecorations,
   type SeasonalEvent 
 } from './utils/seasonalEvents';
+import { wsManager } from './utils/websocket';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -218,8 +219,8 @@ interface StoreState {
   parties: RPGParty[];
   stats: RPGStats | null;
   connected: boolean;
-  ws: WebSocket | null;
   pollTimer: ReturnType<typeof setInterval> | null;
+  wsUnsubscribe: (() => void) | null;
   
   // Loading states
   isLoadingAgents: boolean;
@@ -304,8 +305,8 @@ export const useStore = create<StoreState>((set, get) => ({
   parties: [],
   stats: null,
   connected: false,
-  ws: null,
   pollTimer: null,
+  wsUnsubscribe: null,
   chatMessages: loadChatHistory(), // Load persisted chat history on initialization
   chatLoading: {},
   selectedAgent: null,
@@ -605,105 +606,115 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   connectWebSocket: () => {
-    const ws = new WebSocket(WS_URL);
-    ws.onopen = () => set({ connected: true });
-    ws.onclose = () => {
-      set({ connected: false });
-      setTimeout(() => get().connectWebSocket(), 3000);
-    };
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'quest_event') {
-          // Handle real-time quest events
-          const questEvent = msg.data;
-          console.log(`🎯 Quest Event: ${questEvent.message}`);
-          
-          // Play sound effects for important events
-          switch (questEvent.type) {
-            case 'quest_completed':
-              console.log(`🎉 ${questEvent.message}`);
-              // The quest completion sound/animation is already handled by the existing triggerQuestCompletion logic
-              break;
-            case 'quest_failed':
-              console.log(`💀 ${questEvent.message}`);
-              break;
-            case 'quest_started':
-              console.log(`⚔️ ${questEvent.message}`);
-              break;
-            case 'agent_level_up':
-              console.log(`✨ ${questEvent.message}`);
-              // The level up animation is already handled by the existing triggerLevelUp logic
-              break;
-            case 'agent_status_changed':
-              console.log(`📍 ${questEvent.message}`);
-              break;
-          }
-          
-          // Trigger a fresh data fetch to get the latest state after the event
-          // This ensures the UI stays in sync with the real-time events
-          get().fetchAll();
-        } else if (msg.type === 'inber_update') {
-          const { agents, quests, stats } = msg.data;
-          if (agents) {
-            const { previousAgentLevels, triggerLevelUp } = get();
-            
-            // Check for level ups
-            agents.forEach((agent: RPGAgent) => {
-              const prevLevel = previousAgentLevels[agent.id];
-              if (prevLevel && agent.level > prevLevel) {
-                console.log(`${agent.name} leveled up from ${prevLevel} to ${agent.level}!`);
-                triggerLevelUp(agent.id);
-              }
-            });
-            
-            // Update agents and track their levels
-            const newLevels = agents.reduce((acc: Record<string, number>, agent: RPGAgent) => {
-              acc[agent.id] = agent.level;
-              return acc;
-            }, {});
-            
-            set({ 
-              agents,
-              previousAgentLevels: newLevels
-            });
-            
-            // Check for new achievements after agents are updated via WebSocket
-            get().checkForNewAchievements();
-          }
-          if (quests) {
-            const { previousQuestStatuses, triggerQuestCompletion } = get();
-            
-            // Check for quest completions
-            quests.forEach((quest: RPGQuest) => {
-              const prevStatus = previousQuestStatuses[quest.id];
-              if (prevStatus && prevStatus !== 'completed' && quest.status === 'completed') {
-                console.log(`Quest "${quest.name}" completed by ${quest.assigned_agent_name || 'Unknown Agent'}!`);
-                triggerQuestCompletion(quest.id, quest.name, quest.xp_reward, quest.assigned_agent_name || 'Unknown Agent');
-              }
-            });
-            
-            // Update quest statuses
-            const newStatuses = quests.reduce((acc: Record<number, string>, quest: RPGQuest) => {
-              acc[quest.id] = quest.status;
-              return acc;
-            }, {});
-            
-            set({ 
-              quests,
-              previousQuestStatuses: newStatuses
-            });
-          }
-          if (stats) set({ stats });
+    // Disconnect existing connection if any
+    get().disconnectWebSocket();
+    
+    const handleMessage = (msg: any) => {
+      if (msg.type === 'quest_event') {
+        // Handle real-time quest events
+        const questEvent = msg.data;
+        console.log(`🎯 Quest Event: ${questEvent.message}`);
+        
+        // Play sound effects for important events
+        switch (questEvent.type) {
+          case 'quest_completed':
+            console.log(`🎉 ${questEvent.message}`);
+            // The quest completion sound/animation is already handled by the existing triggerQuestCompletion logic
+            break;
+          case 'quest_failed':
+            console.log(`💀 ${questEvent.message}`);
+            break;
+          case 'quest_started':
+            console.log(`⚔️ ${questEvent.message}`);
+            break;
+          case 'agent_level_up':
+            console.log(`✨ ${questEvent.message}`);
+            // The level up animation is already handled by the existing triggerLevelUp logic
+            break;
+          case 'agent_status_changed':
+            console.log(`📍 ${questEvent.message}`);
+            break;
         }
-      } catch { /* ignore */ }
+        
+        // Trigger a fresh data fetch to get the latest state after the event
+        // This ensures the UI stays in sync with the real-time events
+        get().fetchAll();
+      } else if (msg.type === 'inber_update') {
+        const { agents, quests, stats } = msg.data;
+        if (agents) {
+          const { previousAgentLevels, triggerLevelUp } = get();
+          
+          // Check for level ups
+          agents.forEach((agent: RPGAgent) => {
+            const prevLevel = previousAgentLevels[agent.id];
+            if (prevLevel && agent.level > prevLevel) {
+              console.log(`${agent.name} leveled up from ${prevLevel} to ${agent.level}!`);
+              triggerLevelUp(agent.id);
+            }
+          });
+          
+          // Update agents and track their levels
+          const newLevels = agents.reduce((acc: Record<string, number>, agent: RPGAgent) => {
+            acc[agent.id] = agent.level;
+            return acc;
+          }, {});
+          
+          set({ 
+            agents,
+            previousAgentLevels: newLevels
+          });
+          
+          // Check for new achievements after agents are updated via WebSocket
+          get().checkForNewAchievements();
+        }
+        if (quests) {
+          const { previousQuestStatuses, triggerQuestCompletion } = get();
+          
+          // Check for quest completions
+          quests.forEach((quest: RPGQuest) => {
+            const prevStatus = previousQuestStatuses[quest.id];
+            if (prevStatus && prevStatus !== 'completed' && quest.status === 'completed') {
+              console.log(`Quest "${quest.name}" completed by ${quest.assigned_agent_name || 'Unknown Agent'}!`);
+              triggerQuestCompletion(quest.id, quest.name, quest.xp_reward, quest.assigned_agent_name || 'Unknown Agent');
+            }
+          });
+          
+          // Update quest statuses
+          const newStatuses = quests.reduce((acc: Record<number, string>, quest: RPGQuest) => {
+            acc[quest.id] = quest.status;
+            return acc;
+          }, {});
+          
+          set({ 
+            quests,
+            previousQuestStatuses: newStatuses
+          });
+        }
+        if (stats) set({ stats });
+      }
     };
-    set({ ws });
+
+    const handleStateChange = (connected: boolean) => {
+      set({ connected });
+    };
+
+    // Use the optimized WebSocket manager
+    const unsubscribe = wsManager.subscribe(
+      WS_URL,
+      'main-store',
+      handleMessage,
+      handleStateChange
+    );
+    
+    set({ wsUnsubscribe: unsubscribe });
   },
 
   disconnectWebSocket: () => {
-    get().ws?.close();
-    set({ ws: null, connected: false });
+    const { wsUnsubscribe } = get();
+    if (wsUnsubscribe) {
+      wsUnsubscribe();
+      set({ wsUnsubscribe: null, connected: false });
+    }
   },
 
   startPolling: (intervalMs = 10000) => {
