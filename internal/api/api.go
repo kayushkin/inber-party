@@ -1794,6 +1794,19 @@ func (s *Server) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	
+	// Set appropriate HTTP status code based on overall health
+	statusCode := http.StatusOK
+	switch response.Overall.Status {
+	case "healthy":
+		statusCode = http.StatusOK // 200
+	case "degraded":
+		statusCode = http.StatusPartialContent // 206
+	case "unhealthy":
+		statusCode = http.StatusServiceUnavailable // 503
+	}
+	
+	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(response)
 }
 
