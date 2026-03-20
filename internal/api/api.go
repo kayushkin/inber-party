@@ -96,6 +96,10 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/costs", s.handleCosts)
 	mux.HandleFunc("/api/costs/summary", s.handleCostsSummary)
 	mux.HandleFunc("/api/activity/timeline", s.handleActivityTimeline)
+	mux.HandleFunc("/api/spectator/live-sessions", s.handleLiveSessions)
+	mux.HandleFunc("/api/spectator/live-session/", s.handleLiveSession)
+	mux.HandleFunc("/api/spectator/recent-tool-calls", s.handleRecentToolCalls)
+	mux.HandleFunc("/api/spectator/recent-tool-calls/", s.handleRecentToolCallsForAgent)
 	
 	// Auto-bounty system routes (new)
 	mux.HandleFunc("/api/auto-bounties", s.handleAutoBounties)
@@ -4425,4 +4429,284 @@ func (s *Server) handleAgentRelationshipStats(w http.ResponseWriter, r *http.Req
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
+}
+
+// Spectator Mode API Handlers
+
+type LiveSession struct {
+	ID            string  `json:"id"`
+	AgentID       string  `json:"agent_id"`
+	AgentName     string  `json:"agent_name"`
+	Status        string  `json:"status"`
+	StartedAt     string  `json:"started_at"`
+	CurrentTool   string  `json:"current_tool,omitempty"`
+	CurrentAction string  `json:"current_action,omitempty"`
+	Progress      float64 `json:"progress"`
+	Energy        int     `json:"energy"`
+	MaxEnergy     int     `json:"max_energy"`
+	Turns         int     `json:"turns"`
+	TokensUsed    int     `json:"tokens_used"`
+	Cost          float64 `json:"cost"`
+	LiveOutput    string  `json:"live_output,omitempty"`
+}
+
+type ToolCall struct {
+	ID         string                 `json:"id"`
+	ToolName   string                 `json:"tool_name"`
+	Parameters map[string]interface{} `json:"parameters"`
+	Timestamp  string                 `json:"timestamp"`
+	Duration   *float64               `json:"duration,omitempty"`
+	Success    *bool                  `json:"success,omitempty"`
+	AgentName  string                 `json:"agent_name,omitempty"`
+}
+
+// handleLiveSessions returns all currently active sessions for spectator mode
+func (s *Server) handleLiveSessions(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.DB == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]LiveSession{})
+		return
+	}
+
+	// Get all agents and their current status
+	rows, err := s.DB.Query(`
+		SELECT id, name, title, class, level, xp, gold, energy, status, avatar_emoji, mood, mood_score, workload, last_active
+		FROM agents
+		WHERE status IN ('working', 'thinking')
+		ORDER BY last_active DESC
+	`)
+	if err != nil {
+		log.Printf("Error getting agents for live sessions: %v", err)
+		http.Error(w, "Failed to get agents", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var liveSessions []LiveSession
+	for rows.Next() {
+		var agent db.Agent
+		var lastActive *time.Time
+		
+		err := rows.Scan(&agent.ID, &agent.Name, &agent.Title, &agent.Class,
+			&agent.Level, &agent.XP, &agent.Gold, &agent.Energy, &agent.Status,
+			&agent.AvatarEmoji, &agent.Mood, &agent.MoodScore, &agent.Workload, &lastActive)
+		if err != nil {
+			log.Printf("Error scanning agent: %v", err)
+			continue
+		}
+
+		session := LiveSession{
+			ID:         fmt.Sprintf("%d-current", agent.ID),
+			AgentID:    fmt.Sprintf("%d", agent.ID),
+			AgentName:  agent.Name,
+			Status:     agent.Status,
+			StartedAt:  "", // Would need session data
+			Progress:   float64(agent.XP) / 1000.0, // Simple progress calculation
+			Energy:     agent.Energy,
+			MaxEnergy:  100, // Default max energy
+			TokensUsed: 0,   // Would need session data
+			Cost:       0.0, // Would need session data
+		}
+		liveSessions = append(liveSessions, session)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(liveSessions)
+}
+
+// handleLiveSession returns detailed information about a specific agent's current session
+func (s *Server) handleLiveSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract agent ID from URL path
+	path := r.URL.Path
+	if !strings.HasPrefix(path, "/api/spectator/live-session/") {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	agentIDStr := strings.TrimPrefix(path, "/api/spectator/live-session/")
+	if agentIDStr == "" {
+		http.Error(w, "Agent ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Convert agent ID to integer
+	agentID, err := strconv.Atoi(agentIDStr)
+	if err != nil {
+		http.Error(w, "Invalid agent ID", http.StatusBadRequest)
+		return
+	}
+
+	if s.DB == nil {
+		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Get agent details
+	var agent db.Agent
+	var lastActive *time.Time
+	
+	err = s.DB.QueryRow(`
+		SELECT id, name, title, class, level, xp, gold, energy, status, avatar_emoji, mood, mood_score, workload, last_active
+		FROM agents
+		WHERE id = ?
+	`, agentID).Scan(&agent.ID, &agent.Name, &agent.Title, &agent.Class,
+		&agent.Level, &agent.XP, &agent.Gold, &agent.Energy, &agent.Status,
+		&agent.AvatarEmoji, &agent.Mood, &agent.MoodScore, &agent.Workload, &lastActive)
+	
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			http.Error(w, "Agent not found", http.StatusNotFound)
+		} else {
+			log.Printf("Error getting agent for live session: %v", err)
+			http.Error(w, "Failed to get agent", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Create a detailed live session object
+	liveSession := LiveSession{
+		ID:         fmt.Sprintf("%d-current", agent.ID),
+		AgentID:    fmt.Sprintf("%d", agent.ID),
+		AgentName:  agent.Name,
+		Status:     agent.Status,
+		StartedAt:  "", // Would get from actual session data
+		Progress:   float64(agent.XP) / 1000.0, // Simple progress calculation
+		Energy:     agent.Energy,
+		MaxEnergy:  100, // Default max energy
+		TokensUsed: 0,   // Would need session data
+		Cost:       0.0, // Would need session data
+		Turns:      0,   // Would need session data
+	}
+
+	// Try to determine current tool based on agent class/status
+	if agent.Status == "working" {
+		switch agent.Class {
+		case "Warrior":
+			liveSession.CurrentTool = "exec"
+			liveSession.CurrentAction = "Executing commands"
+		case "Mage":
+			liveSession.CurrentTool = "write"
+			liveSession.CurrentAction = "Writing code"
+		case "Scout":
+			liveSession.CurrentTool = "web_search"
+			liveSession.CurrentAction = "Gathering information"
+		default:
+			liveSession.CurrentTool = "unknown"
+			liveSession.CurrentAction = "Working on tasks"
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(liveSession)
+}
+
+// handleRecentToolCalls returns recent tool calls across all agents
+func (s *Server) handleRecentToolCalls(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	limit := 50 // Default limit
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+			limit = parsedLimit
+		}
+	}
+
+	toolCalls, err := s.getRecentToolCalls("", limit)
+	if err != nil {
+		log.Printf("Error getting recent tool calls: %v", err)
+		http.Error(w, "Failed to get tool calls", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(toolCalls)
+}
+
+// handleRecentToolCallsForAgent returns recent tool calls for a specific agent
+func (s *Server) handleRecentToolCallsForAgent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract agent ID from URL path
+	path := r.URL.Path
+	if !strings.HasPrefix(path, "/api/spectator/recent-tool-calls/") {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	agentID := strings.TrimPrefix(path, "/api/spectator/recent-tool-calls/")
+	if agentID == "" {
+		http.Error(w, "Agent ID required", http.StatusBadRequest)
+		return
+	}
+
+	limit := 20 // Default limit for single agent
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 50 {
+			limit = parsedLimit
+		}
+	}
+
+	toolCalls, err := s.getRecentToolCalls(agentID, limit)
+	if err != nil {
+		log.Printf("Error getting recent tool calls for agent %s: %v", agentID, err)
+		http.Error(w, "Failed to get tool calls", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(toolCalls)
+}
+
+// getRecentToolCalls retrieves recent tool calls from the inber databases
+func (s *Server) getRecentToolCalls(agentID string, limit int) ([]ToolCall, error) {
+	// Mock data for now - would need actual database queries
+	// This would typically query the gateway database for recent tool calls
+	var toolCalls []ToolCall
+
+	// Generate some sample data for demonstration
+	tools := []string{"exec", "read", "write", "web_search", "browser", "nodes"}
+	
+	for i := 0; i < limit/2 && i < 10; i++ {
+		toolCall := ToolCall{
+			ID:       fmt.Sprintf("tool_%d_%d", time.Now().Unix(), i),
+			ToolName: tools[i%len(tools)],
+			Parameters: map[string]interface{}{
+				"command": "sample command",
+				"file":    "sample_file.txt",
+			},
+			Timestamp: time.Now().Add(-time.Duration(i)*time.Minute).Format(time.RFC3339),
+		}
+		
+		// Add duration and success status for some calls
+		if i%2 == 0 {
+			duration := float64(i+1) * 0.5
+			success := true
+			toolCall.Duration = &duration
+			toolCall.Success = &success
+		}
+
+		if agentID == "" {
+			toolCall.AgentName = fmt.Sprintf("agent_%d", i%3)
+		} else {
+			toolCall.AgentName = agentID
+		}
+
+		toolCalls = append(toolCalls, toolCall)
+	}
+
+	return toolCalls, nil
 }

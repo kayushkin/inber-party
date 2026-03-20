@@ -34,6 +34,7 @@ export default function Layout() {
     { to: '/payouts', label: '💳 Payouts', match: '/payouts' },
     { to: '/timelapse', label: '🎬 Time-lapse', match: '/timelapse' },
     { to: '/map', label: '🗺️ Map', match: '/map' },
+    { to: '/spectator', label: '👁️ Spectator', match: '/spectator' },
     { to: '/compare', label: '🔍 Compare', match: '/compare' },
   ];
 
@@ -57,6 +58,7 @@ export default function Layout() {
     if (path === '/payouts') return 'room-payouts';
     if (path === '/timelapse') return 'room-timelapse';
     if (path === '/map') return 'room-map';
+    if (path === '/spectator') return 'room-spectator';
     if (path === '/compare') return 'room-compare';
     return 'room-default';
   };
