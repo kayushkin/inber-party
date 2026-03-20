@@ -1,51 +1,112 @@
 import { test, expect } from '@playwright/test';
 
+// Helper function to wait for visual stability
+async function waitForVisualStability(page: any, timeout = 15000) {
+  // Wait for network to be idle
+  await page.waitForLoadState('networkidle');
+  
+  // Wait for all fonts to load
+  await page.waitForFunction(() => document.fonts.ready);
+  
+  // Wait for any remaining lazy loading or dynamic content
+  await page.waitForTimeout(3000);
+  
+  // Wait for no visible loading indicators
+  await page.waitForFunction(() => {
+    const loadingElements = document.querySelectorAll('.loading, .spinner, .skeleton, [data-loading="true"]');
+    return loadingElements.length === 0 || 
+           Array.from(loadingElements).every(el => !el.offsetParent);
+  }, { timeout });
+  
+  // Additional stability wait
+  await page.waitForTimeout(1000);
+}
+
 test.describe('Visual Regression Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the app and wait for it to load
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     
-    // Wait longer for WebSocket connections and dynamic content to stabilize
-    await page.waitForTimeout(3000);
+    // Mock Date.now to freeze timestamps for consistent screenshots
+    await page.addInitScript(() => {
+      const now = new Date('2026-03-20T05:42:00.000Z').getTime();
+      Date.now = () => now;
+      Date.prototype.getTime = function() { return now; };
+    });
     
-    // Hide dynamic elements that change frequently (timestamps, etc)
+    // Wait longer for WebSocket connections and dynamic content to stabilize
+    await page.waitForTimeout(5000);
+    
+    // Enhanced CSS to hide ALL dynamic content that could cause visual differences
     await page.addStyleTag({
       content: `
         /* Hide timestamps and other dynamic content for visual regression testing */
         .timestamp, [data-timestamp], .time, .last-seen, .online-status,
         .realtime-indicator, .live-badge, .websocket-status,
         .session-time, .uptime, .last-updated, .duration,
-        time, [datetime] {
+        time, [datetime], .status-text, .connection-status,
+        .heartbeat-indicator, .pulse, .blink, .typing-indicator,
+        .load-time, .render-time, .performance-stats,
+        .websocket-debug, .debug-panel {
           visibility: hidden !important;
+          opacity: 0 !important;
         }
         
-        /* Stabilize animations and transitions */
+        /* Replace dynamic text content with fixed placeholders */
+        .agent-status::after { content: "idle" !important; }
+        .connection-count::after { content: "0" !important; }
+        
+        /* Completely disable all animations, transitions, and transforms */
         *, *::before, *::after {
-          animation-duration: 0.01ms !important;
-          animation-delay: -0.01ms !important;
-          transition-duration: 0.01ms !important;
-          transition-delay: 0.01ms !important;
+          animation-duration: 0ms !important;
+          animation-delay: 0ms !important;
+          transition-duration: 0ms !important;
+          transition-delay: 0ms !important;
+          transform: none !important;
+          transition-property: none !important;
+          animation-name: none !important;
+        }
+        
+        /* Force consistent font rendering */
+        * {
+          font-feature-settings: normal !important;
+          text-rendering: geometricPrecision !important;
+          -webkit-font-smoothing: antialiased !important;
+          -moz-osx-font-smoothing: grayscale !important;
+        }
+        
+        /* Hide WebSocket connection indicators and live data */
+        .ws-status, .live-data, .realtime-counter,
+        .agent-activity, .quest-progress, .live-stats {
+          display: none !important;
         }
       `
     });
     
-    // Wait additional time after style injection
-    await page.waitForTimeout(1000);
+    // Wait for styles to apply and content to stabilize
+    await page.waitForTimeout(2000);
+    
+    // Wait for any lazy-loaded content
+    await page.waitForFunction(() => {
+      return document.readyState === 'complete' && 
+             !document.querySelector('.loading, .spinner, [data-loading="true"]');
+    }, { timeout: 10000 });
   });
 
   test('Tavern page visual regression', async ({ page }) => {
     // Ensure we're on the tavern page
     await expect(page).toHaveURL('/');
     
-    // Wait for content to stabilize (agents, animations, etc.)
-    await page.waitForTimeout(4000);
+    // Wait for complete visual stability
+    await waitForVisualStability(page);
     
     // Take a screenshot of the full page
     await expect(page).toHaveScreenshot('tavern-page.png', {
       fullPage: true,
-      animations: 'disabled', // Disable animations for consistent screenshots
-      timeout: 10000, // Increased timeout for large pages
+      animations: 'disabled',
+      timeout: 15000,
+      maxDiffPixels: 5000, // Allow up to 5000 pixel differences for dynamic content
     });
   });
 

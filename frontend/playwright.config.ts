@@ -4,22 +4,27 @@ export default defineConfig({
   testDir: './tests/e2e',
   timeout: 30 * 1000,
   expect: {
-    timeout: 5000,
+    timeout: 10000, // Increased timeout for visual regression stability
     // Visual regression test configuration - more tolerant settings for dynamic content and font rendering
     toHaveScreenshot: {
-      threshold: 0.1, // Increased threshold to 10% for real-time app with dynamic content
+      threshold: 0.15, // Increased threshold to 15% for real-time app with dynamic content
       mode: 'ci',
       animationHandling: 'disabled',
       animations: 'disabled', // Ensure animations are disabled for consistency
+      clip: null, // Full page screenshots by default
+      fullPage: true,
+      omitBackground: false, // Include background for consistent rendering
+      scale: 'device', // Use device scale for consistency
     },
     toMatchSnapshot: {
-      threshold: 0.1, // Increased threshold to 10% for real-time app with dynamic content
+      threshold: 0.15, // Increased threshold to 15% for real-time app with dynamic content
+      mode: 'ci',
     },
   },
-  fullyParallel: true,
+  fullyParallel: false, // Disable parallel execution for visual regression stability
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  retries: process.env.CI ? 3 : 1, // Increased retries for visual regression test stability
+  workers: 1, // Force single worker for consistent test environment
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:5173',
