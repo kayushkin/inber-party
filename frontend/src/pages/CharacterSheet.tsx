@@ -87,39 +87,111 @@ export default function CharacterSheet() {
   useEffect(() => {
     if (!id) return;
     
+    // Create abort controller for this data loading session
+    const controller = new AbortController();
+    
     const loadAgentData = async () => {
       setIsLoadingPrimary(true);
       
       try {
-        // Load critical data first (reduced quest count for performance)
-        const [questsResult, achievementsResult] = await Promise.all([
-          loadAgentQuests(id, 20), // Reduced from 100 to 20 for better performance
-          loadAgentAchievements(id)
-        ]);
+        // Set a maximum timeout for primary loading (5 seconds)
+        const primaryTimeoutId = setTimeout(() => {
+          console.warn('Primary data loading taking too long, continuing...');
+          setIsLoadingPrimary(false);
+        }, 5000);
 
-        // Update critical state first
-        if (questsResult?.data) setQuests(questsResult.data);
-        if (achievementsResult?.data) setAchievements(achievementsResult.data);
-        setLoadedQuestCount(20);
+        // Load minimal critical data first for fast page display
+        const questsResult = await loadAgentQuests(id, 5); // Start with just 5 quests for immediate display
+        if (questsResult?.data && !controller.signal.aborted) {
+          setQuests(questsResult.data);
+          setLoadedQuestCount(5);
+        }
+        
+        clearTimeout(primaryTimeoutId);
         setIsLoadingPrimary(false);
 
-        // Load secondary data immediately but separately to allow better error handling
-        Promise.all([
-          loadAgentQuestHistory(id, 15), // Reduced from 20 to 15
-          fetch(`/api/relationships?agent_id=${id}`).then(r => r.ok ? r.json() : []).catch(() => [])
-        ]).then(([historyResult, relationshipsResult]) => {
-          if (historyResult?.data) setQuestHistory(historyResult.data);
-          if (relationshipsResult) setRelationships(relationshipsResult);
-        }).catch(error => {
-          console.error('Error loading secondary data:', error);
-        });
+        // Only continue loading if not aborted
+        if (controller.signal.aborted) return;
+
+        // Stagger additional data loading to prevent blocking
+        setTimeout(async () => {
+          if (controller.signal.aborted) return;
+          try {
+            // Load achievements after initial render
+            const achievementsResult = await loadAgentAchievements(id);
+            if (achievementsResult?.data && !controller.signal.aborted) {
+              setAchievements(achievementsResult.data);
+            }
+          } catch (error) {
+            if (!controller.signal.aborted) {
+              console.warn('Failed to load achievements:', error);
+            }
+          }
+        }, 100);
+
+        setTimeout(async () => {
+          if (controller.signal.aborted) return;
+          try {
+            // Load more quests for better UX
+            const moreQuestsResult = await loadAgentQuests(id, 20);
+            if (moreQuestsResult?.data && !controller.signal.aborted) {
+              setQuests(moreQuestsResult.data);
+              setLoadedQuestCount(20);
+            }
+          } catch (error) {
+            if (!controller.signal.aborted) {
+              console.warn('Failed to load additional quests:', error);
+            }
+          }
+        }, 200);
+
+        setTimeout(async () => {
+          if (controller.signal.aborted) return;
+          try {
+            // Load quest history with shorter timeout
+            const historyResult = await loadAgentQuestHistory(id, 10);
+            if (historyResult?.data && !controller.signal.aborted) {
+              setQuestHistory(historyResult.data);
+            }
+          } catch (error) {
+            if (!controller.signal.aborted) {
+              console.warn('Failed to load quest history:', error);
+            }
+          }
+        }, 300);
+
+        setTimeout(async () => {
+          if (controller.signal.aborted) return;
+          try {
+            // Load relationships last as it's least critical - reduce timeout to 3 seconds
+            const relationshipsResponse = await fetch(`/api/relationships?agent_id=${id}`, {
+              signal: AbortSignal.timeout(3000) // Reduced from 5 to 3 seconds
+            });
+            if (relationshipsResponse.ok && !controller.signal.aborted) {
+              const relationshipsResult = await relationshipsResponse.json();
+              setRelationships(relationshipsResult || []);
+            }
+          } catch (error) {
+            if (!controller.signal.aborted) {
+              console.warn('Failed to load relationships:', error);
+            }
+          }
+        }, 400);
+
       } catch (error) {
-        console.error('Error loading agent data:', error);
+        if (!controller.signal.aborted) {
+          console.error('Error loading critical agent data:', error);
+        }
         setIsLoadingPrimary(false);
       }
     };
 
     loadAgentData();
+
+    // Cleanup function
+    return () => {
+      controller.abort();
+    };
   }, [id, loadAgentQuests, loadAgentAchievements, loadAgentQuestHistory]);
 
   // Function to load more quests
@@ -391,9 +463,9 @@ export default function CharacterSheet() {
         </div>
 
         {/* Achievements */}
-        {achievements.length > 0 && (
-          <div className="section">
-            <h3>Achievements <span className="badge-count">{achievements.length}</span></h3>
+        <div className="section">
+          <h3>Achievements {achievements.length > 0 && <span className="badge-count">{achievements.length}</span>}</h3>
+          {achievements.length > 0 ? (
             <div className="achievements-grid">
               {achievements.map((a) => {
                 const achievementKey = a.name.toLowerCase().replace(/\s+/g, '_') as keyof typeof ACHIEVEMENT_TOOLTIPS;
@@ -408,8 +480,18 @@ export default function CharacterSheet() {
                 );
               })}
             </div>
-          </div>
-        )}
+          ) : isLoadingPrimary ? (
+            <div className="loading-state">
+              <div className="skeleton-loader"></div>
+              <p>Loading achievements...</p>
+            </div>
+          ) : (
+            <div className="no-data-state">
+              <p>No achievements yet</p>
+              <small>Complete quests to unlock achievements</small>
+            </div>
+          )}
+        </div>
 
         {/* Skills */}
         {agent.skills.length > 0 && (
@@ -509,10 +591,12 @@ export default function CharacterSheet() {
         </div>
 
         {/* Enhanced Analytics Dashboard */}
-        {questHistory.length > 2 && (
+        {(questHistory.length > 2 || !isLoadingPrimary) && (
           <div className="section">
             <h3>📊 Analytics Dashboard</h3>
             
+            {questHistory.length > 2 ? (
+            <>
             {/* Performance Metrics */}
             <div className="analytics-metrics">
               {(() => {
@@ -607,11 +691,18 @@ export default function CharacterSheet() {
                 ));
               })()}
             </div>
+            </>
+            ) : (
+              <div className="loading-state">
+                <div className="skeleton-loader"></div>
+                <p>Loading analytics data...</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Relationships Section */}
-        {relationships.length > 0 && (
+        {/* Relationships Section - Always show since it's useful even when empty */}
+        {(relationships.length > 0 || !isLoadingPrimary) && (
           <div className="section">
             <h3>🤝 Relationships</h3>
             <div className="relationships-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
