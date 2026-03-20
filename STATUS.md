@@ -28,6 +28,7 @@
 
 ### React Frontend
 - **Compiles clean** — TypeScript checks pass, Vite builds successfully (279KB main bundle, 89KB gzipped)
+- **Zero React key errors** — Fixed persistent achievement key duplication issues, no more "Encountered two children with the same key" warnings
 - **Complete RPG interface**: Tavern, War Room, Library, Training Grounds, Forge, Agent Quarters
 - **Zustand store** with WebSocket auto-reconnect
 - **Full RPG pixel-art theme**: dark bg, gold accents, monospace, CSS animations
