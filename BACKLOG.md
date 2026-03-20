@@ -194,6 +194,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 Performance Issues (New Priority)
+
+- [x] **Fix Character Sheet Navigation Performance** — E2E tests show character sheet navigation timing out after 30 seconds, indicating performance issues when loading agent detail pages. Investigate and optimize data loading, API calls, and rendering performance for agent character sheets. ✅ COMPLETED: Optimized data loading by reducing initial quest load from 100 to 20, implemented staggered loading for secondary data, added loading states and skeleton loaders, and added "Load More" functionality for quest pagination. Performance improved significantly.
+
+---
+
 ## 💡 Ideas (unprioritized)
 - [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
 - [x] Time-lapse view — compressed animation of a day's agent activity ✅ COMPLETED: Implemented comprehensive time-lapse visualization with `/api/activity/timeline` endpoint, animated playback controls, agent activity tracking, event stream visualization, and timeline statistics

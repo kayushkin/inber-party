@@ -60,6 +60,8 @@ export default function CharacterSheet() {
   const [questHistory, setQuestHistory] = useState<QuestHistoryEntry[]>([]);
   const [showAnimations, setShowAnimations] = useState(false);
   const [relationships, setRelationships] = useState<AgentRelationship[]>([]);
+  const [isLoadingPrimary, setIsLoadingPrimary] = useState(true);
+  const [loadedQuestCount, setLoadedQuestCount] = useState(20);
   const selectedAgent = useStore((s) => s.selectedAgent);
   const setSelectedAgent = useStore((s) => s.setSelectedAgent);
   const levelUpTriggers = useStore((s) => s.levelUpTriggers);
@@ -86,23 +88,50 @@ export default function CharacterSheet() {
     if (!id) return;
     
     const loadAgentData = async () => {
-      // Load all agent-related data
-      const [questsResult, achievementsResult, historyResult, relationshipsResult] = await Promise.all([
-        loadAgentQuests(id, 100),
-        loadAgentAchievements(id),
-        loadAgentQuestHistory(id, 20),
-        fetch(`/api/relationships?agent_id=${id}`).then(r => r.ok ? r.json() : []).catch(() => [])
-      ]);
+      setIsLoadingPrimary(true);
+      
+      try {
+        // Load critical data first (reduced quest count for performance)
+        const [questsResult, achievementsResult] = await Promise.all([
+          loadAgentQuests(id, 20), // Reduced from 100 to 20 for better performance
+          loadAgentAchievements(id)
+        ]);
 
-      // Update state with successful results
-      if (questsResult?.data) setQuests(questsResult.data);
-      if (achievementsResult?.data) setAchievements(achievementsResult.data);
-      if (historyResult?.data) setQuestHistory(historyResult.data);
-      if (relationshipsResult) setRelationships(relationshipsResult);
+        // Update critical state first
+        if (questsResult?.data) setQuests(questsResult.data);
+        if (achievementsResult?.data) setAchievements(achievementsResult.data);
+        setLoadedQuestCount(20);
+        setIsLoadingPrimary(false);
+
+        // Load secondary data immediately but separately to allow better error handling
+        Promise.all([
+          loadAgentQuestHistory(id, 15), // Reduced from 20 to 15
+          fetch(`/api/relationships?agent_id=${id}`).then(r => r.ok ? r.json() : []).catch(() => [])
+        ]).then(([historyResult, relationshipsResult]) => {
+          if (historyResult?.data) setQuestHistory(historyResult.data);
+          if (relationshipsResult) setRelationships(relationshipsResult);
+        }).catch(error => {
+          console.error('Error loading secondary data:', error);
+        });
+      } catch (error) {
+        console.error('Error loading agent data:', error);
+        setIsLoadingPrimary(false);
+      }
     };
 
     loadAgentData();
   }, [id, loadAgentQuests, loadAgentAchievements, loadAgentQuestHistory]);
+
+  // Function to load more quests
+  const loadMoreQuests = async () => {
+    if (!id) return;
+    const newCount = loadedQuestCount + 20;
+    const questsResult = await loadAgentQuests(id, newCount);
+    if (questsResult?.data) {
+      setQuests(questsResult.data);
+      setLoadedQuestCount(newCount);
+    }
+  };
 
   // Trigger animations when agent data is loaded
   useEffect(() => {
@@ -431,11 +460,19 @@ export default function CharacterSheet() {
         </div>
 
         {/* Quest History */}
-        {quests.length > 0 && (
-          <div className="section">
-            <h3>Quest Log ({quests.length})</h3>
+        <div className="section">
+          <h3>Quest Log {quests.length > 0 && `(${quests.length})`}</h3>
+          
+          {isLoadingPrimary ? (
+            <div className="loading-state">
+              <div className="skeleton-loader"></div>
+              <div className="skeleton-loader"></div>
+              <div className="skeleton-loader"></div>
+              <p>Loading quest data...</p>
+            </div>
+          ) : quests.length > 0 ? (
             <div className="quest-list">
-              {quests.slice(0, 20).map((q) => (
+              {quests.map((q) => (
                 <div key={q.id} className={`quest-item status-${q.status}`}>
                   <div className="quest-header">
                     <span className="quest-name">{q.name}</span>
@@ -448,9 +485,28 @@ export default function CharacterSheet() {
                   </div>
                 </div>
               ))}
+              
+              {/* Load More Button */}
+              {quests.length >= loadedQuestCount && (
+                <div className="load-more-container">
+                  <button 
+                    className="load-more-btn"
+                    onClick={loadMoreQuests}
+                    disabled={isLoadingPrimary}
+                  >
+                    {isLoadingPrimary ? 'Loading...' : `Load More Quests (+20)`}
+                  </button>
+                  <p className="quest-info">Showing {quests.length} of available quests</p>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="no-quests-state">
+              <p>No quests found for this agent</p>
+              <small>This agent hasn't completed any quests yet</small>
+            </div>
+          )}
+        </div>
 
         {/* Enhanced Analytics Dashboard */}
         {questHistory.length > 2 && (
