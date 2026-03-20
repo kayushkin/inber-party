@@ -296,3 +296,9 @@ Add new ideas at the bottom. Re-prioritize as needed.
 ## 🚨 NEW CRITICAL: Optimize E2E Test WebSocket Connection Handling (March 2026 - Session 6)
 
 - [x] **Reduce E2E Test WebSocket Connection Churn** — ✅ COMPLETED: Implemented comprehensive WebSocket connection churn reduction for E2E tests with multiple optimizations: (1) Enhanced test environment detection with persistent connection management for frequently used URLs, (2) Reduced reconnect attempts from 10 to 2 in test environment with longer cooldown periods, (3) Added `maintainConnection()` method to force persistence for critical WebSocket URLs, (4) Improved `useOptimizedWebSocket` hook with test-specific delayed cleanup (100ms) to prevent rapid cycling during component unmount/mount, (5) Enhanced WebSocket debug panel with test optimization status display, (6) Created comprehensive test suite `websocket-churn-reduction.spec.ts` to verify connection stability during navigation and rapid page changes. Project builds successfully for both Go backend and React frontend. Target achieved: significantly reduced connection churn during E2E test runs through intelligent connection pooling and test-aware optimization strategies.
+
+---
+
+## 🚨 CRITICAL: Further Optimize WebSocket Connection Management (March 2026 - Session 8)
+
+- [~] **Eliminate Persistent WebSocket Connection Churn During E2E Tests** — Despite previous optimization efforts, E2E tests still show excessive WebSocket connection cycling (connect/disconnect every 2-3 seconds during 29/94 tests). This causes test timeouts and instability. Need to implement more aggressive connection persistence or identify root cause of connection drops during test execution. Current behavior: constant connect/disconnect cycle rather than stable persistent connections.

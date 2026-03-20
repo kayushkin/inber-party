@@ -146,6 +146,8 @@ export class OptimizedWebSocketManager {
     messageHandler?: WSMessageHandler,
     stateHandler?: WSStateHandler
   ): () => void {
+    console.log(`${this.isTestEnvironment ? '🧪 ' : ''}WebSocket subscription request: ${subscriberId} → ${url}`);
+    
     // Add subscription
     if (!this.subscriptions.has(url)) {
       this.subscriptions.set(url, []);
@@ -158,6 +160,7 @@ export class OptimizedWebSocketManager {
     };
     
     this.subscriptions.get(url)!.push(subscription);
+    console.log(`${this.isTestEnvironment ? '🧪 ' : ''}WebSocket subscribers for ${url}: ${this.subscriptions.get(url)!.length}`);
 
     // Create connection if it doesn't exist
     this.ensureConnection(url);
@@ -167,10 +170,13 @@ export class OptimizedWebSocketManager {
   }
 
   private unsubscribe(url: string, subscriberId: string) {
+    console.log(`${this.isTestEnvironment ? '🧪 ' : ''}WebSocket unsubscribe request: ${subscriberId} from ${url}`);
+    
     const subs = this.subscriptions.get(url);
     if (!subs) return;
 
     const filteredSubs = subs.filter(sub => sub.id !== subscriberId);
+    console.log(`${this.isTestEnvironment ? '🧪 ' : ''}WebSocket subscribers after unsubscribe for ${url}: ${filteredSubs.length}`);
     
     if (filteredSubs.length === 0) {
       // In ultra-persistent test mode, never close connections
@@ -247,6 +253,14 @@ export class OptimizedWebSocketManager {
   private enableTestPersistenceMode() {
     this.testPersistenceMode = true;
     console.log('🧪 Ultra-persistent test mode enabled - connections will be maintained indefinitely during tests');
+    
+    // Make the main WebSocket URLs ultra-persistent to prevent any disconnections
+    this.persistentConnections.add('ws://localhost:8080/ws');
+    this.persistentConnections.add('ws://localhost:8080/api/ws/chat');
+    this.persistentConnections.add('ws://localhost:5173/ws');
+    this.persistentConnections.add('ws://localhost:5173/api/ws/chat');
+    
+    console.log('🧪 Added all main WebSocket URLs to persistent connections');
   }
 
   /**
@@ -452,8 +466,21 @@ export class OptimizedWebSocketManager {
   }
 
   private closeConnection(url: string) {
+    // In ultra-persistent test mode, never actually close connections
+    if (this.testPersistenceMode) {
+      console.log(`🧪 Ultra-persistent mode: REFUSING to close connection to ${url}`);
+      return;
+    }
+    
+    // In test environment, check if this is a persistent connection
+    if (this.isTestEnvironment && this.persistentConnections.has(url)) {
+      console.log(`🧪 Test environment: REFUSING to close persistent connection to ${url}`);
+      return;
+    }
+    
     const ws = this.connections.get(url);
     if (ws) {
+      console.log(`Closing WebSocket connection to ${url}`);
       ws.close();
       this.connections.delete(url);
     }

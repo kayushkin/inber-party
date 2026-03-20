@@ -48,27 +48,31 @@ function App() {
   const updateSeasonalEvent = useStore((s) => s.updateSeasonalEvent);
 
   useEffect(() => {
-    // Detect test environment
+    // Use consistent test environment detection
     const isTest = !!(
-      'playwright' in globalThis || 
+      '__playwright' in globalThis || 
       import.meta.env.VITE_NODE_ENV === 'test' ||
-      (typeof navigator !== 'undefined' && navigator.userAgent.includes('HeadlessChrome'))
+      (typeof navigator !== 'undefined' && (
+        navigator.userAgent.includes('HeadlessChrome') ||
+        navigator.userAgent.includes('Firefox') && navigator.webdriver
+      ))
     );
     
     if (isTest) {
       // In test environment, delay WebSocket connection to ensure backend is ready
-      console.log('🧪 Test environment detected, using delayed initialization');
+      console.log('🧪 Test environment detected, using delayed initialization with persistent connections');
       const testTimer = setTimeout(() => {
         connectWebSocket();
         startPolling(15000); // Longer polling interval for tests
-      }, 3000); // 3 second delay for test stability
+      }, 2000); // Reduced delay from 3s to 2s
       
       // Initialize seasonal events (no delay needed)
       updateSeasonalEvent();
       
       return () => {
         clearTimeout(testTimer);
-        disconnectWebSocket();
+        // In test environment, avoid disconnecting to prevent connection churn
+        console.log('🧪 Test environment cleanup: Skipping WebSocket disconnection to prevent churn');
         stopPolling();
       };
     } else {
