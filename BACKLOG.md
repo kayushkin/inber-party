@@ -220,6 +220,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 CRITICAL: Fix Test Instabilities (March 2026)
+
+- [ ] **Fix Visual Regression Test Failures** — 17/18 test failures are visual regression tests failing due to minor pixel differences (0.01-0.02 ratio). Need to update baseline screenshots and improve test stability by addressing font rendering variations, WebSocket connection churn, and dynamic content. Update Playwright configuration for better tolerance of minor rendering differences and implement proper screenshot comparison thresholds.
+
+---
+
 ## 💡 Ideas (unprioritized)
 - [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
 - [x] Time-lapse view — compressed animation of a day's agent activity ✅ COMPLETED: Implemented comprehensive time-lapse visualization with `/api/activity/timeline` endpoint, animated playback controls, agent activity tracking, event stream visualization, and timeline statistics
