@@ -15,17 +15,34 @@ async function waitForVisualStability(page: Page, timeout = 20000) {
     // Override performance.now() for consistent timing
     performance.now = () => 0;
     
-    // Disable WebSocket connections during visual regression tests
-    window.WebSocket = class MockWebSocket {
-      constructor() {
-        this.readyState = 3; // CLOSED
+    // Create a stable mock WebSocket that doesn't trigger reconnection loops
+    window.WebSocket = class StableMockWebSocket {
+      constructor(url) {
+        this.url = url;
+        this.readyState = 1; // OPEN state - stable connection
+        this.onopen = null;
+        this.onclose = null;
+        this.onmessage = null;
+        this.onerror = null;
+        
+        // Immediately call onopen to simulate successful connection
         setTimeout(() => {
-          if (this.onclose) this.onclose({});
-        }, 100);
+          if (this.onopen) this.onopen({});
+        }, 10);
       }
-      close() {}
-      send() {}
+      
+      close() {
+        this.readyState = 3; // CLOSED
+        // Don't trigger onclose to prevent reconnection attempts
+      }
+      
+      send(data) {
+        // Silently accept messages without processing
+      }
     };
+    
+    // Also prevent the optimized WebSocket manager from attempting any real connections
+    window.__VISUAL_REGRESSION_TEST__ = true;
   });
   
   // Wait for network to be idle

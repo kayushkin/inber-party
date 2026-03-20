@@ -77,6 +77,8 @@ export class OptimizedWebSocketManager {
       '__playwright' in globalThis || 
       // Jest test environment
       '__jest' in globalThis ||
+      // Visual regression test flag
+      (typeof window !== 'undefined' && '__VISUAL_REGRESSION_TEST__' in window) ||
       // Environment variables (using import.meta.env for Vite)
       import.meta.env.VITE_NODE_ENV === 'test' ||
       import.meta.env.VITE_CI === 'true' ||
@@ -104,6 +106,10 @@ export class OptimizedWebSocketManager {
         (window as unknown as { chrome?: { runtime?: { onConnect?: unknown } } }).chrome?.runtime?.onConnect
       ))
     );
+  }
+
+  private isVisualRegressionTest(): boolean {
+    return typeof window !== 'undefined' && '__VISUAL_REGRESSION_TEST__' in window;
   }
 
   private async checkServerReadiness(): Promise<boolean> {
@@ -298,6 +304,25 @@ export class OptimizedWebSocketManager {
   }
 
   private async createConnection(url: string) {
+    // Skip real WebSocket connections during visual regression tests
+    if (this.isVisualRegressionTest()) {
+      console.log(`🎨 Visual regression test detected - using mock WebSocket for ${url}`);
+      // Create a dummy connection entry to satisfy the connection manager
+      const mockWs = {
+        readyState: 1, // OPEN
+        close: () => {},
+        send: () => {},
+        onopen: null,
+        onclose: null,
+        onmessage: null,
+        onerror: null
+      } as unknown as WebSocket;
+      
+      this.connections.set(url, mockWs);
+      this.notifyStateHandlers(url, true);
+      return;
+    }
+
     // In test environment, check server readiness first
     if (this.isTestEnvironment) {
       const isReady = await this.checkServerReadiness();
@@ -350,6 +375,12 @@ export class OptimizedWebSocketManager {
   }
 
   private scheduleReconnect(url: string) {
+    // Skip reconnection attempts during visual regression tests
+    if (this.isVisualRegressionTest()) {
+      console.log(`🎨 Visual regression test - skipping reconnection to ${url}`);
+      return;
+    }
+
     const attempts = this.reconnectAttempts.get(url) || 0;
     
     if (attempts >= this.maxReconnectAttempts) {
