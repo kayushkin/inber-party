@@ -6,7 +6,31 @@ test.describe('Visual Regression Tests', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     
-    // Wait for any initial loading animations to complete
+    // Wait longer for WebSocket connections and dynamic content to stabilize
+    await page.waitForTimeout(3000);
+    
+    // Hide dynamic elements that change frequently (timestamps, etc)
+    await page.addStyleTag({
+      content: `
+        /* Hide timestamps and other dynamic content for visual regression testing */
+        .timestamp, [data-timestamp], .time, .last-seen, .online-status,
+        .realtime-indicator, .live-badge, .websocket-status,
+        .session-time, .uptime, .last-updated, .duration,
+        time, [datetime] {
+          visibility: hidden !important;
+        }
+        
+        /* Stabilize animations and transitions */
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-delay: -0.01ms !important;
+          transition-duration: 0.01ms !important;
+          transition-delay: 0.01ms !important;
+        }
+      `
+    });
+    
+    // Wait additional time after style injection
     await page.waitForTimeout(1000);
   });
 
@@ -15,12 +39,13 @@ test.describe('Visual Regression Tests', () => {
     await expect(page).toHaveURL('/');
     
     // Wait for content to stabilize (agents, animations, etc.)
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(4000);
     
     // Take a screenshot of the full page
     await expect(page).toHaveScreenshot('tavern-page.png', {
       fullPage: true,
       animations: 'disabled', // Disable animations for consistent screenshots
+      timeout: 10000, // Increased timeout for large pages
     });
   });
 

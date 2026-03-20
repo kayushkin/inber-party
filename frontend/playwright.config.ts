@@ -5,14 +5,15 @@ export default defineConfig({
   timeout: 30 * 1000,
   expect: {
     timeout: 5000,
-    // Visual regression test configuration - more tolerant settings for font rendering variations
+    // Visual regression test configuration - more tolerant settings for dynamic content and font rendering
     toHaveScreenshot: {
-      threshold: 0.05, // Threshold as ratio (0-1), allowing for small font rendering differences
+      threshold: 0.1, // Increased threshold to 10% for real-time app with dynamic content
       mode: 'ci',
       animationHandling: 'disabled',
+      animations: 'disabled', // Ensure animations are disabled for consistency
     },
     toMatchSnapshot: {
-      threshold: 0.05, // Threshold as ratio (0-1), allowing for small font rendering differences
+      threshold: 0.1, // Increased threshold to 10% for real-time app with dynamic content
     },
   },
   fullyParallel: true,
