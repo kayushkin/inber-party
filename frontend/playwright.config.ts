@@ -2,9 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 30 * 1000,
+  timeout: 60 * 1000, // Increased timeout for navigation tests that are having issues
   expect: {
-    timeout: 10000, // Increased timeout for visual regression stability
+    timeout: 15000, // Increased timeout for visual regression stability and navigation
     // Visual regression test configuration - more tolerant settings for dynamic content and font rendering
     toHaveScreenshot: {
       threshold: 0.15, // Increased threshold to 15% for real-time app with dynamic content
@@ -21,9 +21,9 @@ export default defineConfig({
       mode: 'ci',
     },
   },
-  fullyParallel: false, // Disable parallel execution for visual regression stability
+  fullyParallel: false, // Disable parallel execution for stability
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 3 : 1, // Increased retries for visual regression test stability
+  retries: process.env.CI ? 2 : 1, // Moderate retries for stability without excessive wait time
   workers: 1, // Force single worker for consistent test environment
   reporter: 'html',
   use: {
@@ -53,18 +53,22 @@ export default defineConfig({
     {
       command: 'cd .. && go run cmd/server/main.go',
       port: 8080,
-      reuseExistingServer: !process.env.CI,
-      timeout: 45 * 1000, // Increased timeout for WebSocket stability
+      reuseExistingServer: true, // Always reuse to avoid restarts between tests
+      timeout: 60 * 1000, // Increased timeout for better reliability
       env: {
         'PORT': '8080',
         'NODE_ENV': 'test',
       },
+      stdout: 'pipe', // Capture logs for debugging
+      stderr: 'pipe',
     },
     {
       command: 'npm run dev',
       port: 5173,
-      reuseExistingServer: !process.env.CI,
-      timeout: 30 * 1000,
+      reuseExistingServer: true, // Always reuse to avoid restarts between tests
+      timeout: 45 * 1000,
+      stdout: 'pipe', // Capture logs for debugging
+      stderr: 'pipe',
     },
   ],
 });

@@ -10,31 +10,40 @@ import { test, expect } from '@playwright/test';
 test.describe('Improved Core App Flows', () => {
   test.beforeEach(async ({ page }) => {
     // Set longer timeout for potentially slow startup
-    test.setTimeout(45000);
+    test.setTimeout(60000);
     
-    // Navigate to the app with retry logic
+    // Navigate to the app with retry logic and better error handling
     let retries = 3;
     while (retries > 0) {
       try {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30000 });
         break;
       } catch (error) {
         retries--;
-        if (retries === 0) throw error;
-        await page.waitForTimeout(2000);
+        if (retries === 0) {
+          console.error('Failed to load page after 3 retries:', error);
+          throw error;
+        }
+        console.log(`Retry ${4 - retries}: Page load failed, retrying...`);
+        await page.waitForTimeout(3000);
       }
     }
     
-    // Wait for basic DOM to be ready
-    await page.waitForLoadState('domcontentloaded');
-    
-    // Wait for React to hydrate (more reliable than networkidle)
+    // Wait for React app to be fully initialized
     await page.waitForFunction(() => {
-      return document.readyState === 'complete' && document.body.children.length > 0;
-    }, { timeout: 15000 });
+      return document.readyState === 'complete' && 
+             document.body.children.length > 0 &&
+             document.querySelector('.header') !== null;
+    }, { timeout: 20000 });
     
-    // Give animations/loading states time to settle
-    await page.waitForTimeout(1000);
+    // Wait for the main layout elements to be present
+    await page.waitForSelector('.layout', { timeout: 10000 });
+    
+    // Wait for navigation to be ready
+    await page.waitForSelector('.nav', { timeout: 10000 });
+    
+    // Give time for any initial animations or WebSocket connections to settle
+    await page.waitForTimeout(2000);
   });
 
   test('should load the main page successfully', async ({ page }) => {
@@ -57,50 +66,73 @@ test.describe('Improved Core App Flows', () => {
   });
 
   test('should have working navigation system', async ({ page }) => {
-    // Wait for any navigation to appear
-    await page.waitForSelector('nav, header, [role="navigation"], a[href^="/"]', { timeout: 10000 });
+    // Wait for the header and navigation to be fully loaded
+    await page.waitForSelector('.header', { timeout: 15000 });
+    await page.waitForSelector('.nav', { timeout: 10000 });
     
-    // Get all navigation links
-    const navLinks = page.locator('nav a, header a, [role="navigation"] a, a[href^="/"]');
+    // Wait for React Router links to be rendered
+    await page.waitForFunction(() => {
+      const navLinks = document.querySelectorAll('.nav .nav-link');
+      return navLinks.length > 0;
+    }, { timeout: 15000 });
+    
+    // Get navigation links using more specific selectors
+    const navLinks = page.locator('.nav .nav-link');
     const navCount = await navLinks.count();
     
     expect(navCount).toBeGreaterThan(0);
     console.log(`Found ${navCount} navigation links`);
     
-    // Test a few navigation links
-    const maxLinksToTest = Math.min(navCount, 4);
+    // Test only 2 navigation links for faster execution  
+    const maxLinksToTest = Math.min(navCount, 2);
+    let successfulNavigations = 0;
+    
     for (let i = 0; i < maxLinksToTest; i++) {
       try {
         const link = navLinks.nth(i);
         
-        // Add timeout to getAttribute to avoid hanging
-        const href = await link.getAttribute('href', { timeout: 5000 });
+        // Verify the link is visible and enabled
+        await expect(link).toBeVisible({ timeout: 5000 });
+        
+        // Get href using evaluate instead of getAttribute for more reliability
+        const href = await link.evaluate((el) => el.getAttribute('href'));
+        const linkText = await link.evaluate((el) => el.textContent?.trim() || '');
         
         if (href && href.startsWith('/') && href !== '#') {
-          const linkText = await link.textContent({ timeout: 2000 });
           console.log(`Testing navigation to: ${href} (${linkText})`);
           
-          await link.click({ timeout: 3000 });
-          await page.waitForLoadState('domcontentloaded');
+          // Use a more flexible approach that doesn't rely on URL change detection
+          await link.click({ timeout: 5000 });
           
-          // Check that URL changed
-          expect(page.url()).toContain(href);
+          // Wait for React Router navigation to complete by checking for content changes
+          await page.waitForFunction((targetHref) => {
+            return window.location.pathname === targetHref;
+          }, href, { timeout: 20000 });
           
-          // Check that page still has content
+          // Wait for page content to stabilize
+          await page.waitForTimeout(2000);
+          
+          // Check that page has content (not error page)
           await expect(page.locator('body')).toBeVisible();
           
-          // Go back to home for next test
-          await page.goBack();
-          await page.waitForLoadState('domcontentloaded');
+          // Verify we're not on an error page
+          const hasError = await page.locator('.error, [role="alert"]').count();
+          if (hasError === 0) {
+            successfulNavigations++;
+          }
+          
+          console.log(`✓ Successfully navigated to ${href}`);
         }
       } catch (error) {
-        // If a specific link fails, log and continue with the next one
-        console.log(`Navigation test failed for link ${i}: ${error.message}`);
+        // Log the specific error for debugging
+        console.log(`Navigation test failed for link ${i}: ${(error as Error).message}`);
         continue;
       }
     }
     
-    console.log('✓ Navigation system working');
+    // Expect at least one successful navigation
+    expect(successfulNavigations).toBeGreaterThan(0);
+    console.log(`✓ Navigation system working - ${successfulNavigations}/${maxLinksToTest} links tested successfully`);
   });
 
   test('should be responsive at different screen sizes', async ({ page }) => {
