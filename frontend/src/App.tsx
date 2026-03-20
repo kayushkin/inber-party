@@ -50,7 +50,7 @@ function App() {
   useEffect(() => {
     // Detect test environment
     const isTest = !!(
-      (globalThis as any).__playwright || 
+      'playwright' in globalThis || 
       import.meta.env.VITE_NODE_ENV === 'test' ||
       (typeof navigator !== 'undefined' && navigator.userAgent.includes('HeadlessChrome'))
     );

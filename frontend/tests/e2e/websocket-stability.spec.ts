@@ -23,7 +23,7 @@ test.describe('WebSocket Connection Stability', () => {
     
     // Store events for later inspection
     await page.addInitScript(() => {
-      (window as any).wsEvents = [];
+      (window as Record<string, unknown>).wsEvents = [];
     });
     
     await page.goto('/');
@@ -53,7 +53,7 @@ test.describe('WebSocket Connection Stability', () => {
     
     // Check console for excessive WebSocket errors
     const wsErrors = await page.evaluate(() => {
-      return (window as any).wsErrors || [];
+      return (window as Record<string, unknown>).wsErrors || [];
     });
     
     // Should not have more than a few WebSocket connection attempts
@@ -111,13 +111,13 @@ test.describe('WebSocket Connection Stability', () => {
   test('should optimize connections in test environment', async ({ page }) => {
     // Set Playwright flag for detection
     await page.addInitScript(() => {
-      (globalThis as any).__playwright = true;
+      (globalThis as Record<string, unknown>).__playwright = true;
     });
 
     // Check for test environment detection  
     const isTestDetected = await page.evaluate(() => {
       return !!(
-        (globalThis as any).__playwright ||
+        '__playwright' in globalThis ||
         navigator.userAgent.includes('HeadlessChrome') ||
         (navigator.userAgent.includes('Firefox') && navigator.webdriver) ||
         window.location.hostname === 'localhost'

@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
 import { wsManager } from '../utils/websocket';
 
+// WebSocket connection statistics interface (matching utils/websocket.ts)
+interface WSConnectionStats {
+  state: 'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED' | 'DISCONNECTED' | 'PENDING';
+  subscribers: number;
+  reconnectAttempts: number;
+  hasReconnectTimer: boolean;
+  hasConnectionTimer: boolean;
+  isTestEnvironment: boolean;
+}
+
 interface WSDebugPanelProps {
   className?: string;
 }
 
 export default function WSDebugPanel({ className }: WSDebugPanelProps) {
-  const [stats, setStats] = useState<Record<string, any>>({});
+  const [stats, setStats] = useState<Record<string, WSConnectionStats>>({});
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -82,7 +92,7 @@ export default function WSDebugPanel({ className }: WSDebugPanelProps) {
         <strong>Active Connections: {Object.keys(stats).length}</strong>
       </div>
       
-      {Object.entries(stats).map(([url, data]: [string, any]) => (
+      {Object.entries(stats).map(([url, data]: [string, WSConnectionStats]) => (
         <div key={url} style={{ marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid #444' }}>
           <div style={{ marginBottom: '4px' }}>
             <strong>{url.replace('ws://localhost:8080', '').replace('ws://', '') || 'Main WebSocket'}</strong>

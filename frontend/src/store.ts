@@ -12,6 +12,34 @@ import { wsManager } from './utils/websocket';
 
 // ── Types ──────────────────────────────────────────────────
 
+// WebSocket message types
+interface QuestEventMessage {
+  type: 'quest_event';
+  data: {
+    type: string;
+    message: string;
+  };
+}
+
+interface InberUpdateMessage {
+  type: 'inber_update';
+  data: {
+    agents?: RPGAgent[];
+    quests?: RPGQuest[];
+    stats?: unknown;
+  };
+}
+
+type WebSocketMessage = QuestEventMessage | InberUpdateMessage;
+
+// Type guards for WebSocket messages
+function isWebSocketMessage(data: unknown): data is WebSocketMessage {
+  return typeof data === 'object' && data !== null && 
+         'type' in data && 'data' in data && 
+         typeof (data as WebSocketMessage).type === 'string' &&
+         ['quest_event', 'inber_update'].includes((data as WebSocketMessage).type);
+}
+
 export type QuestStatus = 
   | 'pending'
   | 'in_progress'
@@ -609,7 +637,13 @@ export const useStore = create<StoreState>((set, get) => ({
     // Disconnect existing connection if any
     get().disconnectWebSocket();
     
-    const handleMessage = (msg: any) => {
+    const handleMessage = (data: unknown) => {
+      if (!isWebSocketMessage(data)) {
+        console.warn('Received invalid WebSocket message:', data);
+        return;
+      }
+      
+      const msg = data as WebSocketMessage;
       if (msg.type === 'quest_event') {
         // Handle real-time quest events
         const questEvent = msg.data;
@@ -690,7 +724,9 @@ export const useStore = create<StoreState>((set, get) => ({
             previousQuestStatuses: newStatuses
           });
         }
-        if (stats) set({ stats });
+        if (stats && typeof stats === 'object' && stats !== null) {
+          set({ stats: stats as RPGStats });
+        }
       }
     };
 

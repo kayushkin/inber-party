@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useOptimizedWebSocket } from '../utils/websocket';
 import './MMOChatroom.css';
 
@@ -9,6 +9,21 @@ interface ChatMessage {
   timestamp: string;
   type: 'chat' | 'system' | 'bounty' | 'quest';
   avatar?: string;
+}
+
+// WebSocket message types for chat
+interface ChatWebSocketMessage {
+  type: 'chat_message' | 'chat_history' | 'user_joined' | 'user_left';
+  message?: ChatMessage;
+  messages?: ChatMessage[];
+  username?: string;
+}
+
+// Type guard for chat WebSocket messages
+function isChatWebSocketMessage(data: unknown): data is ChatWebSocketMessage {
+  return typeof data === 'object' && data !== null && 
+         'type' in data && typeof (data as ChatWebSocketMessage).type === 'string' &&
+         ['chat_message', 'chat_history', 'user_joined', 'user_left'].includes((data as ChatWebSocketMessage).type);
 }
 
 // Generate unique IDs to avoid React key conflicts
@@ -52,11 +67,16 @@ export default function MMOChatroom() {
     `mmo-chat-${username}`,
     (data) => {
       // Handle incoming messages
-      if (data.type === 'chat_message') {
-        setMessages(prev => [...prev, data.message]);
+      if (!isChatWebSocketMessage(data)) {
+        console.warn('Received invalid chat WebSocket message:', data);
+        return;
+      }
+      
+      if (data.type === 'chat_message' && data.message) {
+        setMessages(prev => [...prev, data.message!]);
       } else if (data.type === 'chat_history') {
         setMessages(data.messages || []);
-      } else if (data.type === 'user_joined') {
+      } else if (data.type === 'user_joined' && data.username) {
         setMessages(prev => [...prev, {
           id: generateChatMessageId('user_joined'),
           username: 'System',
@@ -64,7 +84,7 @@ export default function MMOChatroom() {
           timestamp: new Date().toISOString(),
           type: 'system'
         }]);
-      } else if (data.type === 'user_left') {
+      } else if (data.type === 'user_left' && data.username) {
         setMessages(prev => [...prev, {
           id: generateChatMessageId('user_left'),
           username: 'System',
@@ -76,16 +96,18 @@ export default function MMOChatroom() {
     },
     (connected) => {
       setIsConnected(connected);
-      
-      // Send join message when connected
-      if (connected && username) {
-        send({
-          type: 'join',
-          username: username
-        });
-      }
     }
   );
+
+  // Send join message when connected and username is available
+  React.useEffect(() => {
+    if (isConnected && username && send) {
+      send({
+        type: 'join',
+        username: username
+      });
+    }
+  }, [isConnected, username, send]);
 
   const sendMessage = () => {
     if (!inputMessage.trim() || !isConnected) return;

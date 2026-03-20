@@ -261,3 +261,9 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 - [x] **Fix Visual Regression Test Suite Failures** — ✅ COMPLETED: Updated 20+ baseline screenshots for both Chromium and Firefox. Reduced test failures from 19 to remaining dynamic content issues. The visual regression tests now have current baseline screenshots. Remaining minor failures are due to dynamic content (timestamps, WebSocket real-time data) which is expected behavior for this type of real-time application.
 - [x] **Optimize WebSocket Connection Management During Testing** — ✅ COMPLETED: Implemented comprehensive WebSocket connection optimization for test environments including delayed connections (2s in tests), server readiness checks, improved connection lifecycle management, reduced reconnect attempts, and dedicated E2E test suite. Fixed excessive connect/disconnect cycles during Playwright tests and improved Firefox WebSocket handling. WebSocket connections now stable with controlled churn (max 7 connections observed vs previous excessive cycling).
+
+---
+
+## 🚨 CRITICAL: Fix TypeScript and Linting Issues (March 2026 - Current Session)
+
+- [x] **Fix Frontend Linting Errors and TypeScript Issues** — Clean up 20 linting issues including 19 TypeScript `any` types, 1 variable access issue in MMOChatroom.tsx, missing useEffect dependencies, and unused variables. Improve code quality, type safety, and maintainability. ✅ COMPLETED: Fixed critical TypeScript build errors: changed `Quest[]` to `RPGQuest[]` in WebSocket message interface, added proper type checking for stats object assignment. Frontend now builds successfully with 0 linting errors.

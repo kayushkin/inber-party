@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 // Helper function to wait for visual stability
-async function waitForVisualStability(page: any, timeout = 15000) {
+async function waitForVisualStability(page: Page, timeout = 15000) {
   // Wait for network to be idle
   await page.waitForLoadState('networkidle');
   

@@ -10,8 +10,18 @@
  * - Test environment optimizations
  */
 
-type WSMessageHandler = (data: any) => void;
+type WSMessageHandler = (data: unknown) => void;
 type WSStateHandler = (connected: boolean) => void;
+
+// WebSocket connection statistics interface
+interface WSConnectionStats {
+  state: 'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED' | 'DISCONNECTED' | 'PENDING';
+  subscribers: number;
+  reconnectAttempts: number;
+  hasReconnectTimer: boolean;
+  hasConnectionTimer: boolean;
+  isTestEnvironment: boolean;
+}
 
 interface WSSubscription {
   id: string;
@@ -48,9 +58,9 @@ export class OptimizedWebSocketManager {
     // Multiple ways to detect test environment
     return !!(
       // Playwright test runner
-      (globalThis as any).__playwright || 
+      '__playwright' in globalThis || 
       // Jest test environment
-      (globalThis as any).__jest ||
+      '__jest' in globalThis ||
       // Environment variables (using import.meta.env for Vite)
       import.meta.env.VITE_NODE_ENV === 'test' ||
       import.meta.env.VITE_CI === 'true' ||
@@ -267,7 +277,7 @@ export class OptimizedWebSocketManager {
     });
   }
 
-  private notifyMessageHandlers(url: string, data: any) {
+  private notifyMessageHandlers(url: string, data: unknown) {
     const subs = this.subscriptions.get(url);
     if (!subs) return;
 
@@ -308,7 +318,7 @@ export class OptimizedWebSocketManager {
   /**
    * Send message through a WebSocket connection
    */
-  send(url: string, data: any): boolean {
+  send(url: string, data: unknown): boolean {
     const ws = this.connections.get(url);
     if (ws && ws.readyState === WebSocket.OPEN) {
       try {
@@ -349,8 +359,8 @@ export class OptimizedWebSocketManager {
   /**
    * Get connection statistics
    */
-  getStats(): Record<string, any> {
-    const stats: Record<string, any> = {};
+  getStats(): Record<string, WSConnectionStats> {
+    const stats: Record<string, WSConnectionStats> = {};
     
     for (const [url] of this.connections) {
       const ws = this.connections.get(url);
@@ -358,7 +368,7 @@ export class OptimizedWebSocketManager {
       const attempts = this.reconnectAttempts.get(url) || 0;
       
       stats[url] = {
-        state: ws ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][ws.readyState] : 'DISCONNECTED',
+        state: ws ? (['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][ws.readyState] as WSConnectionStats['state']) : 'DISCONNECTED',
         subscribers: subs.length,
         reconnectAttempts: attempts,
         hasReconnectTimer: this.reconnectTimers.has(url),
@@ -409,10 +419,10 @@ export function useOptimizedWebSocket(
       unsubscribe();
       unsubscribeRef.current = null;
     };
-  }, [url, subscriberId]); // Only re-subscribe if URL or ID changes
+  }, [url, subscriberId, messageHandler, stateHandler]); // Re-subscribe if URL, ID, or handlers change
   
   return {
-    send: (data: any) => wsManager.send(url, data),
+    send: (data: unknown) => wsManager.send(url, data),
     isConnected: () => wsManager.isConnected(url),
   };
 }

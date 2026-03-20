@@ -113,7 +113,7 @@ test.describe('Core App Flows', () => {
         // Verify we're showing some kind of content (loading, error, or success)
         const hasContent = await page.locator('.character-sheet, .loading, .error-state, .agent-header').count() > 0;
         expect(hasContent).toBe(true);
-      } catch (error) {
+      } catch {
         // If the page doesn't load properly, that's still a valid test result
         console.warn('Character sheet page had loading issues, but navigation worked');
         const currentUrl = page.url();
