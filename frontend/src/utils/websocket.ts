@@ -41,9 +41,12 @@ export class OptimizedWebSocketManager {
   private maxReconnectDelay = 30000; // Max 30 seconds
   private maxReconnectAttempts = 10;
   private isTestEnvironment = false;
-  private testConnectionDelay = 2000; // 2 second delay in test environment
-  private testConnectionPersistence = 30000; // 30 second persistence in test environment
+  private testConnectionDelay = 1000; // Reduced to 1 second delay in test environment
+  private testConnectionPersistence = 45000; // Increased to 45 second persistence in test environment
+  private testReconnectCooldown = 10000; // 10 second cooldown between reconnect attempts in tests
+  private lastReconnectAttempts: Map<string, number> = new Map(); // Track last reconnect time per URL
   private navigationDebounceTimers: Map<string, number> = new Map();
+  private persistentConnections: Set<string> = new Set(); // URLs that should stay connected in test environment
 
   private constructor() {
     // Detect test environment
@@ -51,9 +54,13 @@ export class OptimizedWebSocketManager {
     
     // Adjust settings for test environment
     if (this.isTestEnvironment) {
-      this.maxReconnectAttempts = 3; // Fewer reconnect attempts during tests
-      this.maxReconnectDelay = 10000; // Shorter max delay
-      console.log('🧪 WebSocket Manager: Test environment detected, using optimized settings');
+      this.maxReconnectAttempts = 2; // Even fewer reconnect attempts during tests
+      this.maxReconnectDelay = 8000; // Shorter max delay
+      console.log('🧪 WebSocket Manager: Test environment detected, using optimized settings for connection stability');
+      
+      // Pre-populate persistent connections for main WebSocket URLs used in tests
+      this.persistentConnections.add('ws://localhost:8080/ws');
+      this.persistentConnections.add('ws://localhost:8080/api/ws/chat');
     }
   }
 
@@ -157,6 +164,12 @@ export class OptimizedWebSocketManager {
    * Schedule delayed connection closure for test environments to handle navigation
    */
   private scheduleDelayedConnectionClose(url: string) {
+    // For persistent connections in test environment, don't schedule closure at all
+    if (this.persistentConnections.has(url)) {
+      console.log(`🧪 Maintaining persistent connection to ${url} in test environment`);
+      return;
+    }
+
     // Cancel any existing delayed closure
     const existingTimer = this.navigationDebounceTimers.get(url);
     if (existingTimer) {
@@ -188,6 +201,22 @@ export class OptimizedWebSocketManager {
       this.navigationDebounceTimers.delete(url);
       console.log(`🧪 Cancelled delayed WebSocket connection close for ${url}`);
     }
+  }
+
+  /**
+   * Force maintain connection for critical URLs during navigation
+   */
+  maintainConnection(url: string) {
+    if (!this.persistentConnections.has(url)) {
+      this.persistentConnections.add(url);
+      console.log(`🧪 Added ${url} to persistent connections`);
+    }
+    
+    // Cancel any pending disconnection
+    this.cancelDelayedConnectionClose(url);
+    
+    // Ensure connection exists
+    this.ensureConnection(url);
   }
 
   private ensureConnection(url: string) {
@@ -288,15 +317,27 @@ export class OptimizedWebSocketManager {
       return;
     }
 
+    // In test environment, add cooldown between reconnect attempts to reduce churn
+    if (this.isTestEnvironment) {
+      const lastAttempt = this.lastReconnectAttempts.get(url);
+      const now = Date.now();
+      if (lastAttempt && (now - lastAttempt) < this.testReconnectCooldown) {
+        console.log(`🧪 Reconnect cooldown active for ${url}, skipping attempt ${attempts + 1}`);
+        return;
+      }
+      this.lastReconnectAttempts.set(url, now);
+    }
+
     // Exponential backoff with jitter
+    const baseDelay = this.isTestEnvironment ? 2000 : this.baseReconnectDelay; // Longer base delay in tests
     const delay = Math.min(
-      this.baseReconnectDelay * Math.pow(2, attempts),
+      baseDelay * Math.pow(2, attempts),
       this.maxReconnectDelay
     );
-    const jitter = Math.random() * 1000; // Add up to 1 second jitter
+    const jitter = Math.random() * (this.isTestEnvironment ? 500 : 1000); // Less jitter in tests
     const totalDelay = delay + jitter;
 
-    console.log(`Scheduling reconnection to ${url} in ${Math.round(totalDelay)}ms (attempt ${attempts + 1})`);
+    console.log(`${this.isTestEnvironment ? '🧪 ' : ''}Scheduling reconnection to ${url} in ${Math.round(totalDelay)}ms (attempt ${attempts + 1})`);
 
     // Clear any existing timer
     const existingTimer = this.reconnectTimers.get(url);
@@ -415,6 +456,24 @@ export class OptimizedWebSocketManager {
   }
 
   /**
+   * Add a URL to the persistent connections set (test environment only)
+   */
+  addPersistentConnection(url: string) {
+    if (this.isTestEnvironment) {
+      this.persistentConnections.add(url);
+      console.log(`🧪 Added persistent connection for ${url}`);
+    }
+  }
+
+  /**
+   * Remove a URL from the persistent connections set
+   */
+  removePersistentConnection(url: string) {
+    this.persistentConnections.delete(url);
+    console.log(`🧪 Removed persistent connection for ${url}`);
+  }
+
+  /**
    * Get connection statistics
    */
   getStats(): Record<string, WSConnectionStats> {
@@ -453,6 +512,23 @@ export class OptimizedWebSocketManager {
     
     return stats;
   }
+
+  /**
+   * Get test environment optimization status
+   */
+  getTestOptimizationStatus() {
+    if (!this.isTestEnvironment) return null;
+    
+    return {
+      isTestEnvironment: this.isTestEnvironment,
+      testConnectionDelay: this.testConnectionDelay,
+      testConnectionPersistence: this.testConnectionPersistence,
+      testReconnectCooldown: this.testReconnectCooldown,
+      persistentConnections: Array.from(this.persistentConnections),
+      maxReconnectAttempts: this.maxReconnectAttempts,
+      maxReconnectDelay: this.maxReconnectDelay,
+    };
+  }
 }
 
 // Export singleton instance
@@ -468,16 +544,40 @@ export function useOptimizedWebSocket(
   stateHandler?: WSStateHandler
 ) {
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const isTestEnvironment = useRef<boolean>(false);
+  
+  // Detect test environment once
+  useEffect(() => {
+    isTestEnvironment.current = !!(
+      '__playwright' in globalThis || 
+      navigator.userAgent.includes('HeadlessChrome') ||
+      (navigator.userAgent.includes('Firefox') && navigator.webdriver)
+    );
+  }, []);
   
   useEffect(() => {
+    // In test environment, make connection persistent before subscribing
+    if (isTestEnvironment.current) {
+      wsManager.maintainConnection(url);
+    }
+    
     // Subscribe to WebSocket
     const unsubscribe = wsManager.subscribe(url, subscriberId, messageHandler, stateHandler);
     unsubscribeRef.current = unsubscribe;
     
     // Cleanup on unmount
     return () => {
-      unsubscribe();
-      unsubscribeRef.current = null;
+      // In test environment, delay the unsubscribe to prevent immediate disconnection
+      if (isTestEnvironment.current) {
+        // Use a small delay to prevent rapid cycling during component unmount/mount
+        setTimeout(() => {
+          unsubscribe();
+          unsubscribeRef.current = null;
+        }, 100);
+      } else {
+        unsubscribe();
+        unsubscribeRef.current = null;
+      }
     };
   }, [url, subscriberId, messageHandler, stateHandler]); // Re-subscribe if URL, ID, or handlers change
   

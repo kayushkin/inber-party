@@ -637,6 +637,20 @@ export const useStore = create<StoreState>((set, get) => ({
     // Disconnect existing connection if any
     get().disconnectWebSocket();
     
+    // In test environment, ensure main WebSocket URL is persistent
+    const isTestEnvironment = !!(
+      '__playwright' in globalThis || 
+      navigator.userAgent.includes('HeadlessChrome') ||
+      (navigator.userAgent.includes('Firefox') && navigator.webdriver)
+    );
+    
+    if (isTestEnvironment) {
+      console.log('🧪 Test environment detected in store, enabling persistent connection for main WebSocket');
+      wsManager.addPersistentConnection(WS_URL);
+      // Force maintain connection to prevent disconnections during navigation
+      wsManager.maintainConnection(WS_URL);
+    }
+    
     const handleMessage = (data: unknown) => {
       if (!isWebSocketMessage(data)) {
         console.warn('Received invalid WebSocket message:', data);

@@ -15,13 +15,25 @@ interface WSDebugPanelProps {
   className?: string;
 }
 
+interface TestOptimizations {
+  isTestEnvironment: boolean;
+  testConnectionDelay: number;
+  testConnectionPersistence: number;
+  testReconnectCooldown: number;
+  persistentConnections: string[];
+  maxReconnectAttempts: number;
+  maxReconnectDelay: number;
+}
+
 export default function WSDebugPanel({ className }: WSDebugPanelProps) {
   const [stats, setStats] = useState<Record<string, WSConnectionStats>>({});
+  const [testOptimizations, setTestOptimizations] = useState<TestOptimizations | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setStats(wsManager.getStats());
+      setTestOptimizations(wsManager.getTestOptimizationStatus());
     }, 1000);
 
     return () => clearInterval(interval);
@@ -91,6 +103,19 @@ export default function WSDebugPanel({ className }: WSDebugPanelProps) {
       <div style={{ marginBottom: '8px' }}>
         <strong>Active Connections: {Object.keys(stats).length}</strong>
       </div>
+      
+      {testOptimizations && (
+        <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid #22c55e', borderRadius: '4px' }}>
+          <div style={{ color: '#22c55e', fontWeight: 'bold', marginBottom: '4px' }}>🧪 Test Environment Optimizations</div>
+          <div style={{ fontSize: '10px', color: '#a3a3a3' }}>
+            <div>Connection Delay: {testOptimizations.testConnectionDelay}ms</div>
+            <div>Persistence: {testOptimizations.testConnectionPersistence}ms</div>
+            <div>Reconnect Cooldown: {testOptimizations.testReconnectCooldown}ms</div>
+            <div>Max Attempts: {testOptimizations.maxReconnectAttempts}</div>
+            <div>Persistent URLs: {testOptimizations.persistentConnections.length}</div>
+          </div>
+        </div>
+      )}
       
       {Object.entries(stats).map(([url, data]: [string, WSConnectionStats]) => (
         <div key={url} style={{ marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid #444' }}>
