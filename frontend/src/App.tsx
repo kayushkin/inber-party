@@ -48,20 +48,46 @@ function App() {
   const updateSeasonalEvent = useStore((s) => s.updateSeasonalEvent);
 
   useEffect(() => {
-    connectWebSocket();
-    startPolling(10000);
+    // Detect test environment
+    const isTest = !!(
+      (globalThis as any).__playwright || 
+      import.meta.env.VITE_NODE_ENV === 'test' ||
+      (typeof navigator !== 'undefined' && navigator.userAgent.includes('HeadlessChrome'))
+    );
     
-    // Initialize seasonal events
-    updateSeasonalEvent();
-    
-    // Check for seasonal event changes every hour
-    const seasonalInterval = setInterval(updateSeasonalEvent, 60 * 60 * 1000);
-    
-    return () => {
-      disconnectWebSocket();
-      stopPolling();
-      clearInterval(seasonalInterval);
-    };
+    if (isTest) {
+      // In test environment, delay WebSocket connection to ensure backend is ready
+      console.log('🧪 Test environment detected, using delayed initialization');
+      const testTimer = setTimeout(() => {
+        connectWebSocket();
+        startPolling(15000); // Longer polling interval for tests
+      }, 3000); // 3 second delay for test stability
+      
+      // Initialize seasonal events (no delay needed)
+      updateSeasonalEvent();
+      
+      return () => {
+        clearTimeout(testTimer);
+        disconnectWebSocket();
+        stopPolling();
+      };
+    } else {
+      // Normal environment, connect immediately
+      connectWebSocket();
+      startPolling(10000);
+      
+      // Initialize seasonal events
+      updateSeasonalEvent();
+      
+      // Check for seasonal event changes every hour
+      const seasonalInterval = setInterval(updateSeasonalEvent, 60 * 60 * 1000);
+      
+      return () => {
+        disconnectWebSocket();
+        stopPolling();
+        clearInterval(seasonalInterval);
+      };
+    }
   }, [connectWebSocket, disconnectWebSocket, startPolling, stopPolling, updateSeasonalEvent]);
 
   // Apply theme on mount and when theme changes

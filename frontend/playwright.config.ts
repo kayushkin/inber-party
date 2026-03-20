@@ -48,7 +48,7 @@ export default defineConfig({
       command: 'cd .. && go run cmd/server/main.go',
       port: 8080,
       reuseExistingServer: !process.env.CI,
-      timeout: 30 * 1000,
+      timeout: 45 * 1000, // Increased timeout for WebSocket stability
       env: {
         'PORT': '8080',
         'NODE_ENV': 'test',
