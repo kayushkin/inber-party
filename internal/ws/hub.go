@@ -99,6 +99,39 @@ func (h *Hub) Broadcast(msg Message) {
 	}
 }
 
+// BroadcastBountyUpdate broadcasts bounty updates to all clients
+func (h *Hub) BroadcastBountyUpdate(bounty interface{}) {
+	h.Broadcast(Message{
+		Type: "bounty_update",
+		Data: bounty,
+	})
+}
+
+// BroadcastBountyCreate broadcasts new bounty creation to all clients
+func (h *Hub) BroadcastBountyCreate(bounty interface{}) {
+	h.Broadcast(Message{
+		Type: "bounty_create",
+		Data: bounty,
+	})
+}
+
+// BroadcastBountyDelete broadcasts bounty deletion to all clients
+func (h *Hub) BroadcastBountyDelete(bountyID string) {
+	h.Broadcast(Message{
+		Type: "bounty_delete",
+		Data: map[string]interface{}{
+			"id": bountyID,
+		},
+	})
+}
+
+// GetClientCount returns the number of connected clients
+func (h *Hub) GetClientCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.clients)
+}
+
 func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -133,35 +166,45 @@ func (c *Client) readPump() {
 			break
 		}
 
-		// Try to parse incoming messages for chat functionality
+		// Try to parse incoming messages for chat and bounty functionality
 		var msg map[string]interface{}
 		if err := json.Unmarshal(messageBytes, &msg); err == nil {
 			msgType, ok := msg["type"].(string)
-			if ok && msgType == "chat_message" {
-				// Broadcast chat messages to all clients
-				c.hub.Broadcast(Message{
-					Type: "chat_message",
-					Data: map[string]interface{}{
-						"message": map[string]interface{}{
-							"id":        generateMessageID(),
-							"username":  msg["username"],
-							"message":   msg["message"],
-							"timestamp": msg["timestamp"],
-							"type":      "chat",
-							"avatar":    msg["avatar"],
-						},
-					},
-				})
-			} else if msgType == "join" {
-				username, ok := msg["username"].(string)
-				if ok {
-					c.username = username
+			if ok {
+				switch msgType {
+				case "chat_message":
+					// Broadcast chat messages to all clients
 					c.hub.Broadcast(Message{
-						Type: "user_joined",
+						Type: "chat_message",
 						Data: map[string]interface{}{
-							"username": username,
+							"message": map[string]interface{}{
+								"id":        generateMessageID(),
+								"username":  msg["username"],
+								"message":   msg["message"],
+								"timestamp": msg["timestamp"],
+								"type":      "chat",
+								"avatar":    msg["avatar"],
+							},
 						},
 					})
+				case "join":
+					username, ok := msg["username"].(string)
+					if ok {
+						c.username = username
+						c.hub.Broadcast(Message{
+							Type: "user_joined",
+							Data: map[string]interface{}{
+								"username": username,
+							},
+						})
+					}
+				case "ping":
+					// Send pong response for heartbeat
+					select {
+					case c.send <- Message{Type: "pong", Data: nil}:
+					default:
+						// Channel full, ignore
+					}
 				}
 			}
 		}
