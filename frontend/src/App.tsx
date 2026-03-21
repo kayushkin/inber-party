@@ -63,14 +63,25 @@ function App() {
     );
     
     if (isTest) {
-      console.log('🧪 CRITICAL FIX: Setting GLOBAL PERSISTENT MODE to prevent WebSocket connection churn');
+      console.log('🧪 CRITICAL FIX: Test environment detected - implementing ULTRA-PERSISTENT WebSocket mode');
       
       // Set the global flag that all WebSocket code checks for
       (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__ = true;
       
-      // Log explicitly that the flag is set
-      console.log('🧪 Global flag __TEST_WEBSOCKET_PERSISTENT_MODE__ set to:', 
-        (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__);
+      // CRITICAL FIX: Check if we've already initialized test mode to prevent duplicate connections
+      const testModeKey = '__INBER_PARTY_TEST_INITIALIZED__';
+      if ((window as unknown as { [testModeKey]?: boolean })[testModeKey]) {
+        console.log('🧪 Test mode already initialized, skipping duplicate connection setup');
+        return () => {
+          console.log('🧪 Test environment cleanup: NO-OP to prevent any connection disruption');
+          // Absolutely no cleanup operations in test environment
+        };
+      }
+      
+      // Mark test mode as initialized to prevent duplicate initialization
+      (window as unknown as { [testModeKey]?: boolean })[testModeKey] = true;
+      
+      console.log('🧪 Initializing PERSISTENT WebSocket connections and polling for test environment');
       
       // Connect WebSocket and start polling - connections will be persistent due to global flag
       connectWebSocket(); 
@@ -78,11 +89,10 @@ function App() {
       updateSeasonalEvent();
       
       return () => {
-        console.log('🧪 Test environment cleanup: NEVER calling disconnect functions to prevent ANY connection churn');
-        // In test environments, we absolutely NEVER call any disconnect functions
-        // Only stop polling, but maintain all WebSocket connections
-        stopPolling();
-        // Do NOT call disconnectWebSocket() - this is the root cause of the churn
+        console.log('🧪 Test environment cleanup: ABSOLUTELY NO cleanup to prevent ANY connection churn');
+        // In test environments, we NEVER call ANY cleanup functions
+        // This prevents all connection churn during navigation and component lifecycle
+        // The global flag ensures connections remain persistent throughout the entire test suite
       };
     } else {
       // Normal environment, standard connection management
@@ -101,7 +111,7 @@ function App() {
         clearInterval(seasonalInterval);
       };
     }
-  }, []); // Remove all dependencies to prevent re-runs in test environment
+  }, []); // Empty dependency array to prevent re-runs
 
   // Apply theme on mount and when theme changes
   useEffect(() => {

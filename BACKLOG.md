@@ -8,7 +8,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ## 🚨 CRITICAL: WebSocket Connection Churn Issue Persists (March 2026 - Current Session)
 
-- [~] **CRITICAL: Fix Persistent WebSocket Connection Churning** — Despite multiple previous attempts marked as "COMPLETED", WebSocket connection churn continues during E2E tests with connections cycling every 1-2 seconds. Observed during current test run: continuous connect/disconnect patterns like "WebSocket client connected (total: 3)" immediately followed by "WebSocket client disconnected (total: 0)" every 2-3 seconds throughout entire test suite. This impacts test performance, reliability, and represents a fundamental issue with the WebSocket connection management that needs to be definitively resolved.
+- [~] **CRITICAL: Fix Persistent WebSocket Connection Churning** — Despite multiple previous attempts marked as "COMPLETED", WebSocket connection churn persists during E2E tests. Current observation (2026-03-21): During quick-stability test run, continuous connect/disconnect cycles occur every 3-4 seconds with pattern "connected (total: 1/2/3)" immediately followed by "disconnected (total: 2/1/0)". The persistent connection mode implementations have not successfully eliminated this issue. Need a more fundamental solution to prevent WebSocket churn during test environments.
 
 ---
 
