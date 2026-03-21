@@ -38,6 +38,7 @@ const TimeLapseView = lazy(() => import('./pages/TimeLapseView'));
 const MapView = lazy(() => import('./pages/MapView'));
 const SpectatorMode = lazy(() => import('./pages/SpectatorMode'));
 const RelationshipsView = lazy(() => import('./pages/RelationshipsView'));
+const UIShowcase = lazy(() => import('./pages/UIShowcase'));
 
 function App() {
   const connectWebSocket = useStore((s) => s.connectWebSocket);
@@ -297,6 +298,13 @@ function App() {
               <ErrorBoundary>
                 <Suspense fallback={<LoadingSpinner message="Loading Adventurer Creator..." />}>
                   <CreateAdventurer />
+                </Suspense>
+              </ErrorBoundary>
+            } />
+            <Route path="ui-showcase" element={
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading UI Showcase..." />}>
+                  <UIShowcase />
                 </Suspense>
               </ErrorBoundary>
             } />

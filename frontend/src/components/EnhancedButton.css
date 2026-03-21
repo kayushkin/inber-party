@@ -1,0 +1,357 @@
+/* EnhancedButton.css - Advanced button styling with micro-interactions */
+
+.enhanced-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: linear-gradient(145deg, var(--gold), var(--gold-dark));
+  color: var(--bg-dark);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-decoration: none;
+  user-select: none;
+  overflow: hidden;
+  /* Hardware acceleration */
+  transform: translateZ(0);
+  will-change: transform, box-shadow;
+}
+
+.enhanced-button:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.15),
+    0 0 0 2px rgba(255, 215, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  background: linear-gradient(145deg, #ffdd33, var(--gold));
+}
+
+.enhanced-button:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(145deg, var(--gold-dark), #b8860b);
+}
+
+.enhanced-button:focus {
+  outline: none;
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(255, 215, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Ripple effect animation */
+.enhanced-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.enhanced-button:active::before {
+  width: 200px;
+  height: 200px;
+  opacity: 1;
+  transition: width 0.1s ease, height 0.1s ease;
+}
+
+/* Button variants */
+.enhanced-button.variant-secondary {
+  background: linear-gradient(145deg, var(--bg-light), var(--bg-medium));
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+}
+
+.enhanced-button.variant-secondary:hover {
+  background: linear-gradient(145deg, var(--bg-medium), var(--bg-light));
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.enhanced-button.variant-danger {
+  background: linear-gradient(145deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.enhanced-button.variant-danger:hover {
+  background: linear-gradient(145deg, #f87171, #ef4444);
+}
+
+.enhanced-button.variant-success {
+  background: linear-gradient(145deg, var(--green), var(--green-dark));
+  color: white;
+}
+
+.enhanced-button.variant-success:hover {
+  background: linear-gradient(145deg, #4ade80, var(--green));
+}
+
+.enhanced-button.variant-ghost {
+  background: transparent;
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  box-shadow: none;
+}
+
+.enhanced-button.variant-ghost:hover {
+  background: var(--bg-light);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* Size variants */
+.enhanced-button.size-small {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+}
+
+.enhanced-button.size-large {
+  padding: 16px 32px;
+  font-size: 1.125rem;
+}
+
+.enhanced-button.size-icon {
+  padding: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+/* Loading state */
+.enhanced-button.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.enhanced-button.loading .button-text {
+  opacity: 0.3;
+}
+
+.enhanced-button-spinner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: button-spin 1s linear infinite;
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Disabled state */
+.enhanced-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  background: var(--bg-muted) !important;
+  color: var(--text-muted) !important;
+}
+
+.enhanced-button:disabled:hover {
+  transform: none !important;
+}
+
+/* Icon styling */
+.enhanced-button-icon {
+  display: flex;
+  align-items: center;
+  font-size: 1rem;
+}
+
+.enhanced-button-icon.icon-only {
+  margin: 0;
+}
+
+/* Floating Action Button style */
+.enhanced-button.fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  padding: 0;
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.enhanced-button.fab:hover {
+  transform: scale(1.1);
+  box-shadow: 
+    0 6px 12px rgba(0, 0, 0, 0.2),
+    0 0 0 4px rgba(255, 215, 0, 0.2);
+}
+
+/* Pulse animation for important buttons */
+.enhanced-button.pulse {
+  animation: button-pulse 2s infinite;
+}
+
+@keyframes button-pulse {
+  0%, 100% {
+    box-shadow: 
+      0 2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(255, 215, 0, 0.7);
+  }
+  50% {
+    box-shadow: 
+      0 2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(255, 215, 0, 0);
+  }
+}
+
+/* Glow effect for special buttons */
+.enhanced-button.glow {
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 0 8px rgba(255, 215, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.enhanced-button.glow:hover {
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.15),
+    0 0 16px rgba(255, 215, 0, 0.5),
+    0 0 0 2px rgba(255, 215, 0, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .enhanced-button {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    min-height: 44px; /* Better touch targets */
+  }
+  
+  .enhanced-button.size-small {
+    padding: 8px 14px;
+    min-height: 40px;
+  }
+  
+  .enhanced-button.fab {
+    bottom: 20px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+  }
+}
+
+@media (max-width: 375px) {
+  .enhanced-button {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    min-height: 42px;
+  }
+  
+  .enhanced-button.size-large {
+    padding: 12px 24px;
+    font-size: 1rem;
+  }
+  
+  .enhanced-button.fab {
+    width: 48px;
+    height: 48px;
+    bottom: 16px;
+    right: 16px;
+  }
+}
+
+/* Dark theme specific adjustments */
+[data-theme="dark"] .enhanced-button.variant-secondary {
+  background: linear-gradient(145deg, var(--bg-light), var(--bg-medium));
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .enhanced-button.variant-ghost {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .enhanced-button.variant-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--gold);
+}
+
+/* Light theme specific adjustments */
+[data-theme="light"] .enhanced-button.variant-secondary {
+  background: linear-gradient(145deg, #ffffff, #f8f9fa);
+  border-color: #dee2e6;
+  color: var(--text-primary);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="light"] .enhanced-button.variant-secondary:hover {
+  background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+  border-color: var(--gold-dark);
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .enhanced-button {
+    transition: none;
+    animation: none;
+  }
+  
+  .enhanced-button:hover {
+    transform: none;
+  }
+  
+  .enhanced-button:active {
+    transform: none;
+  }
+  
+  .enhanced-button::before {
+    display: none;
+  }
+  
+  .enhanced-button.pulse {
+    animation: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .enhanced-button {
+    border: 3px solid var(--text-primary);
+    background: var(--bg-light);
+    color: var(--text-primary);
+  }
+  
+  .enhanced-button:hover,
+  .enhanced-button:focus {
+    background: var(--text-primary);
+    color: var(--bg-dark);
+    border-color: var(--gold);
+  }
+}

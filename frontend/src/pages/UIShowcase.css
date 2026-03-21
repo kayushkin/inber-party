@@ -1,0 +1,354 @@
+/* UIShowcase.css - Styling for the UI/UX demonstration page */
+
+.ui-showcase {
+  min-height: 100vh;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  overflow-x: hidden;
+}
+
+.showcase-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.showcase-header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.showcase-header h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.showcase-subtitle {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.showcase-section {
+  margin-bottom: 4rem;
+  padding: 2rem;
+  background: var(--bg-medium);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.showcase-section h2 {
+  margin-bottom: 2rem;
+  color: var(--gold);
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+/* Button showcase */
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+/* Progress demo */
+.progress-demo {
+  margin-bottom: 2rem;
+}
+
+.progress-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.progress-slider {
+  flex: 1;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-light);
+  outline: none;
+}
+
+.progress-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--gold);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.progress-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--gold);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Skeleton demo */
+.skeleton-demo {
+  margin-top: 2rem;
+}
+
+.skeleton-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 400px;
+}
+
+/* State demo */
+.state-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.state-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.state-buttons button {
+  padding: 8px 16px;
+  border: 2px solid var(--border-color);
+  background: var(--bg-light);
+  color: var(--text-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  transition: all 0.2s ease;
+}
+
+.state-buttons button:hover {
+  border-color: var(--gold);
+  background: var(--bg-medium);
+}
+
+.state-card {
+  padding: 2rem;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-light);
+  transition: all 0.3s ease;
+}
+
+/* Agent showcase */
+.agent-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+/* Interactive demo */
+.interactive-demo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+}
+
+.demo-card {
+  padding: 2rem;
+  background: var(--bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  text-align: center;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.demo-card h4 {
+  margin-bottom: 1rem;
+  color: var(--gold);
+}
+
+/* Typography demo */
+.typography-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.typewriter-demo {
+  padding: 2rem;
+  background: var(--bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+}
+
+/* Theme demo */
+.theme-demo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.form-demo {
+  padding: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .showcase-container {
+    padding: 1rem;
+  }
+  
+  .showcase-header h1 {
+    font-size: 2rem;
+  }
+  
+  .showcase-subtitle {
+    font-size: 1rem;
+  }
+  
+  .showcase-section {
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .button-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .interactive-demo {
+    grid-template-columns: 1fr;
+  }
+  
+  .theme-demo {
+    grid-template-columns: 1fr;
+  }
+  
+  .agent-showcase-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .progress-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .state-buttons {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .showcase-container {
+    padding: 0.5rem;
+  }
+  
+  .showcase-section {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+  
+  .showcase-header h1 {
+    font-size: 1.75rem;
+  }
+  
+  .demo-card {
+    padding: 1.5rem;
+    min-height: 120px;
+  }
+  
+  .typewriter-demo {
+    padding: 1.5rem;
+    font-size: 1rem;
+  }
+  
+  .state-buttons button {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Dark theme specific styles */
+[data-theme="dark"] .showcase-section {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] .demo-card {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .state-card {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Light theme specific styles */
+[data-theme="light"] .showcase-section {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .demo-card {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="light"] .state-card {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Animation improvements */
+@keyframes showcase-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.showcase-section {
+  animation: showcase-fade-in 0.6s ease-out;
+}
+
+/* Custom scrollbar for showcase */
+.ui-showcase::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ui-showcase::-webkit-scrollbar-track {
+  background: var(--bg-medium);
+}
+
+.ui-showcase::-webkit-scrollbar-thumb {
+  background: var(--gold-dark);
+  border-radius: 4px;
+}
+
+.ui-showcase::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
