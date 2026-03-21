@@ -102,12 +102,12 @@ export class TestWebSocketBlocker {
         }, 0);
       }
 
-      addEventListener(type: string, _listener: EventListenerOrEventListenerObject): void {
+      addEventListener(type: string): void {
         console.log(`🧪 MOCK WEBSOCKET: Blocked addEventListener for ${this.url}:`, type);
         // No-op for test environment
       }
 
-      removeEventListener(type: string, _listener: EventListenerOrEventListenerObject): void {
+      removeEventListener(type: string): void {
         console.log(`🧪 MOCK WEBSOCKET: Blocked removeEventListener for ${this.url}:`, type);
         // No-op for test environment
       }
