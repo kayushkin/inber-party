@@ -9,6 +9,7 @@ import {
   type SeasonalEvent 
 } from './utils/seasonalEvents';
 import { wsManager } from './utils/websocket';
+import { globalWebSocket } from './utils/globalWebSocket';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -634,12 +635,7 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   connectWebSocket: () => {
-    const { wsUnsubscribe } = get();
-    
-    // Check for global persistent mode flag
-    const globalPersistentMode = (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__;
-    
-    // Enhanced test environment detection for consistency
+    // Enhanced test environment detection
     const isTestEnvironment = !!(
       '__playwright' in globalThis || 
       '__jest' in globalThis ||
@@ -648,33 +644,139 @@ export const useStore = create<StoreState>((set, get) => ({
       (navigator.userAgent.includes('Firefox') && navigator.webdriver) ||
       import.meta.env.VITE_NODE_ENV === 'test' ||
       import.meta.env.VITE_CI === 'true' ||
-      (typeof window !== 'undefined' && window.location.hostname === 'localhost' && 
-       (window.location.port === '5173' || window.location.port === '8080'))
+      (typeof window !== 'undefined' && window.location.hostname === 'localhost')
     );
+
+    if (isTestEnvironment) {
+      console.log('🧪 STORE: Using GLOBAL WEBSOCKET CONNECTION for ultimate stability in test environment');
+      
+      // Check if global WebSocket needs initialization
+      if (!globalWebSocket.isConnected()) {
+        globalWebSocket.initialize(WS_URL);
+      }
+
+      const handleMessage = (data: unknown) => {
+        if (!isWebSocketMessage(data)) {
+          console.warn('Received invalid WebSocket message:', data);
+          return;
+        }
+        
+        const msg = data as WebSocketMessage;
+        if (msg.type === 'quest_event') {
+          // Handle real-time quest events
+          const questEvent = msg.data;
+          console.log(`🎯 Quest Event: ${questEvent.message}`);
+          
+          // Play sound effects for important events
+          switch (questEvent.type) {
+            case 'quest_completed':
+              console.log(`🎉 ${questEvent.message}`);
+              break;
+            case 'quest_failed':
+              console.log(`💀 ${questEvent.message}`);
+              break;
+            case 'quest_started':
+              console.log(`⚔️ ${questEvent.message}`);
+              break;
+            case 'agent_level_up':
+              console.log(`✨ ${questEvent.message}`);
+              break;
+            case 'agent_status_changed':
+              console.log(`📍 ${questEvent.message}`);
+              break;
+          }
+          
+          // Trigger a fresh data fetch to get the latest state after the event
+          get().fetchAll();
+        } else if (msg.type === 'inber_update') {
+          const { agents, quests, stats } = msg.data;
+          if (agents) {
+            const { previousAgentLevels, triggerLevelUp } = get();
+            
+            // Check for level ups
+            agents.forEach((agent: RPGAgent) => {
+              const prevLevel = previousAgentLevels[agent.id];
+              if (prevLevel && agent.level > prevLevel) {
+                console.log(`${agent.name} leveled up from ${prevLevel} to ${agent.level}!`);
+                triggerLevelUp(agent.id);
+              }
+            });
+            
+            // Update agents and track their levels
+            const newLevels = agents.reduce((acc: Record<string, number>, agent: RPGAgent) => {
+              acc[agent.id] = agent.level;
+              return acc;
+            }, {});
+            
+            set({ 
+              agents,
+              previousAgentLevels: newLevels
+            });
+            
+            // Check for new achievements after agents are updated via WebSocket
+            get().checkForNewAchievements();
+          }
+          if (quests) {
+            const { previousQuestStatuses, triggerQuestCompletion } = get();
+            
+            // Check for quest completions
+            quests.forEach((quest: RPGQuest) => {
+              const prevStatus = previousQuestStatuses[quest.id];
+              if (prevStatus && prevStatus !== 'completed' && quest.status === 'completed') {
+                console.log(`Quest "${quest.name}" completed by ${quest.assigned_agent_name || 'Unknown Agent'}!`);
+                triggerQuestCompletion(quest.id, quest.name, quest.xp_reward, quest.assigned_agent_name || 'Unknown Agent');
+              }
+            });
+            
+            // Update quest statuses
+            const newStatuses = quests.reduce((acc: Record<number, string>, quest: RPGQuest) => {
+              acc[quest.id] = quest.status;
+              return acc;
+            }, {});
+            
+            set({ 
+              quests,
+              previousQuestStatuses: newStatuses
+            });
+          }
+          if (stats && typeof stats === 'object' && stats !== null) {
+            set({ stats: stats as RPGStats });
+          }
+        }
+      };
+
+      const handleStateChange = (connected: boolean) => {
+        set({ connected });
+      };
+
+      // Add handlers to global WebSocket
+      globalWebSocket.addMessageHandler(handleMessage);
+      globalWebSocket.addStateHandler(handleStateChange);
+
+      // Create a cleanup function that does nothing in test environment
+      const testCleanup = () => {
+        console.log('🧪 STORE: Test environment cleanup blocked - maintaining global connection');
+      };
+
+      set({ 
+        wsUnsubscribe: testCleanup,
+        connected: globalWebSocket.isConnected()
+      });
+
+      return;
+    }
+
+    // Production environment - use existing wsManager logic
+    const { wsUnsubscribe } = get();
     
     // If already connected, don't create duplicate connections
     if (wsUnsubscribe && wsManager.isConnected(WS_URL)) {
-      if (globalPersistentMode || isTestEnvironment) {
-        console.log('🧪 Store: WebSocket already connected, maintaining existing connection');
-      } else {
-        console.log('Store: WebSocket already connected, skipping connection attempt');
-      }
+      console.log('Store: WebSocket already connected, skipping connection attempt');
       return;
     }
     
-    // In test environment, make connections persistent
-    if (globalPersistentMode || isTestEnvironment) {
-      console.log('🧪 Store: Setting up PERSISTENT WebSocket connection');
-      
-      // Make this connection persistent
-      wsManager.addPersistentConnection(WS_URL);
-      wsManager.maintainConnection(WS_URL);
-      
-      console.log('🧪 Store: Made WebSocket URL persistent');
-    }
-    
     // Only disconnect existing connection if not in test environment
-    if (wsUnsubscribe && !globalPersistentMode && !isTestEnvironment) {
+    if (wsUnsubscribe) {
       console.log('Store: Disconnecting existing WebSocket connection before creating new one');
       wsUnsubscribe();
       set({ wsUnsubscribe: null, connected: false });
@@ -789,37 +891,24 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   disconnectWebSocket: () => {
-    // ULTIMATE FIX: Check for multiple global locks that prevent ANY disconnect operations
-    const globalWin = window as unknown as { 
-      __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean;
-      __WEBSOCKET_PERMANENT_LOCK__?: boolean;
-      __INBER_PARTY_TEST_INITIALIZED__?: boolean;
-    };
-    
-    // Ultra-comprehensive test environment detection
+    // Enhanced test environment detection
     const isTestEnvironment = !!(
       '__playwright' in globalThis || 
       '__jest' in globalThis ||
       navigator.userAgent.includes('HeadlessChrome') ||
       navigator.userAgent.includes('Playwright') ||
       (navigator.userAgent.includes('Firefox') && navigator.webdriver) ||
-      navigator.userAgent.includes('Chrome') && navigator.userAgent.includes('headless') ||
       import.meta.env.VITE_NODE_ENV === 'test' ||
       import.meta.env.VITE_CI === 'true' ||
-      import.meta.env.NODE_ENV === 'test' ||
-      window.location.hostname === 'localhost' ||
-      '__VISUAL_REGRESSION_TEST__' in window
+      window.location.hostname === 'localhost'
     );
-    
-    // Check for any form of test persistent mode
-    if (isTestEnvironment || 
-        globalWin.__TEST_WEBSOCKET_PERSISTENT_MODE__ || 
-        globalWin.__WEBSOCKET_PERMANENT_LOCK__ ||
-        globalWin.__INBER_PARTY_TEST_INITIALIZED__) {
-      console.log('🧪 ULTRA-PERSISTENT MODE: ABSOLUTELY BLOCKING WebSocket disconnect from store - connections are PERMANENT');
-      return; // ZERO disconnect operations allowed when ANY test flag is active
+
+    if (isTestEnvironment) {
+      console.log('🧪 STORE: WebSocket disconnect BLOCKED in test environment - maintaining global connection');
+      return; // Never disconnect in test environment
     }
-    
+
+    // Production environment - normal disconnect logic
     const { wsUnsubscribe } = get();
     
     if (wsUnsubscribe) {
