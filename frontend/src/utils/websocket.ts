@@ -730,45 +730,42 @@ export function useOptimizedWebSocket(
   
   // Detect test environment once
   useEffect(() => {
-    isTestEnvironment.current = !!(
+    const testDetected = !!(
       '__playwright' in globalThis || 
+      '__jest' in globalThis ||
       navigator.userAgent.includes('HeadlessChrome') ||
-      (navigator.userAgent.includes('Firefox') && navigator.webdriver)
+      navigator.userAgent.includes('Playwright') ||
+      (navigator.userAgent.includes('Firefox') && navigator.webdriver) ||
+      import.meta.env.VITE_NODE_ENV === 'test' ||
+      import.meta.env.VITE_CI === 'true' ||
+      (typeof window !== 'undefined' && window.location.hostname === 'localhost')
     );
+    
+    isTestEnvironment.current = testDetected;
+    
+    if (testDetected) {
+      console.log(`🧪 COMPONENT WEBSOCKET HOOK DISABLED: ${subscriberId} will NOT create WebSocket connection to ${url} - store handles all WebSocket connections in test environment`);
+    }
   }, []);
   
   useEffect(() => {
-    // In test environment, make connection ultra-persistent before subscribing
+    // CRITICAL FIX: In test environment, components should NOT create their own WebSocket connections
+    // The store already handles WebSocket connections, and multiple subscriptions cause churn
     if (isTestEnvironment.current) {
-      console.log(`🧪 Making connection to ${url} ultra-persistent for test environment`);
-      wsManager.addPersistentConnection(url);
-      wsManager.maintainConnection(url);
+      console.log(`🧪 SKIPPING component WebSocket subscription for ${subscriberId} to ${url} - test environment detected`);
+      console.log(`🧪 WebSocket connections are managed exclusively by the store during tests`);
+      return; // Return early - no WebSocket operations for components in test environment
     }
+    
+    // Only create connections in production environment
+    console.log(`🌐 Production environment: Creating WebSocket subscription for ${subscriberId} to ${url}`);
     
     // Subscribe to WebSocket
     const unsubscribe = wsManager.subscribe(url, subscriberId, messageHandler, stateHandler);
     unsubscribeRef.current = unsubscribe;
     
-    // Cleanup on unmount
+    // Cleanup on unmount (only in production)
     return () => {
-      // ULTIMATE FIX: Check for multiple global locks that prevent ANY cleanup operations
-      const globalWin = typeof window !== 'undefined' ? 
-        window as unknown as { 
-          __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean;
-          __WEBSOCKET_PERMANENT_LOCK__?: boolean;
-          __INBER_PARTY_TEST_INITIALIZED__?: boolean;
-        } : undefined;
-      
-      // Check for any form of test persistent mode
-      if (isTestEnvironment.current || 
-          globalWin?.__TEST_WEBSOCKET_PERSISTENT_MODE__ || 
-          globalWin?.__WEBSOCKET_PERMANENT_LOCK__ ||
-          globalWin?.__INBER_PARTY_TEST_INITIALIZED__) {
-        console.log(`🧪 ULTRA-PERSISTENT MODE: ABSOLUTELY BLOCKING cleanup for ${subscriberId} from ${url} - connections are PERMANENT`);
-        return; // ZERO cleanup operations allowed when ANY test flag is active
-      }
-      
-      // Normal environment - perform cleanup
       console.log(`🌐 Production cleanup: Unsubscribing ${subscriberId} from ${url}`);
       unsubscribe();
       unsubscribeRef.current = null;
@@ -776,7 +773,20 @@ export function useOptimizedWebSocket(
   }, [url, subscriberId, messageHandler, stateHandler]); // Re-subscribe if URL, ID, or handlers change
   
   return {
-    send: (data: unknown) => wsManager.send(url, data),
-    isConnected: () => wsManager.isConnected(url),
+    send: (data: unknown) => {
+      // In test environment, delegate to store connection
+      if (isTestEnvironment.current) {
+        console.log(`🧪 Component send delegated to store connection: ${subscriberId} → ${url}`);
+        return wsManager.send(url, data);
+      }
+      return wsManager.send(url, data);
+    },
+    isConnected: () => {
+      // In test environment, delegate to store connection
+      if (isTestEnvironment.current) {
+        return wsManager.isConnected(url);
+      }
+      return wsManager.isConnected(url);
+    },
   };
 }

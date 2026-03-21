@@ -11,6 +11,7 @@ import NotificationContainer from './components/NotificationContainer';
 import SeasonalDecorations from './components/SeasonalDecorations';
 import WSDebugPanel from './components/WSDebugPanel';
 import ErrorTestButtons from './components/ErrorTestButtons';
+import { initTestWebSockets } from './utils/testWebSocketInit';
 import './App.css';
 
 // Lazy load page components for code splitting
@@ -49,6 +50,9 @@ function App() {
   const updateSeasonalEvent = useStore((s) => s.updateSeasonalEvent);
 
   useEffect(() => {
+    // Initialize test WebSocket blocking before any other operations
+    initTestWebSockets();
+    
     // Ultra-comprehensive test environment detection
     const isTest = !!(
       '__playwright' in globalThis || 

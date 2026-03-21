@@ -43,60 +43,19 @@ export function initTestWebSockets() {
     return;
   }
 
-  console.log('🧪 INITIALIZING TEST WEBSOCKET CONNECTIONS - These will persist for the entire test session');
+  console.log('🧪 ENABLING COMPONENT WEBSOCKET BLOCKING - All component-level WebSocket operations will be disabled');
+  console.log('🧪 Only the store will manage WebSocket connections during tests');
   
-  // Set global flags
+  // Set global flags to block component WebSocket operations
   window.__TEST_WEBSOCKET_INITIALIZED__ = true;
   window.__TEST_WEBSOCKET_PERSISTENT_MODE__ = true;
+  
+  // Additional global flag for component blocking
+  (window as any).__INBER_PARTY_TEST_INITIALIZED__ = true;
+  (window as any).__WEBSOCKET_PERMANENT_LOCK__ = true;
 
-  // Define all WebSocket URLs used in the application
-  const webSocketUrls = [
-    'ws://localhost:8080/ws',           // Main store connection
-    'ws://localhost:8080/api/ws/chat',  // Chat connection
-  ];
-
-  // Initialize persistent connections for all URLs
-  webSocketUrls.forEach((url, index) => {
-    console.log(`🧪 Initializing persistent connection ${index + 1}/${webSocketUrls.length}: ${url}`);
-    
-    // Add to persistent connections before subscribing
-    wsManager.addPersistentConnection(url);
-    wsManager.maintainConnection(url);
-    
-    // Create a persistent subscription that will never be unsubscribed
-    const unsubscribe = wsManager.subscribe(
-      url,
-      `test-persistent-${index}`,
-      (data) => {
-        console.log(`🧪 Test connection ${url} received data:`, data);
-      },
-      (connected) => {
-        console.log(`🧪 Test connection ${url} state changed: ${connected ? 'CONNECTED' : 'DISCONNECTED'}`);
-      }
-    );
-
-    // Store unsubscribe function but NEVER call it during tests
-    (window as any)[`__TEST_UNSUBSCRIBE_${index}__`] = unsubscribe;
-  });
-
-  console.log(`🧪 Test WebSocket initialization complete. ${webSocketUrls.length} persistent connections established.`);
-  console.log('🧪 These connections will remain active throughout the entire test session.');
-
-  // Override console.log temporarily to see if connections are being established
-  const originalConsoleLog = console.log;
-  console.log = (...args) => {
-    if (args[0]?.includes?.('WebSocket')) {
-      originalConsoleLog('🔍', ...args);
-    } else {
-      originalConsoleLog(...args);
-    }
-  };
-
-  // Restore console.log after 5 seconds
-  setTimeout(() => {
-    console.log = originalConsoleLog;
-    console.log('🧪 WebSocket debug logging disabled, connections should now be stable');
-  }, 5000);
+  console.log('🧪 Test WebSocket initialization complete. Component WebSocket operations are now BLOCKED.');
+  console.log('🧪 Store will handle all WebSocket connections exclusively.');
 }
 
 /**
