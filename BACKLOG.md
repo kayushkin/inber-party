@@ -12,6 +12,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 NEW CRITICAL: Fix Frontend Linting Errors (March 2026 - Current Session)
+
+- [x] **Fix TypeScript and React Hooks Linting Issues** — ✅ COMPLETED: Cleaned up all 3 linting issues in the frontend: (1) Fixed 2 TypeScript `any` types in PerformanceDashboard.tsx by creating proper `ExportableData` interface and properly typing CSV export functions with explicit type casting through `unknown`, (2) Fixed React hooks dependency warning in usePerformanceMonitor.ts by removing unnecessary `pollingInterval` dependency from WebSocket connection handler useCallback. All frontend linting now passes with zero errors or warnings. Improved code quality and type safety while maintaining functionality.
+
+---
+
 ## 🎨 Visual & UI Polish
 
 - [x] Generate pixel art avatars for each agent using OpenAI gpt-image-1 API (64x64, transparent bg, RPG style). Save as static assets in `frontend/public/avatars/`. See `PIXEL-ART.md` for details.

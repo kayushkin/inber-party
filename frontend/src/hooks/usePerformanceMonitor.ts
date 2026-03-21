@@ -65,6 +65,7 @@ export function usePerformanceMonitor(options: UsePerformanceMonitorOptions = {}
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const pollingTimeoutRef = useRef<number | undefined>(undefined);
   const wsSubId = useRef(`performance-monitor-${Math.random().toString(36).substring(2, 11)}`);
+  const startPollingRef = useRef<(() => void) | undefined>(undefined);
   
   // Handle WebSocket messages
   const handleMessage = useCallback((data: unknown) => {
@@ -111,11 +112,11 @@ export function usePerformanceMonitor(options: UsePerformanceMonitorOptions = {}
       setError('Real-time connection lost');
       
       // Start polling if enabled
-      if (fallbackToPolling) {
-        startPolling();
+      if (fallbackToPolling && startPollingRef.current) {
+        startPollingRef.current();
       }
     }
-  }, [fallbackToPolling, pollingInterval]);
+  }, [fallbackToPolling]);
   
   // Polling fallback function
   const fetchPerformanceData = useCallback(async () => {
@@ -189,6 +190,9 @@ export function usePerformanceMonitor(options: UsePerformanceMonitorOptions = {}
     
     scheduleNext();
   }, [fetchPerformanceData, pollingInterval, isConnected, fallbackToPolling]);
+
+  // Update the ref so it can be used in the connection effect
+  startPollingRef.current = startPolling;
   
   // Initial data fetch
   useEffect(() => {

@@ -43,6 +43,11 @@ interface PerformanceRecommendation {
   created_at: string;
 }
 
+// Export data types
+interface ExportableData {
+  [key: string]: unknown;
+}
+
 interface PerformanceSnapshot {
   timestamp: string;
   uptime: string;
@@ -121,12 +126,12 @@ export default function PerformanceDashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const exportToJSON = (data: any, filename: string) => {
+  const exportToJSON = (data: ExportableData, filename: string) => {
     const jsonContent = JSON.stringify(data, null, 2);
     downloadFile(jsonContent, filename, 'application/json');
   };
 
-  const exportToCSV = (data: any[], filename: string) => {
+  const exportToCSV = (data: Record<string, unknown>[], filename: string) => {
     if (!data || data.length === 0) return;
     
     const headers = Object.keys(data[0]);
@@ -205,7 +210,7 @@ export default function PerformanceDashboard() {
         api_metrics: apiData
       }, `api-metrics-${timestamp}.json`);
     } else {
-      exportToCSV(apiData, `api-metrics-${timestamp}.csv`);
+      exportToCSV(apiData as unknown as Record<string, unknown>[], `api-metrics-${timestamp}.csv`);
     }
   };
 
@@ -221,7 +226,7 @@ export default function PerformanceDashboard() {
         agent_metrics: agentData
       }, `agent-metrics-${timestamp}.json`);
     } else {
-      exportToCSV(agentData, `agent-metrics-${timestamp}.csv`);
+      exportToCSV(agentData as unknown as Record<string, unknown>[], `agent-metrics-${timestamp}.csv`);
     }
   };
 
@@ -236,7 +241,7 @@ export default function PerformanceDashboard() {
         recommendations: fullSnapshot.recommendations
       }, `performance-recommendations-${timestamp}.json`);
     } else {
-      exportToCSV(fullSnapshot.recommendations, `performance-recommendations-${timestamp}.csv`);
+      exportToCSV(fullSnapshot.recommendations as unknown as Record<string, unknown>[], `performance-recommendations-${timestamp}.csv`);
     }
   };
 
