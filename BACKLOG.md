@@ -299,6 +299,10 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🔧 Current Maintenance Tasks
+
+- [~] **Update Go Dependencies** — Update outdated Go modules: lib/pq (1.10.9→1.12.0) and mattn/go-sqlite3 (1.14.34→1.14.37) for improved security and performance
+
 ## 💡 Ideas (unprioritized)
 - [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
 - [x] Time-lapse view — compressed animation of a day's agent activity ✅ COMPLETED: Implemented comprehensive time-lapse visualization with `/api/activity/timeline` endpoint, animated playback controls, agent activity tracking, event stream visualization, and timeline statistics
