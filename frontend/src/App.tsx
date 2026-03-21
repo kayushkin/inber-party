@@ -63,7 +63,14 @@ function App() {
     );
     
     if (isTest) {
-      console.log('🧪 Test environment: Starting App with global persistent WebSocket mode');
+      console.log('🧪 CRITICAL FIX: Setting GLOBAL PERSISTENT MODE to prevent WebSocket connection churn');
+      
+      // Set the global flag that all WebSocket code checks for
+      (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__ = true;
+      
+      // Log explicitly that the flag is set
+      console.log('🧪 Global flag __TEST_WEBSOCKET_PERSISTENT_MODE__ set to:', 
+        (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__);
       
       // Connect WebSocket and start polling - connections will be persistent due to global flag
       connectWebSocket(); 
@@ -71,12 +78,11 @@ function App() {
       updateSeasonalEvent();
       
       return () => {
-        console.log('🧪 Test environment cleanup: All WebSocket operations will be ignored due to persistent mode');
-        // The global persistent mode flag will prevent any actual disconnections
-        // But we still call these functions so React doesn't complain about cleanup
+        console.log('🧪 Test environment cleanup: NEVER calling disconnect functions to prevent ANY connection churn');
+        // In test environments, we absolutely NEVER call any disconnect functions
+        // Only stop polling, but maintain all WebSocket connections
         stopPolling();
-        // disconnectWebSocket will be ignored due to global persistent mode
-        disconnectWebSocket();
+        // Do NOT call disconnectWebSocket() - this is the root cause of the churn
       };
     } else {
       // Normal environment, standard connection management

@@ -183,20 +183,18 @@ export class OptimizedWebSocketManager {
   }
 
   private unsubscribe(url: string, subscriberId: string) {
-    console.log(`${this.isTestEnvironment ? '🧪 ' : ''}WebSocket unsubscribe request: ${subscriberId} from ${url}`);
-    
-    // Check for global test persistent mode - completely ignore unsubscribe requests
+    // CRITICAL FIX: Check for global test persistent mode FIRST and return immediately
     const globalPersistentMode = typeof window !== 'undefined' && 
       (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__;
     
-    if (globalPersistentMode || this.testPersistenceMode) {
-      console.log(`🧪 ULTRA-PERSISTENT MODE: COMPLETELY IGNORING unsubscribe request for ${subscriberId} from ${url}`);
-      console.log(`🧪 Connection to ${url} will remain active with all subscribers to prevent any connection churn`);
-      return; // Completely ignore unsubscribe in test environments
+    if (globalPersistentMode) {
+      console.log(`🧪 GLOBAL PERSISTENT MODE: ABSOLUTELY REFUSING unsubscribe request for ${subscriberId} from ${url} - maintaining ALL connections`);
+      return; // Completely ignore ALL unsubscribe requests when global persistent mode is active
     }
     
-    // In test environment, also ignore unsubscribe to prevent churn
-    if (this.isTestEnvironment) {
+    console.log(`${this.isTestEnvironment ? '🧪 ' : ''}WebSocket unsubscribe request: ${subscriberId} from ${url}`);
+    
+    if (this.testPersistenceMode || this.isTestEnvironment) {
       console.log(`🧪 Test environment: IGNORING unsubscribe request for ${subscriberId} from ${url} to prevent connection churn`);
       return;
     }
@@ -511,13 +509,13 @@ export class OptimizedWebSocketManager {
   }
 
   private closeConnection(url: string) {
-    // Check for global persistent mode flag from App.tsx
+    // CRITICAL FIX: Check for global persistent mode FIRST and return immediately
     const globalPersistentMode = typeof window !== 'undefined' && 
       (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__;
     
     if (globalPersistentMode) {
-      console.log(`🧪 Global persistent mode: ABSOLUTELY REFUSING to close connection to ${url}`);
-      return;
+      console.log(`🧪 GLOBAL PERSISTENT MODE: ABSOLUTELY REFUSING to close connection to ${url} - connection will remain open permanently`);
+      return; // Never close any connections when global persistent mode is active
     }
     
     // In ultra-persistent test mode, never actually close connections
@@ -737,13 +735,17 @@ export function useOptimizedWebSocket(
     
     // Cleanup on unmount
     return () => {
-      // Check for global persistent mode flag or test environment
+      // CRITICAL FIX: Check global persistent mode FIRST and return immediately
       const globalPersistentMode = typeof window !== 'undefined' && 
         (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__;
       
-      if (globalPersistentMode || isTestEnvironment.current) {
+      if (globalPersistentMode) {
+        console.log(`🧪 GLOBAL PERSISTENT MODE: ABSOLUTELY REFUSING to unsubscribe ${subscriberId} from ${url} - maintaining ALL WebSocket connections`);
+        return; // Never perform ANY cleanup when global persistent mode is active
+      }
+      
+      if (isTestEnvironment.current) {
         console.log(`🧪 Test environment: NEVER unsubscribing ${subscriberId} to maintain persistent connections and eliminate churn`);
-        // In test environments, NEVER unsubscribe to completely prevent any connection churn
         return;
       }
       

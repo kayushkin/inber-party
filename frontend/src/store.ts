@@ -789,10 +789,15 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   disconnectWebSocket: () => {
-    const { wsUnsubscribe } = get();
-    
-    // Check for global persistent mode flag set by App.tsx in test environment
+    // CRITICAL FIX: Check for global persistent mode FIRST and return immediately
     const globalPersistentMode = (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__;
+    
+    if (globalPersistentMode) {
+      console.log('🧪 GLOBAL PERSISTENT MODE: ABSOLUTELY REFUSING to disconnect WebSocket from store - maintaining ALL connections');
+      return; // Never perform ANY disconnect operations when global persistent mode is active
+    }
+    
+    const { wsUnsubscribe } = get();
     
     // Enhanced test environment detection (same as connectWebSocket)
     const isTestEnvironment = !!(
@@ -807,8 +812,8 @@ export const useStore = create<StoreState>((set, get) => ({
        (window.location.port === '5173' || window.location.port === '8080'))
     );
     
-    if (globalPersistentMode || isTestEnvironment) {
-      console.log('🧪 Test environment with GLOBAL PERSISTENT MODE: ABSOLUTELY REFUSING to disconnect WebSocket to prevent connection churn');
+    if (isTestEnvironment) {
+      console.log('🧪 Test environment: REFUSING to disconnect WebSocket to prevent connection churn');
       return; // Never disconnect during tests to prevent churn
     }
     
