@@ -321,6 +321,10 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 - [x] **Fix Overly Strict WebSocket Test Expectations** — ✅ COMPLETED: Updated WebSocket test expectations to match the actual optimized behavior. Changed unrealistic expectations of 0 connections to realistic expectations of 1-2 stable connections during navigation. Fixed tests in websocket-global-connection.spec.ts, websocket-debug.spec.ts, and websocket-ultra-persistence.spec.ts to expect minimal stable connections (1-3) rather than zero connections, which was impossible since the app requires WebSocket functionality. Tests now properly validate that WebSocket optimization is working correctly with stable connections rather than expecting the impossible zero-connection behavior.
 
+## 🔧 Small Quality Improvements
+
+- [x] **Add CHANGELOG.md** — Create comprehensive changelog tracking all major releases and improvements since project inception. Include proper semantic versioning, release dates, and categorized changes (Added, Changed, Deprecated, Removed, Fixed, Security). ✅ COMPLETED: Created comprehensive CHANGELOG.md documenting the entire project evolution from conception in February 2026 to feature-complete v1.0.0 release. Includes detailed feature categorization, technical specifications, performance metrics, and project evolution summary.
+
 ## 💡 Ideas (unprioritized)
 - [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
 - [x] Time-lapse view — compressed animation of a day's agent activity ✅ COMPLETED: Implemented comprehensive time-lapse visualization with `/api/activity/timeline` endpoint, animated playback controls, agent activity tracking, event stream visualization, and timeline statistics
