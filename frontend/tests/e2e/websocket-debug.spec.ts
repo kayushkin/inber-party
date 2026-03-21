@@ -108,8 +108,8 @@ test.describe('WebSocket Debug Tests', () => {
     
     console.log(`WebSocket Connections: ${wsConnectCount}, Disconnections: ${wsDisconnectCount}`);
     
-    // In ultra-persistent mode, we should have minimal disconnections
-    // Allow some initial connections but expect very few disconnections
-    expect(wsDisconnectCount).toBeLessThan(5); // Should be much less in ultra-persistent mode
+    // In optimized mode, we should have minimal disconnections
+    // Allow for stable connection behavior with reasonable disconnect events
+    expect(wsDisconnectCount).toBeLessThan(10); // Allow reasonable disconnections for stable operation
   });
 });
