@@ -15,6 +15,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/logstack"
 	"github.com/kayushkin/inber-party/internal/mood"
 	"github.com/kayushkin/inber-party/internal/notifications"
+	"github.com/kayushkin/inber-party/internal/performance"
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/sync"
 	"github.com/kayushkin/inber-party/internal/validation"
@@ -35,6 +36,8 @@ type Server struct {
 	BountyRepo        *bounty.Repository
 	AutoBountyService *bounty.AutoBountyService
 	NotificationSvc   *notifications.Service
+	PerformanceCollector *performance.MetricsCollector
+	PerformanceMiddleware *performance.PerformanceMiddleware
 }
 
 func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dailyquests.DailyQuestManager) *Server {
@@ -45,6 +48,10 @@ func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dai
 	
 	logstackClient := logstack.NewLogstackClient()
 	verifierRegistry := verifiers.NewVerifierRegistry()
+	
+	// Initialize performance monitoring
+	performanceCollector := performance.NewMetricsCollector()
+	performanceMiddleware := performance.NewPerformanceMiddleware(performanceCollector)
 	
 	// Initialize database-dependent services only if database is available
 	if database != nil {
@@ -65,6 +72,8 @@ func NewServer(database *db.DB, hub *ws.Hub, qg *questgiver.QuestGiver, dqm *dai
 		BountyRepo:        bountyRepo,
 		AutoBountyService: autoBountyService,
 		NotificationSvc:   notificationSvc,
+		PerformanceCollector: performanceCollector,
+		PerformanceMiddleware: performanceMiddleware,
 	}
 }
 
@@ -135,6 +144,15 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/relationships", s.handleRelationships)
 	mux.HandleFunc("/api/relationships/analyze", s.handleAnalyzeRelationships)
 	mux.HandleFunc("/api/relationships/stats/", s.handleAgentRelationshipStats)
+	
+	// Performance monitoring endpoints
+	mux.HandleFunc("/api/performance/metrics", s.PerformanceMiddleware.WrapHandler(s.handlePerformanceMetrics))
+	mux.HandleFunc("/api/performance/snapshot", s.PerformanceMiddleware.WrapHandler(s.handlePerformanceSnapshot))
+	mux.HandleFunc("/api/performance/recommendations", s.PerformanceMiddleware.WrapHandler(s.handlePerformanceRecommendations))
+	mux.HandleFunc("/api/performance/health", s.PerformanceMiddleware.WrapHandler(s.handlePerformanceHealth))
+	mux.HandleFunc("/api/performance/agents", s.PerformanceMiddleware.WrapHandler(s.handleAgentPerformanceMetrics))
+	mux.HandleFunc("/api/performance/api-stats", s.PerformanceMiddleware.WrapHandler(s.handleAPIPerformanceStats))
+	mux.HandleFunc("/api/performance/system", s.PerformanceMiddleware.WrapHandler(s.handleSystemMetrics))
 }
 
 // Validation helper functions
@@ -4869,4 +4887,307 @@ func (s *Server) getCodebaseStructure() ([]CodebaseNode, error) {
 // Helper function to create int pointer
 func intPtr(i int) *int {
 	return &i
+}
+
+// Performance monitoring handler functions
+
+// handlePerformanceMetrics returns all performance metrics
+func (s *Server) handlePerformanceMetrics(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	snapshot := s.PerformanceCollector.GetSnapshot()
+	
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(snapshot); err != nil {
+		http.Error(w, "Failed to encode metrics", http.StatusInternalServerError)
+		return
+	}
+}
+
+// handlePerformanceSnapshot returns a lightweight performance snapshot
+func (s *Server) handlePerformanceSnapshot(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	snapshot := s.PerformanceCollector.GetSnapshot()
+	
+	// Create a lightweight response with key metrics
+	response := map[string]interface{}{
+		"timestamp":    snapshot.Timestamp,
+		"uptime":       snapshot.Uptime.String(),
+		"health_status": snapshot.HealthStatus,
+		"system": map[string]interface{}{
+			"memory_usage":    snapshot.SystemMetrics.MemoryUsage,
+			"memory_percent":  snapshot.SystemMetrics.MemoryPercent,
+			"goroutine_count": snapshot.SystemMetrics.GoroutineCount,
+			"cpu_usage":       snapshot.SystemMetrics.CPUUsage,
+		},
+		"api_summary": map[string]interface{}{
+			"total_endpoints": len(snapshot.APIMetrics),
+			"total_requests":  func() int64 {
+				var total int64
+				for _, metric := range snapshot.APIMetrics {
+					total += metric.TotalRequests
+				}
+				return total
+			}(),
+		},
+		"agents_active": len(snapshot.AgentMetrics),
+		"recommendations_count": len(snapshot.Recommendations),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode snapshot", http.StatusInternalServerError)
+		return
+	}
+}
+
+// handlePerformanceRecommendations returns performance optimization recommendations
+func (s *Server) handlePerformanceRecommendations(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	snapshot := s.PerformanceCollector.GetSnapshot()
+	
+	response := map[string]interface{}{
+		"recommendations": snapshot.Recommendations,
+		"total_count":    len(snapshot.Recommendations),
+		"critical_count": func() int {
+			count := 0
+			for _, rec := range snapshot.Recommendations {
+				if rec.Priority == "critical" {
+					count++
+				}
+			}
+			return count
+		}(),
+		"high_count": func() int {
+			count := 0
+			for _, rec := range snapshot.Recommendations {
+				if rec.Priority == "high" {
+					count++
+				}
+			}
+			return count
+		}(),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode recommendations", http.StatusInternalServerError)
+		return
+	}
+}
+
+// handlePerformanceHealth returns system health status
+func (s *Server) handlePerformanceHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	snapshot := s.PerformanceCollector.GetSnapshot()
+	
+	response := map[string]interface{}{
+		"status":           snapshot.HealthStatus,
+		"uptime":          snapshot.Uptime.String(),
+		"timestamp":       snapshot.Timestamp,
+		"memory_percent":  snapshot.SystemMetrics.MemoryPercent,
+		"goroutines":      snapshot.SystemMetrics.GoroutineCount,
+		"api_error_rate": func() float64 {
+			var totalRequests, errorRequests int64
+			for _, metric := range snapshot.APIMetrics {
+				totalRequests += metric.TotalRequests
+				errorRequests += metric.ErrorRequests
+			}
+			if totalRequests == 0 {
+				return 0.0
+			}
+			return float64(errorRequests) / float64(totalRequests) * 100
+		}(),
+		"database_avg_query_time": snapshot.DatabaseMetrics.AverageQueryTime.String(),
+		"websocket_connections":   snapshot.WebSocketMetrics.ActiveConnections,
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode health status", http.StatusInternalServerError)
+		return
+	}
+}
+
+// handleAgentPerformanceMetrics returns agent-specific performance metrics
+func (s *Server) handleAgentPerformanceMetrics(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	snapshot := s.PerformanceCollector.GetSnapshot()
+	
+	// Sort agents by productivity score
+	type AgentPerformance struct {
+		AgentID           string  `json:"agent_id"`
+		ProductivityScore float64 `json:"productivity_score"`
+		SuccessRate       float64 `json:"success_rate"`
+		TokensPerMinute   float64 `json:"tokens_per_minute"`
+		TotalTasks        int64   `json:"total_tasks"`
+		ErrorCount        int64   `json:"error_count"`
+		LastActivity      time.Time `json:"last_activity"`
+	}
+	
+	var agents []AgentPerformance
+	for _, metric := range snapshot.AgentMetrics {
+		agents = append(agents, AgentPerformance{
+			AgentID:           metric.AgentID,
+			ProductivityScore: metric.ProductivityScore,
+			SuccessRate:       metric.SuccessRate,
+			TokensPerMinute:   metric.TokensPerMinute,
+			TotalTasks:        metric.TotalTasks,
+			ErrorCount:        metric.ErrorCount,
+			LastActivity:      metric.LastActivity,
+		})
+	}
+	
+	response := map[string]interface{}{
+		"agents":      agents,
+		"total_count": len(agents),
+		"summary": map[string]interface{}{
+			"avg_productivity": func() float64 {
+				if len(agents) == 0 {
+					return 0.0
+				}
+				total := 0.0
+				for _, agent := range agents {
+					total += agent.ProductivityScore
+				}
+				return total / float64(len(agents))
+			}(),
+			"avg_success_rate": func() float64 {
+				if len(agents) == 0 {
+					return 0.0
+				}
+				total := 0.0
+				for _, agent := range agents {
+					total += agent.SuccessRate
+				}
+				return total / float64(len(agents))
+			}(),
+		},
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode agent metrics", http.StatusInternalServerError)
+		return
+	}
+}
+
+// handleAPIPerformanceStats returns API endpoint performance statistics
+func (s *Server) handleAPIPerformanceStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	snapshot := s.PerformanceCollector.GetSnapshot()
+	
+	type EndpointStats struct {
+		Endpoint       string  `json:"endpoint"`
+		TotalRequests  int64   `json:"total_requests"`
+		SuccessRate    float64 `json:"success_rate"`
+		AverageLatency string  `json:"average_latency"`
+		MinLatency     string  `json:"min_latency"`
+		MaxLatency     string  `json:"max_latency"`
+		RequestsPerSec float64 `json:"requests_per_sec"`
+	}
+	
+	var endpoints []EndpointStats
+	for _, metric := range snapshot.APIMetrics {
+		successRate := float64(metric.SuccessRequests) / float64(metric.TotalRequests) * 100
+		if metric.TotalRequests == 0 {
+			successRate = 0.0
+		}
+		
+		// Calculate requests per second based on uptime
+		requestsPerSec := float64(metric.TotalRequests) / snapshot.Uptime.Seconds()
+		
+		endpoints = append(endpoints, EndpointStats{
+			Endpoint:       metric.Endpoint,
+			TotalRequests:  metric.TotalRequests,
+			SuccessRate:    successRate,
+			AverageLatency: metric.AverageLatency.String(),
+			MinLatency:     metric.MinLatency.String(),
+			MaxLatency:     metric.MaxLatency.String(),
+			RequestsPerSec: requestsPerSec,
+		})
+	}
+	
+	response := map[string]interface{}{
+		"endpoints": endpoints,
+		"summary": map[string]interface{}{
+			"total_endpoints": len(endpoints),
+			"total_requests": func() int64 {
+				var total int64
+				for _, endpoint := range endpoints {
+					total += endpoint.TotalRequests
+				}
+				return total
+			}(),
+			"average_success_rate": func() float64 {
+				if len(endpoints) == 0 {
+					return 0.0
+				}
+				total := 0.0
+				for _, endpoint := range endpoints {
+					total += endpoint.SuccessRate
+				}
+				return total / float64(len(endpoints))
+			}(),
+		},
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode API stats", http.StatusInternalServerError)
+		return
+	}
+}
+
+// handleSystemMetrics returns system-level performance metrics
+func (s *Server) handleSystemMetrics(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	// Update system metrics before returning
+	s.PerformanceCollector.UpdateSystemMetrics()
+	snapshot := s.PerformanceCollector.GetSnapshot()
+	
+	response := map[string]interface{}{
+		"system": snapshot.SystemMetrics,
+		"database": snapshot.DatabaseMetrics,
+		"websocket": snapshot.WebSocketMetrics,
+		"memory_usage_mb": snapshot.SystemMetrics.MemoryUsage / 1024 / 1024,
+		"health_indicators": map[string]interface{}{
+			"memory_healthy":    snapshot.SystemMetrics.MemoryPercent < 80.0,
+			"goroutines_healthy": snapshot.SystemMetrics.GoroutineCount < 1000,
+			"database_healthy":   snapshot.DatabaseMetrics.AverageQueryTime < 100*time.Millisecond,
+		},
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode system metrics", http.StatusInternalServerError)
+		return
+	}
 }

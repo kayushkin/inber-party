@@ -17,6 +17,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/inber"
 	"github.com/kayushkin/inber-party/internal/logger"
 	"github.com/kayushkin/inber-party/internal/mood"
+	"github.com/kayushkin/inber-party/internal/performance"
 	"github.com/kayushkin/inber-party/internal/questgiver"
 	"github.com/kayushkin/inber-party/internal/version"
 	"github.com/kayushkin/inber-party/internal/sync"
@@ -79,6 +80,33 @@ func main() {
 	}
 
 	apiServer := api.NewServer(database, hub, nil, dailyQuestMgr)
+
+	// Initialize real-time performance metrics broadcaster
+	var performanceBroadcaster *performance.PerformanceBroadcaster
+	if apiServer.PerformanceCollector != nil {
+		// Create a channel for sending WebSocket messages
+		performanceCh := make(chan interface{}, 100)
+		
+		// Create and start the performance broadcaster
+		performanceBroadcaster = performance.NewPerformanceBroadcaster(
+			apiServer.PerformanceCollector, 
+			performanceCh,
+		)
+		performanceBroadcaster.Start()
+		logger.Info("Real-time performance metrics broadcaster initialized")
+		
+		// Goroutine to forward performance messages to WebSocket hub
+		go func() {
+			for msg := range performanceCh {
+				if wsMsg, ok := msg.(map[string]interface{}); ok {
+					hub.Broadcast(ws.Message{
+						Type: wsMsg["type"].(string),
+						Data: wsMsg["data"],
+					})
+				}
+			}
+		}()
+	}
 
 	mux := http.NewServeMux()
 	apiServer.RegisterRoutes(mux)
@@ -379,6 +407,13 @@ func main() {
 			})
 		} else {
 			logger.Info("HTTP server shutdown complete")
+		}
+		
+		// Stop performance broadcaster
+		if performanceBroadcaster != nil {
+			logger.Info("Stopping performance metrics broadcaster")
+			performanceBroadcaster.Stop()
+			logger.Info("Performance metrics broadcaster stopped")
 		}
 		
 		// Close database connections

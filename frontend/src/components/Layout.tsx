@@ -31,6 +31,7 @@ export default function Layout() {
     { to: '/training', label: '🏋️ Training', match: '/training' },
     { to: '/forge', label: '🔨 Forge', match: '/forge' },
     { to: '/stats', label: '📊 Stats', match: '/stats' },
+    { to: '/performance', label: '🚀 Performance', match: '/performance' },
     { to: '/costs', label: '💰 Costs', match: '/costs' },
     { to: '/payouts', label: '💳 Payouts', match: '/payouts' },
     { to: '/timelapse', label: '🎬 Time-lapse', match: '/timelapse' },

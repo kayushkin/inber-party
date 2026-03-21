@@ -39,6 +39,7 @@ const MapView = lazy(() => import('./pages/MapView'));
 const SpectatorMode = lazy(() => import('./pages/SpectatorMode'));
 const RelationshipsView = lazy(() => import('./pages/RelationshipsView'));
 const UIShowcase = lazy(() => import('./pages/UIShowcase'));
+const PerformanceDashboard = lazy(() => import('./components/PerformanceDashboard'));
 
 function App() {
   const connectWebSocket = useStore((s) => s.connectWebSocket);
@@ -299,6 +300,13 @@ function App() {
               <ErrorBoundary>
                 <Suspense fallback={<LoadingSpinner message="Loading Adventurer Creator..." />}>
                   <CreateAdventurer />
+                </Suspense>
+              </ErrorBoundary>
+            } />
+            <Route path="performance" element={
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Performance Dashboard..." />}>
+                  <PerformanceDashboard />
                 </Suspense>
               </ErrorBoundary>
             } />
