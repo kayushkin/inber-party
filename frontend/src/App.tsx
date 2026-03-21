@@ -10,6 +10,7 @@ import { NotificationProvider } from './contexts/NotificationContextProvider';
 import NotificationContainer from './components/NotificationContainer';
 import SeasonalDecorations from './components/SeasonalDecorations';
 import WSDebugPanel from './components/WSDebugPanel';
+import ErrorTestButtons from './components/ErrorTestButtons';
 import './App.css';
 
 // Lazy load page components for code splitting
@@ -110,9 +111,11 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={
-              <Suspense fallback={<LoadingSpinner message="Loading Tavern..." />}>
-                <TavernView />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Tavern..." />}>
+                  <TavernView />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="agent/:id" element={
               <ErrorBoundary>
@@ -143,94 +146,130 @@ function App() {
               </ErrorBoundary>
             } />
             <Route path="war-room" element={
-              <Suspense fallback={<LoadingSpinner message="Loading War Room..." />}>
-                <WarRoom />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading War Room..." />}>
+                  <WarRoom />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="guild-chat" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Guild Chat..." />}>
-                <GuildMasterChat />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Guild Chat..." />}>
+                  <GuildMasterChat />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="conversations" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Conversations..." />}>
-                <AgentConversations />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Conversations..." />}>
+                  <AgentConversations />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="library" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Library..." />}>
-                <Library />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Library..." />}>
+                  <Library />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="training" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Training Grounds..." />}>
-                <TrainingGrounds />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Training Grounds..." />}>
+                  <TrainingGrounds />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="forge" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Forge..." />}>
-                <Forge />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Forge..." />}>
+                  <Forge />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="stats" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Stats..." />}>
-                <StatsView />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Stats..." />}>
+                  <StatsView />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="compare" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Comparison..." />}>
-                <ComparisonView />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Comparison..." />}>
+                  <ComparisonView />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="parties" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Parties..." />}>
-                <Parties />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Parties..." />}>
+                  <Parties />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="leaderboard" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Leaderboard..." />}>
-                <Leaderboard />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Leaderboard..." />}>
+                  <Leaderboard />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="costs" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Cost Dashboard..." />}>
-                <CostDashboard />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Cost Dashboard..." />}>
+                  <CostDashboard />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="payouts" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Payout Dashboard..." />}>
-                <PayoutDashboard />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Payout Dashboard..." />}>
+                  <PayoutDashboard />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="chatroom" element={
-              <Suspense fallback={<LoadingSpinner message="Loading MMO Chatroom..." />}>
-                <MMOChatroom />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading MMO Chatroom..." />}>
+                  <MMOChatroom />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="timelapse" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Time-lapse View..." />}>
-                <TimeLapseView />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Time-lapse View..." />}>
+                  <TimeLapseView />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="map" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Codebase Map..." />}>
-                <MapView />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Codebase Map..." />}>
+                  <MapView />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="spectator" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Spectator Mode..." />}>
-                <SpectatorMode />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Spectator Mode..." />}>
+                  <SpectatorMode />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="relationships" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Relationships..." />}>
-                <RelationshipsView />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Relationships..." />}>
+                  <RelationshipsView />
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="create-adventurer" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Adventurer Creator..." />}>
-                <CreateAdventurer />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingSpinner message="Loading Adventurer Creator..." />}>
+                  <CreateAdventurer />
+                </Suspense>
+              </ErrorBoundary>
             } />
           </Route>
         </Routes>
@@ -247,6 +286,9 @@ function App() {
         
         {/* WebSocket Debug Panel - only visible in development */}
         {import.meta.env.DEV && <WSDebugPanel />}
+        
+        {/* Error Testing Buttons - only visible in development */}
+        {import.meta.env.DEV && <ErrorTestButtons />}
       </BrowserRouter>
       </NotificationProvider>
     </ErrorBoundary>
