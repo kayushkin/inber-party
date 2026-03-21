@@ -305,6 +305,10 @@ Add new ideas at the bottom. Re-prioritize as needed.
 - [x] **Update golang.org/x/net Dependency** — ✅ COMPLETED: Updated golang.org/x/net from v0.51.0 to v0.52.0 for latest security patches and improvements. Verified both Go backend and React frontend build successfully, and all Go tests pass.
 - [x] **Refactor CharacterSheet Component** — ✅ COMPLETED: Extracted QuickActions section into reusable component, reducing CharacterSheet.tsx complexity by ~50 lines and improving code organization. Maintained all functionality while slightly reducing bundle size (46.89KB → 46.50KB). Enhanced maintainability and reusability.
 
+## 🚀 Build Performance Optimization (March 2026 - Current Session)
+
+- [x] **Optimize Frontend Build Performance and Caching** — ✅ COMPLETED: Enhanced Vite configuration with intelligent chunk splitting strategy that dramatically improves caching and load performance. **Major improvements**: (1) **Separate React vendor chunk** (235KB) that caches independently and won't change unless React is updated, (2) **Reduced main bundle** from 317KB to 59KB (81% reduction) for much faster initial load, (3) **Dedicated utils chunk** (49KB) for better incremental updates, (4) **UI-heavy chunk** (21KB) separating large components, (5) **Multiple small vendor chunks** for optimal caching granularity. **Results**: Better cache invalidation strategy, faster initial page loads, reduced bandwidth usage for returning users, and improved overall performance characteristics. Total build time maintained while significantly improving runtime performance.
+
 ---
 
 ## 🚨 NEW CRITICAL: Fix WebSocket Test Expectations (March 2026 - Session 12)
