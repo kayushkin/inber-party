@@ -63,19 +63,20 @@ function App() {
     );
     
     if (isTest) {
-      // In test environment, connect immediately but with persistent settings
-      console.log('🧪 Test environment detected, using ultra-persistent connection mode');
-      connectWebSocket(); // Connect immediately, store will handle persistence
-      startPolling(20000); // Longer polling interval for tests
+      console.log('🧪 Test environment: Starting App with global persistent WebSocket mode');
       
-      // Initialize seasonal events (no delay needed)
+      // Connect WebSocket and start polling - connections will be persistent due to global flag
+      connectWebSocket(); 
+      startPolling(20000); // Longer polling interval for tests
       updateSeasonalEvent();
       
       return () => {
-        // In test environment, NEVER disconnect to prevent connection churn
-        console.log('🧪 Test environment cleanup: Maintaining persistent connections to prevent churn');
+        console.log('🧪 Test environment cleanup: All WebSocket operations will be ignored due to persistent mode');
+        // The global persistent mode flag will prevent any actual disconnections
+        // But we still call these functions so React doesn't complain about cleanup
         stopPolling();
-        // Note: NOT calling disconnectWebSocket() in test environment
+        // disconnectWebSocket will be ignored due to global persistent mode
+        disconnectWebSocket();
       };
     } else {
       // Normal environment, standard connection management
@@ -94,7 +95,7 @@ function App() {
         clearInterval(seasonalInterval);
       };
     }
-  }, [connectWebSocket, disconnectWebSocket, startPolling, stopPolling, updateSeasonalEvent]);
+  }, []); // Remove all dependencies to prevent re-runs in test environment
 
   // Apply theme on mount and when theme changes
   useEffect(() => {

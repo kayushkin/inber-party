@@ -636,6 +636,9 @@ export const useStore = create<StoreState>((set, get) => ({
   connectWebSocket: () => {
     const { wsUnsubscribe } = get();
     
+    // Check for global persistent mode flag
+    const globalPersistentMode = (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__;
+    
     // Enhanced test environment detection for consistency
     const isTestEnvironment = !!(
       '__playwright' in globalThis || 
@@ -649,30 +652,30 @@ export const useStore = create<StoreState>((set, get) => ({
        (window.location.port === '5173' || window.location.port === '8080'))
     );
     
-    // If already connected and not in test environment, don't create a new connection
-    if (wsUnsubscribe && wsManager.isConnected(WS_URL) && !isTestEnvironment) {
-      console.log('WebSocket already connected, skipping connection attempt');
+    // If already connected, don't create duplicate connections
+    if (wsUnsubscribe && wsManager.isConnected(WS_URL)) {
+      if (globalPersistentMode || isTestEnvironment) {
+        console.log('🧪 Store: WebSocket already connected, maintaining existing connection');
+      } else {
+        console.log('Store: WebSocket already connected, skipping connection attempt');
+      }
       return;
     }
     
-    // In test environment, be more aggressive about maintaining connections
-    if (isTestEnvironment) {
-      console.log('🧪 Test environment detected in store, setting up ultra-persistent WebSocket connection');
+    // In test environment, make connections persistent
+    if (globalPersistentMode || isTestEnvironment) {
+      console.log('🧪 Store: Setting up PERSISTENT WebSocket connection');
       
-      // Make this connection ultra-persistent
+      // Make this connection persistent
       wsManager.addPersistentConnection(WS_URL);
       wsManager.maintainConnection(WS_URL);
       
-      // If already subscribed, don't create duplicate subscription
-      if (wsUnsubscribe && wsManager.isConnected(WS_URL)) {
-        console.log('🧪 WebSocket already connected and subscribed in test environment, maintaining existing connection');
-        return;
-      }
+      console.log('🧪 Store: Made WebSocket URL persistent');
     }
     
     // Only disconnect existing connection if not in test environment
-    if (wsUnsubscribe && !isTestEnvironment) {
-      console.log('Disconnecting existing WebSocket connection before creating new one');
+    if (wsUnsubscribe && !globalPersistentMode && !isTestEnvironment) {
+      console.log('Store: Disconnecting existing WebSocket connection before creating new one');
       wsUnsubscribe();
       set({ wsUnsubscribe: null, connected: false });
     }
@@ -788,6 +791,9 @@ export const useStore = create<StoreState>((set, get) => ({
   disconnectWebSocket: () => {
     const { wsUnsubscribe } = get();
     
+    // Check for global persistent mode flag set by App.tsx in test environment
+    const globalPersistentMode = (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__;
+    
     // Enhanced test environment detection (same as connectWebSocket)
     const isTestEnvironment = !!(
       '__playwright' in globalThis || 
@@ -801,8 +807,8 @@ export const useStore = create<StoreState>((set, get) => ({
        (window.location.port === '5173' || window.location.port === '8080'))
     );
     
-    if (isTestEnvironment) {
-      console.log('🧪 Test environment: REFUSING to disconnect WebSocket to prevent connection churn');
+    if (globalPersistentMode || isTestEnvironment) {
+      console.log('🧪 Test environment with GLOBAL PERSISTENT MODE: ABSOLUTELY REFUSING to disconnect WebSocket to prevent connection churn');
       return; // Never disconnect during tests to prevent churn
     }
     

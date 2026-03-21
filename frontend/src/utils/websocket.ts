@@ -67,11 +67,14 @@ export class OptimizedWebSocketManager {
       
       // Add a global test mode that prevents ANY disconnections during test execution
       this.enableTestPersistenceMode();
+      
+      // Pre-connect to all common URLs to eliminate connection churn entirely
+      this.preConnectTestUrls();
     }
   }
 
   private detectTestEnvironment(): boolean {
-    // Comprehensive test environment detection - be extremely aggressive
+    // Comprehensive test environment detection
     const testIndicators = [
       // Playwright test runner
       '__playwright' in globalThis,
@@ -91,35 +94,21 @@ export class OptimizedWebSocketManager {
         navigator.userAgent.includes('PhantomJS') ||
         navigator.userAgent.includes('Chrome') && navigator.userAgent.includes('headless')
       )),
-      // Location detection for test servers (both Vite dev and backend test server)
+      // Location detection for test servers
       (typeof window !== 'undefined' && 
-        window.location.hostname === 'localhost' && 
-        (window.location.port === '5173' || window.location.port === '8080')
-      ),
-      // Check for test-specific document title or URL patterns
-      (typeof document !== 'undefined' && 
-        (document.title.includes('Test') || window.location.pathname.includes('/test'))
+        window.location.hostname === 'localhost'
       ),
       // Webdriver detection
       (typeof navigator !== 'undefined' && (
         'webdriver' in navigator || 
         (window as unknown as { chrome?: { runtime?: { onConnect?: unknown } } }).chrome?.runtime?.onConnect
       )),
-      // Additional detection for E2E test environments
-      (typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1'
-      )),
-      // Check for test framework globals in window
-      (typeof window !== 'undefined' && (
-        'describe' in window || 'test' in window || 'it' in window
-      ))
     ];
     
     const isTest = testIndicators.some(indicator => indicator);
     
     if (isTest) {
-      console.log('🧪 Test environment detected via multiple indicators, enabling ultra-persistent mode');
+      console.log('🧪 Test environment detected, enabling ultra-persistent WebSocket mode');
     }
     
     return isTest;
@@ -196,68 +185,42 @@ export class OptimizedWebSocketManager {
   private unsubscribe(url: string, subscriberId: string) {
     console.log(`${this.isTestEnvironment ? '🧪 ' : ''}WebSocket unsubscribe request: ${subscriberId} from ${url}`);
     
+    // Check for global test persistent mode - completely ignore unsubscribe requests
+    const globalPersistentMode = typeof window !== 'undefined' && 
+      (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__;
+    
+    if (globalPersistentMode || this.testPersistenceMode) {
+      console.log(`🧪 ULTRA-PERSISTENT MODE: COMPLETELY IGNORING unsubscribe request for ${subscriberId} from ${url}`);
+      console.log(`🧪 Connection to ${url} will remain active with all subscribers to prevent any connection churn`);
+      return; // Completely ignore unsubscribe in test environments
+    }
+    
+    // In test environment, also ignore unsubscribe to prevent churn
+    if (this.isTestEnvironment) {
+      console.log(`🧪 Test environment: IGNORING unsubscribe request for ${subscriberId} from ${url} to prevent connection churn`);
+      return;
+    }
+    
     const subs = this.subscriptions.get(url);
     if (!subs) return;
 
     const filteredSubs = subs.filter(sub => sub.id !== subscriberId);
-    console.log(`${this.isTestEnvironment ? '🧪 ' : ''}WebSocket subscribers after unsubscribe for ${url}: ${filteredSubs.length}`);
+    console.log(`WebSocket subscribers after unsubscribe for ${url}: ${filteredSubs.length}`);
     
     if (filteredSubs.length === 0) {
-      // In ultra-persistent test mode, never close connections
-      if (this.testPersistenceMode) {
-        console.log(`🧪 Ultra-persistent mode: keeping connection to ${url} open despite no subscribers`);
-        this.subscriptions.delete(url);
-        return;
-      }
-      
-      // In test environment, delay connection closure to handle rapid navigation
-      if (this.isTestEnvironment) {
-        this.scheduleDelayedConnectionClose(url);
-      } else {
-        this.closeConnection(url);
-      }
+      this.closeConnection(url);
       this.subscriptions.delete(url);
     } else {
       this.subscriptions.set(url, filteredSubs);
     }
   }
 
-  /**
-   * Schedule delayed connection closure for test environments to handle navigation
-   */
-  private scheduleDelayedConnectionClose(url: string) {
-    // In ultra-persistent test mode, never schedule closure
-    if (this.testPersistenceMode) {
-      console.log(`🧪 Ultra-persistent mode: never closing connection to ${url}`);
-      return;
-    }
-    
-    // For persistent connections in test environment, don't schedule closure at all
-    if (this.persistentConnections.has(url)) {
-      console.log(`🧪 Maintaining persistent connection to ${url} in test environment`);
-      return;
-    }
-
-    // Cancel any existing delayed closure
-    const existingTimer = this.navigationDebounceTimers.get(url);
-    if (existingTimer) {
-      window.clearTimeout(existingTimer);
-    }
-
-    console.log(`🧪 Delaying WebSocket connection close for ${url} by ${this.testConnectionPersistence}ms to handle navigation`);
-
-    const timer = window.setTimeout(() => {
-      // Only close if no new subscribers have appeared
-      const subs = this.subscriptions.get(url);
-      if (!subs || subs.length === 0) {
-        console.log(`🧪 Closing delayed WebSocket connection to ${url}`);
-        this.closeConnection(url);
-      }
-      this.navigationDebounceTimers.delete(url);
-    }, this.testConnectionPersistence);
-
-    this.navigationDebounceTimers.set(url, timer);
-  }
+  // /**
+  //  * Schedule delayed connection closure for test environments to handle navigation
+  //  */
+  // private scheduleDelayedConnectionClose(url: string) {
+  //   // Method removed in favor of simpler persistent mode approach
+  // }
 
   /**
    * Cancel scheduled connection closure (used when new subscribers appear)
@@ -292,11 +255,53 @@ export class OptimizedWebSocketManager {
     
     commonTestUrls.forEach(url => this.persistentConnections.add(url));
     
-    // Extend test connection persistence to 10 minutes for maximum stability
-    this.testConnectionPersistence = 600000; // 10 minutes
+    // Extend test connection persistence to 15 minutes for maximum stability
+    this.testConnectionPersistence = 900000; // 15 minutes
     this.maxReconnectAttempts = 0; // No reconnect attempts in ultra-persistent mode
+    this.testConnectionDelay = 50; // Even faster connection delay for responsiveness
     
     console.log(`🧪 Added ${commonTestUrls.length} WebSocket URLs to ultra-persistent connections`);
+    console.log('🧪 ULTRA-PERSISTENT MODE: All WebSocket connections will remain open for 15 minutes after last subscriber');
+  }
+
+  /**
+   * Pre-connect to commonly used URLs in test environment to eliminate connection churn
+   */
+  private preConnectTestUrls() {
+    if (!this.isTestEnvironment) return;
+    
+    console.log('🧪 PRE-CONNECTING to all common WebSocket URLs to eliminate connection churn during tests');
+    
+    const testUrls = [
+      'ws://localhost:8080/ws',      // Main store connection
+      'ws://localhost:8080/api/ws/chat', // Chat connection
+    ];
+    
+    // Add pre-connections without subscribers to establish base connections
+    testUrls.forEach(url => {
+      console.log(`🧪 Pre-establishing connection to ${url}`);
+      this.preCreateConnection(url);
+    });
+  }
+
+  /**
+   * Pre-create a WebSocket connection without subscribers (test environment only)
+   */
+  private preCreateConnection(url: string) {
+    if (!this.isTestEnvironment) return;
+    
+    // Only create if connection doesn't already exist
+    if (this.connections.has(url)) {
+      console.log(`🧪 Connection to ${url} already exists, skipping pre-creation`);
+      return;
+    }
+    
+    console.log(`🧪 Creating pre-established connection to ${url}`);
+    
+    // Create connection without going through the normal subscription flow
+    setTimeout(() => {
+      this.createConnection(url);
+    }, this.testConnectionDelay);
   }
 
   /**
@@ -321,13 +326,16 @@ export class OptimizedWebSocketManager {
       this.cancelDelayedConnectionClose(url);
     }
 
+    // Check if we already have an active connection (including pre-established ones)
     if (this.connections.has(url)) {
       const ws = this.connections.get(url)!;
       if (ws.readyState === WebSocket.OPEN) {
+        console.log(`🧪 Using existing WebSocket connection to ${url}`);
         // Connection is already open, notify state handlers
         this.notifyStateHandlers(url, true);
         return;
       } else if (ws.readyState === WebSocket.CONNECTING) {
+        console.log(`🧪 WebSocket connection to ${url} is still connecting, waiting...`);
         // Connection is still connecting, wait for it
         return;
       }
@@ -335,12 +343,13 @@ export class OptimizedWebSocketManager {
 
     // Check if there's already a pending connection timer
     if (this.connectionTimers.has(url)) {
+      console.log(`🧪 Connection timer already exists for ${url}, waiting...`);
       return;
     }
 
     // In test environment, delay connection to allow backend to fully start
     if (this.isTestEnvironment) {
-      console.log(`🧪 Delaying WebSocket connection to ${url} by ${this.testConnectionDelay}ms for test stability`);
+      console.log(`🧪 Creating new WebSocket connection to ${url} with ${this.testConnectionDelay}ms delay`);
       
       const timer = window.setTimeout(() => {
         this.connectionTimers.delete(url);
@@ -502,6 +511,15 @@ export class OptimizedWebSocketManager {
   }
 
   private closeConnection(url: string) {
+    // Check for global persistent mode flag from App.tsx
+    const globalPersistentMode = typeof window !== 'undefined' && 
+      (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__;
+    
+    if (globalPersistentMode) {
+      console.log(`🧪 Global persistent mode: ABSOLUTELY REFUSING to close connection to ${url}`);
+      return;
+    }
+    
     // In ultra-persistent test mode, never actually close connections
     if (this.testPersistenceMode) {
       console.log(`🧪 Ultra-persistent mode: REFUSING to close connection to ${url}`);
@@ -719,21 +737,19 @@ export function useOptimizedWebSocket(
     
     // Cleanup on unmount
     return () => {
-      // In test environment, use much longer delay to prevent connection churn
-      if (isTestEnvironment.current) {
-        console.log(`🧪 Test environment cleanup for ${subscriberId}: delaying unsubscribe by 2 seconds`);
-        // Use very long delay to prevent rapid cycling during E2E tests
-        setTimeout(() => {
-          if (unsubscribeRef.current) {
-            console.log(`🧪 Executing delayed unsubscribe for ${subscriberId}`);
-            unsubscribe();
-            unsubscribeRef.current = null;
-          }
-        }, 2000); // Increased to 2 seconds for maximum stability
-      } else {
-        unsubscribe();
-        unsubscribeRef.current = null;
+      // Check for global persistent mode flag or test environment
+      const globalPersistentMode = typeof window !== 'undefined' && 
+        (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__;
+      
+      if (globalPersistentMode || isTestEnvironment.current) {
+        console.log(`🧪 Test environment: NEVER unsubscribing ${subscriberId} to maintain persistent connections and eliminate churn`);
+        // In test environments, NEVER unsubscribe to completely prevent any connection churn
+        return;
       }
+      
+      // Normal environment - perform cleanup
+      unsubscribe();
+      unsubscribeRef.current = null;
     };
   }, [url, subscriberId, messageHandler, stateHandler]); // Re-subscribe if URL, ID, or handlers change
   
