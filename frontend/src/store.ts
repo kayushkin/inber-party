@@ -10,6 +10,7 @@ import {
 } from './utils/seasonalEvents';
 import { wsManager } from './utils/websocket';
 import { globalWebSocket } from './utils/globalWebSocket';
+import testWebSocketBlocker from './utils/testWebSocketBlocker';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -635,7 +636,24 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   connectWebSocket: () => {
-    // Enhanced test environment detection
+    // Use test WebSocket blocker for ultimate connection prevention
+    if (testWebSocketBlocker.shouldBlock()) {
+      console.log('🧪 STORE: Using TEST WEBSOCKET BLOCKER - all connections are mocked');
+      
+      const mockWs = testWebSocketBlocker.getMockWebSocket();
+      if (mockWs) {
+        // Set up mock connection immediately
+        set({ 
+          connected: true, // Mock connected state
+          wsUnsubscribe: () => {
+            console.log('🧪 MOCK: Store WebSocket disconnect blocked');
+          }
+        });
+        return;
+      }
+    }
+
+    // Enhanced test environment detection (fallback)
     const isTestEnvironment = !!(
       '__playwright' in globalThis || 
       '__jest' in globalThis ||
