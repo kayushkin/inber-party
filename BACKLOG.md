@@ -374,3 +374,9 @@ Add new ideas at the bottom. Re-prioritize as needed.
 ## 🚨 CRITICAL: Further Optimize WebSocket Connection Management (March 2026 - Session 8)
 
 - [x] **Eliminate Persistent WebSocket Connection Churn During E2E Tests** — ✅ COMPLETED: Fixed excessive WebSocket connection churn by implementing more aggressive ultra-persistent test mode, improving test environment detection consistency, preventing unnecessary disconnect/reconnect cycles in store, and refusing connection closures in test mode. Enhanced logging revealed the root cause was App.tsx component mount/unmount cycles calling connect/disconnect WebSocket functions repeatedly. Solution prevents disconnections during test cleanup and makes test environment detection more robust. E2E tests now run efficiently without constant WebSocket cycling, reducing from 30+ connection cycles to minimal stable connections. Test suite completed in 19 seconds vs previous timeouts.
+
+---
+
+## 🔧 Small Quality Improvements (March 2026 - Current Session)
+
+- [~] **Add Performance Data Export Feature** — Enhance the Performance Dashboard with CSV/JSON export functionality for performance analysis. Add export buttons for system metrics, API metrics, agent metrics, and performance recommendations. Include timestamp filtering and data aggregation options. Useful for offline analysis, reporting, and performance auditing.

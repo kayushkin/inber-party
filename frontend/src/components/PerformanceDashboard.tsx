@@ -108,6 +108,138 @@ export default function PerformanceDashboard() {
     }
   }, [selectedTab]);
 
+  // Export functionality
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToJSON = (data: any, filename: string) => {
+    const jsonContent = JSON.stringify(data, null, 2);
+    downloadFile(jsonContent, filename, 'application/json');
+  };
+
+  const exportToCSV = (data: any[], filename: string) => {
+    if (!data || data.length === 0) return;
+    
+    const headers = Object.keys(data[0]);
+    const csvRows = [
+      headers.join(','),
+      ...data.map(row => headers.map(header => {
+        const value = row[header];
+        // Escape commas and quotes in CSV
+        return typeof value === 'string' && (value.includes(',') || value.includes('"')) 
+          ? `"${value.replace(/"/g, '""')}"` 
+          : value;
+      }).join(','))
+    ];
+    const csvContent = csvRows.join('\n');
+    downloadFile(csvContent, filename, 'text/csv');
+  };
+
+  const handleExportOverview = (format: 'json' | 'csv') => {
+    if (!realtimeData) return;
+    
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    
+    if (format === 'json') {
+      exportToJSON({
+        timestamp: new Date().toISOString(),
+        uptime: realtimeData.uptime,
+        health_status: realtimeData.health_status,
+        system: realtimeData.system,
+        api_summary: realtimeData.api_summary,
+        agents: realtimeData.agents,
+        websocket: realtimeData.websocket,
+        database: realtimeData.database,
+        connection_info: connectionInfo
+      }, `performance-overview-${timestamp}.json`);
+    } else {
+      // For CSV, flatten the nested data
+      const flatData = [{
+        timestamp: new Date().toISOString(),
+        uptime: realtimeData.uptime,
+        health_status: realtimeData.health_status,
+        cpu_usage: realtimeData.system.cpu_usage,
+        memory_usage_mb: realtimeData.system.memory_usage,
+        memory_percent: realtimeData.system.memory_percent,
+        goroutine_count: realtimeData.system.goroutine_count,
+        gc_count: realtimeData.system.gc_count,
+        total_endpoints: realtimeData.api_summary.total_endpoints,
+        total_requests: realtimeData.api_summary.total_requests,
+        api_error_rate: realtimeData.api_summary.error_rate,
+        active_agents: realtimeData.agents.active_count,
+        avg_agent_success_rate: realtimeData.agents.avg_success_rate,
+        total_agent_tasks: realtimeData.agents.total_tasks,
+        websocket_connections: realtimeData.websocket.active_connections,
+        websocket_churn: realtimeData.websocket.connection_churn,
+        websocket_latency: realtimeData.websocket.average_latency,
+        db_query_count: realtimeData.database.query_count,
+        db_avg_query_time: realtimeData.database.average_query_time,
+        db_slow_queries: realtimeData.database.slow_queries,
+        db_cache_hit_rate: realtimeData.database.cache_hit_rate,
+        recommendations_count: realtimeData.recommendations_count,
+        connection_method: connectionInfo.method,
+        connection_status: connectionInfo.connected ? 'connected' : 'disconnected'
+      }];
+      exportToCSV(flatData, `performance-overview-${timestamp}.csv`);
+    }
+  };
+
+  const handleExportAPIMetrics = (format: 'json' | 'csv') => {
+    if (!fullSnapshot?.api_metrics) return;
+    
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const apiData = Object.values(fullSnapshot.api_metrics);
+    
+    if (format === 'json') {
+      exportToJSON({
+        timestamp: new Date().toISOString(),
+        api_metrics: apiData
+      }, `api-metrics-${timestamp}.json`);
+    } else {
+      exportToCSV(apiData, `api-metrics-${timestamp}.csv`);
+    }
+  };
+
+  const handleExportAgentMetrics = (format: 'json' | 'csv') => {
+    if (!fullSnapshot?.agent_metrics) return;
+    
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const agentData = Object.values(fullSnapshot.agent_metrics);
+    
+    if (format === 'json') {
+      exportToJSON({
+        timestamp: new Date().toISOString(),
+        agent_metrics: agentData
+      }, `agent-metrics-${timestamp}.json`);
+    } else {
+      exportToCSV(agentData, `agent-metrics-${timestamp}.csv`);
+    }
+  };
+
+  const handleExportRecommendations = (format: 'json' | 'csv') => {
+    if (!fullSnapshot?.recommendations) return;
+    
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    
+    if (format === 'json') {
+      exportToJSON({
+        timestamp: new Date().toISOString(),
+        recommendations: fullSnapshot.recommendations
+      }, `performance-recommendations-${timestamp}.json`);
+    } else {
+      exportToCSV(fullSnapshot.recommendations, `performance-recommendations-${timestamp}.csv`);
+    }
+  };
+
   // Manual refresh function
   const handleRefresh = async () => {
     await refreshData();
@@ -276,6 +408,87 @@ export default function PerformanceDashboard() {
         >
           💡 Recommendations ({recommendations.length})
         </button>
+      </div>
+
+      {/* Export Controls */}
+      <div className="export-controls">
+        <span className="export-label">📊 Export Data:</span>
+        
+        {selectedTab === 'overview' && realtimeData && (
+          <div className="export-buttons">
+            <button 
+              className="export-btn json-btn" 
+              onClick={() => handleExportOverview('json')}
+              title="Export overview data as JSON"
+            >
+              💾 JSON
+            </button>
+            <button 
+              className="export-btn csv-btn" 
+              onClick={() => handleExportOverview('csv')}
+              title="Export overview data as CSV"
+            >
+              📄 CSV
+            </button>
+          </div>
+        )}
+
+        {selectedTab === 'api' && fullSnapshot?.api_metrics && (
+          <div className="export-buttons">
+            <button 
+              className="export-btn json-btn" 
+              onClick={() => handleExportAPIMetrics('json')}
+              title="Export API metrics as JSON"
+            >
+              💾 JSON
+            </button>
+            <button 
+              className="export-btn csv-btn" 
+              onClick={() => handleExportAPIMetrics('csv')}
+              title="Export API metrics as CSV"
+            >
+              📄 CSV
+            </button>
+          </div>
+        )}
+
+        {selectedTab === 'agents' && fullSnapshot?.agent_metrics && (
+          <div className="export-buttons">
+            <button 
+              className="export-btn json-btn" 
+              onClick={() => handleExportAgentMetrics('json')}
+              title="Export agent metrics as JSON"
+            >
+              💾 JSON
+            </button>
+            <button 
+              className="export-btn csv-btn" 
+              onClick={() => handleExportAgentMetrics('csv')}
+              title="Export agent metrics as CSV"
+            >
+              📄 CSV
+            </button>
+          </div>
+        )}
+
+        {selectedTab === 'recommendations' && fullSnapshot?.recommendations && (
+          <div className="export-buttons">
+            <button 
+              className="export-btn json-btn" 
+              onClick={() => handleExportRecommendations('json')}
+              title="Export recommendations as JSON"
+            >
+              💾 JSON
+            </button>
+            <button 
+              className="export-btn csv-btn" 
+              onClick={() => handleExportRecommendations('csv')}
+              title="Export recommendations as CSV"
+            >
+              📄 CSV
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="dashboard-content">
