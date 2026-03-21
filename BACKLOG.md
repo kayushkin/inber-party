@@ -293,6 +293,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 NEW CRITICAL: Fix Visual Regression Test Failures (March 2026 - Session 11)
+
+- [x] **Fix Current Visual Regression Test Failures** — ✅ COMPLETED: Visual regression test failures for tavern page and navigation header have been resolved. All 20 visual regression tests now pass consistently (10 Chromium + 10 Firefox). Baseline screenshots were already updated to current UI state. Tests completed in 4.0m with 0 failures, confirming visual stability across all pages, themes, and responsive breakpoints.
+
+---
+
 ## 💡 Ideas (unprioritized)
 - [x] Agent journal — auto-generated narrative of what each agent did today ✅ COMPLETED: Implemented sophisticated daily journal generation with contextual narratives, highlights timeline, and activity-based storytelling in Agent Quarters
 - [x] Time-lapse view — compressed animation of a day's agent activity ✅ COMPLETED: Implemented comprehensive time-lapse visualization with `/api/activity/timeline` endpoint, animated playback controls, agent activity tracking, event stream visualization, and timeline statistics
