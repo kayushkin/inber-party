@@ -6,6 +6,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 CRITICAL: WebSocket Connection Churn Issue Persists (March 2026 - Current Session)
+
+- [~] **Completely Eliminate WebSocket Connection Churning During E2E Tests** — Despite previous attempts, E2E tests still show excessive WebSocket connect/disconnect cycles (every 1-2 seconds during test runs). Root cause analysis needed: investigate component lifecycle, useEffect cleanup, test environment detection, and connection pooling. Logs show: "WebSocket client connected (total: 1)" followed immediately by "WebSocket client disconnected (total: 0)" repeatedly. This impacts test performance, reliability, and may cause visual regression test failures. Need comprehensive fix for production-ready WebSocket management.
+
+---
+
 ## 🎨 Visual & UI Polish
 
 - [x] Generate pixel art avatars for each agent using OpenAI gpt-image-1 API (64x64, transparent bg, RPG style). Save as static assets in `frontend/public/avatars/`. See `PIXEL-ART.md` for details.

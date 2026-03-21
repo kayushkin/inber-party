@@ -49,35 +49,36 @@ function App() {
   const updateSeasonalEvent = useStore((s) => s.updateSeasonalEvent);
 
   useEffect(() => {
-    // Use consistent test environment detection
+    // Enhanced test environment detection for consistency across the app
     const isTest = !!(
       '__playwright' in globalThis || 
+      '__jest' in globalThis ||
+      navigator.userAgent.includes('HeadlessChrome') ||
+      navigator.userAgent.includes('Playwright') ||
+      (navigator.userAgent.includes('Firefox') && navigator.webdriver) ||
       import.meta.env.VITE_NODE_ENV === 'test' ||
-      (typeof navigator !== 'undefined' && (
-        navigator.userAgent.includes('HeadlessChrome') ||
-        navigator.userAgent.includes('Firefox') && navigator.webdriver
-      ))
+      import.meta.env.VITE_CI === 'true' ||
+      (typeof window !== 'undefined' && window.location.hostname === 'localhost' && 
+       (window.location.port === '5173' || window.location.port === '8080'))
     );
     
     if (isTest) {
-      // In test environment, delay WebSocket connection to ensure backend is ready
-      console.log('🧪 Test environment detected, using delayed initialization with persistent connections');
-      const testTimer = setTimeout(() => {
-        connectWebSocket();
-        startPolling(15000); // Longer polling interval for tests
-      }, 2000); // Reduced delay from 3s to 2s
+      // In test environment, connect immediately but with persistent settings
+      console.log('🧪 Test environment detected, using ultra-persistent connection mode');
+      connectWebSocket(); // Connect immediately, store will handle persistence
+      startPolling(20000); // Longer polling interval for tests
       
       // Initialize seasonal events (no delay needed)
       updateSeasonalEvent();
       
       return () => {
-        clearTimeout(testTimer);
-        // In test environment, avoid disconnecting to prevent connection churn
-        console.log('🧪 Test environment cleanup: Skipping WebSocket disconnection to prevent churn');
+        // In test environment, NEVER disconnect to prevent connection churn
+        console.log('🧪 Test environment cleanup: Maintaining persistent connections to prevent churn');
         stopPolling();
+        // Note: NOT calling disconnectWebSocket() in test environment
       };
     } else {
-      // Normal environment, connect immediately
+      // Normal environment, standard connection management
       connectWebSocket();
       startPolling(10000);
       

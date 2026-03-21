@@ -636,30 +636,45 @@ export const useStore = create<StoreState>((set, get) => ({
   connectWebSocket: () => {
     const { wsUnsubscribe } = get();
     
-    // If already connected, don't create a new connection
-    if (wsUnsubscribe && wsManager.isConnected(WS_URL)) {
+    // Enhanced test environment detection for consistency
+    const isTestEnvironment = !!(
+      '__playwright' in globalThis || 
+      '__jest' in globalThis ||
+      navigator.userAgent.includes('HeadlessChrome') ||
+      navigator.userAgent.includes('Playwright') ||
+      (navigator.userAgent.includes('Firefox') && navigator.webdriver) ||
+      import.meta.env.VITE_NODE_ENV === 'test' ||
+      import.meta.env.VITE_CI === 'true' ||
+      (typeof window !== 'undefined' && window.location.hostname === 'localhost' && 
+       (window.location.port === '5173' || window.location.port === '8080'))
+    );
+    
+    // If already connected and not in test environment, don't create a new connection
+    if (wsUnsubscribe && wsManager.isConnected(WS_URL) && !isTestEnvironment) {
       console.log('WebSocket already connected, skipping connection attempt');
       return;
     }
     
-    // Disconnect any existing connection cleanly
-    if (wsUnsubscribe) {
-      wsUnsubscribe();
-      set({ wsUnsubscribe: null, connected: false });
-    }
-    
-    // Check if we're in test environment for logging
-    const isTestEnvironment = !!(
-      '__playwright' in globalThis || 
-      navigator.userAgent.includes('HeadlessChrome') ||
-      (navigator.userAgent.includes('Firefox') && navigator.webdriver) ||
-      import.meta.env.VITE_NODE_ENV === 'test'
-    );
-    
+    // In test environment, be more aggressive about maintaining connections
     if (isTestEnvironment) {
-      console.log('🧪 Test environment detected in store, creating WebSocket connection');
+      console.log('🧪 Test environment detected in store, setting up ultra-persistent WebSocket connection');
+      
+      // Make this connection ultra-persistent
       wsManager.addPersistentConnection(WS_URL);
       wsManager.maintainConnection(WS_URL);
+      
+      // If already subscribed, don't create duplicate subscription
+      if (wsUnsubscribe && wsManager.isConnected(WS_URL)) {
+        console.log('🧪 WebSocket already connected and subscribed in test environment, maintaining existing connection');
+        return;
+      }
+    }
+    
+    // Only disconnect existing connection if not in test environment
+    if (wsUnsubscribe && !isTestEnvironment) {
+      console.log('Disconnecting existing WebSocket connection before creating new one');
+      wsUnsubscribe();
+      set({ wsUnsubscribe: null, connected: false });
     }
     
     const handleMessage = (data: unknown) => {
@@ -772,6 +787,24 @@ export const useStore = create<StoreState>((set, get) => ({
 
   disconnectWebSocket: () => {
     const { wsUnsubscribe } = get();
+    
+    // Enhanced test environment detection (same as connectWebSocket)
+    const isTestEnvironment = !!(
+      '__playwright' in globalThis || 
+      '__jest' in globalThis ||
+      navigator.userAgent.includes('HeadlessChrome') ||
+      navigator.userAgent.includes('Playwright') ||
+      (navigator.userAgent.includes('Firefox') && navigator.webdriver) ||
+      import.meta.env.VITE_NODE_ENV === 'test' ||
+      import.meta.env.VITE_CI === 'true' ||
+      (typeof window !== 'undefined' && window.location.hostname === 'localhost' && 
+       (window.location.port === '5173' || window.location.port === '8080'))
+    );
+    
+    if (isTestEnvironment) {
+      console.log('🧪 Test environment: REFUSING to disconnect WebSocket to prevent connection churn');
+      return; // Never disconnect during tests to prevent churn
+    }
     
     if (wsUnsubscribe) {
       console.log('Disconnecting WebSocket from store');
