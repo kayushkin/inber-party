@@ -303,6 +303,7 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 - [x] **Update Go Dependencies** — ✅ COMPLETED: Updated Go modules lib/pq (1.10.9→1.12.0) and mattn/go-sqlite3 (1.14.34→1.14.37) for improved PostgreSQL driver performance and latest SQLite bug fixes. Verified all builds pass and tests successful.
 - [x] **Update golang.org/x/net Dependency** — ✅ COMPLETED: Updated golang.org/x/net from v0.51.0 to v0.52.0 for latest security patches and improvements. Verified both Go backend and React frontend build successfully, and all Go tests pass.
+- [x] **Refactor CharacterSheet Component** — ✅ COMPLETED: Extracted QuickActions section into reusable component, reducing CharacterSheet.tsx complexity by ~50 lines and improving code organization. Maintained all functionality while slightly reducing bundle size (46.89KB → 46.50KB). Enhanced maintainability and reusability.
 
 ---
 
