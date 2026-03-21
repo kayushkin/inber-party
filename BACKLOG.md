@@ -347,6 +347,12 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 ---
 
+## 🚨 CRITICAL: Fix Missing Go Dependencies (March 2026 - Current Session)
+
+- [x] **Fix Missing Go Dependencies Breaking Test Suite** — ✅ COMPLETED: Fixed Go dependencies issue by verifying that `github.com/golang-jwt/jwt/v5 v5.3.1` and `golang.org/x/crypto v0.49.0` are properly included in go.mod as dependencies. All Go tests now pass successfully, both Go backend and React frontend build correctly, and the dependencies are correctly imported and used in internal/user package (auth.go and repository.go). The issue was resolved through proper dependency management.
+
+---
+
 ## 🚨 NEW CRITICAL: Optimize E2E Test WebSocket Connection Handling (March 2026 - Session 6)
 
 - [x] **Reduce E2E Test WebSocket Connection Churn** — ✅ COMPLETED: Implemented comprehensive WebSocket connection churn reduction for E2E tests with multiple optimizations: (1) Enhanced test environment detection with persistent connection management for frequently used URLs, (2) Reduced reconnect attempts from 10 to 2 in test environment with longer cooldown periods, (3) Added `maintainConnection()` method to force persistence for critical WebSocket URLs, (4) Improved `useOptimizedWebSocket` hook with test-specific delayed cleanup (100ms) to prevent rapid cycling during component unmount/mount, (5) Enhanced WebSocket debug panel with test optimization status display, (6) Created comprehensive test suite `websocket-churn-reduction.spec.ts` to verify connection stability during navigation and rapid page changes. Project builds successfully for both Go backend and React frontend. Target achieved: significantly reduced connection churn during E2E test runs through intelligent connection pooling and test-aware optimization strategies.
