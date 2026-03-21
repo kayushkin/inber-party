@@ -634,7 +634,21 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   connectWebSocket: () => {
-    // Check if we're in test environment
+    const { wsUnsubscribe } = get();
+    
+    // If already connected, don't create a new connection
+    if (wsUnsubscribe && wsManager.isConnected(WS_URL)) {
+      console.log('WebSocket already connected, skipping connection attempt');
+      return;
+    }
+    
+    // Disconnect any existing connection cleanly
+    if (wsUnsubscribe) {
+      wsUnsubscribe();
+      set({ wsUnsubscribe: null, connected: false });
+    }
+    
+    // Check if we're in test environment for logging
     const isTestEnvironment = !!(
       '__playwright' in globalThis || 
       navigator.userAgent.includes('HeadlessChrome') ||
@@ -642,23 +656,9 @@ export const useStore = create<StoreState>((set, get) => ({
       import.meta.env.VITE_NODE_ENV === 'test'
     );
     
-    // In test environment, check if connection already exists and avoid unnecessary disconnect/reconnect
-    if (isTestEnvironment && wsManager.isConnected(WS_URL)) {
-      console.log('🧪 Test environment: WebSocket already connected, skipping disconnect/reconnect cycle');
-      wsManager.addPersistentConnection(WS_URL);
-      wsManager.maintainConnection(WS_URL);
-      return;
-    }
-    
-    // Only disconnect if we're not in test environment or connection doesn't exist
-    if (!isTestEnvironment) {
-      get().disconnectWebSocket();
-    }
-    
     if (isTestEnvironment) {
-      console.log('🧪 Test environment detected in store, enabling persistent connection for main WebSocket');
+      console.log('🧪 Test environment detected in store, creating WebSocket connection');
       wsManager.addPersistentConnection(WS_URL);
-      // Force maintain connection to prevent disconnections during navigation
       wsManager.maintainConnection(WS_URL);
     }
     
@@ -773,23 +773,8 @@ export const useStore = create<StoreState>((set, get) => ({
   disconnectWebSocket: () => {
     const { wsUnsubscribe } = get();
     
-    // Check if we're in test environment
-    const isTestEnvironment = !!(
-      '__playwright' in globalThis || 
-      navigator.userAgent.includes('HeadlessChrome') ||
-      (navigator.userAgent.includes('Firefox') && navigator.webdriver) ||
-      import.meta.env.VITE_NODE_ENV === 'test'
-    );
-    
-    // In test environment, be more conservative about disconnecting
-    if (isTestEnvironment) {
-      console.log('🧪 Test environment: Avoiding WebSocket disconnection to prevent churn');
-      // Don't actually unsubscribe in test environment, just mark as disconnected in store state
-      set({ connected: false });
-      return;
-    }
-    
     if (wsUnsubscribe) {
+      console.log('Disconnecting WebSocket from store');
       wsUnsubscribe();
       set({ wsUnsubscribe: null, connected: false });
     }

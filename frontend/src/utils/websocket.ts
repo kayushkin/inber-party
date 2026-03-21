@@ -41,8 +41,8 @@ export class OptimizedWebSocketManager {
   private maxReconnectDelay = 30000; // Max 30 seconds
   private maxReconnectAttempts = 10;
   private isTestEnvironment = false;
-  private testConnectionDelay = 500; // Reduced to 0.5 second delay in test environment  
-  private testConnectionPersistence = 120000; // Increased to 2 minute persistence in test environment
+  private testConnectionDelay = 100; // Reduced to 0.1 second delay in test environment  
+  private testConnectionPersistence = 300000; // Increased to 5 minute persistence in test environment
   private testReconnectCooldown = 15000; // 15 second cooldown between reconnect attempts in tests
   private lastReconnectAttempts: Map<string, number> = new Map(); // Track last reconnect time per URL
   private navigationDebounceTimers: Map<string, number> = new Map();
@@ -147,6 +147,13 @@ export class OptimizedWebSocketManager {
     stateHandler?: WSStateHandler
   ): () => void {
     console.log(`${this.isTestEnvironment ? '🧪 ' : ''}WebSocket subscription request: ${subscriberId} → ${url}`);
+    
+    // Check if this subscriber is already subscribed to prevent duplicates
+    const existingSubs = this.subscriptions.get(url) || [];
+    if (existingSubs.some(sub => sub.id === subscriberId)) {
+      console.log(`${this.isTestEnvironment ? '🧪 ' : ''}WebSocket subscriber ${subscriberId} already exists for ${url}, returning existing unsubscribe function`);
+      return () => this.unsubscribe(url, subscriberId);
+    }
     
     // Add subscription
     if (!this.subscriptions.has(url)) {
@@ -683,11 +690,13 @@ export function useOptimizedWebSocket(
     return () => {
       // In test environment, delay the unsubscribe to prevent immediate disconnection
       if (isTestEnvironment.current) {
-        // Use a small delay to prevent rapid cycling during component unmount/mount
+        // Use longer delay to prevent rapid cycling during component unmount/mount
         setTimeout(() => {
-          unsubscribe();
-          unsubscribeRef.current = null;
-        }, 100);
+          if (unsubscribeRef.current) {
+            unsubscribe();
+            unsubscribeRef.current = null;
+          }
+        }, 500); // Increased delay to 500ms for better stability
       } else {
         unsubscribe();
         unsubscribeRef.current = null;
