@@ -331,6 +331,10 @@ Add new ideas at the bottom. Re-prioritize as needed.
 
 - [x] **Fix Persistent Visual Regression Test Failures** — ✅ COMPLETED: Visual regression tests now pass consistently (20/20 tests). Fixed issues with dynamic content causing instability, improved tolerance thresholds, and enhanced UI stabilization timing. Test suite reliability restored with comprehensive improvements to Playwright configuration and test stability mechanisms.
 
+## 🚨 NEW CRITICAL: Fix Frontend Linting Errors (March 2026 - Current Session)
+
+- [~] **Fix 52 Frontend Linting Errors** — Frontend has accumulated 52 linting errors including 49 errors and 3 warnings. Critical issues include: React components created during render (EnhancedAgentCard.tsx), setState synchronously within useEffect (MicroInteractions.tsx), missing useEffect dependencies, excessive TypeScript `any` types (22+ instances), Fast Refresh violations, and unused variables. These issues impact code quality, React performance, and development experience. Need to fix all errors to maintain high code standards.
+
 ---
 
 ## 🚨 NEW CRITICAL: Optimize E2E Test WebSocket Connection Handling (March 2026 - Session 6)

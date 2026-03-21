@@ -7,9 +7,9 @@ import {
   Tooltip, 
   ProgressBar, 
   StateIndicator, 
-  FadeIn,
-  useInViewAnimation 
+  FadeIn
 } from './MicroInteractions';
+import { useInViewAnimation } from '../hooks/useInViewAnimation';
 import EnhancedButton from './EnhancedButton';
 import './AgentCard.css';
 import './MicroInteractions.css';
@@ -213,7 +213,7 @@ const EnhancedAgentCard = memo<EnhancedAgentCardProps>(({
     '--cc': classColorValue 
   } as React.CSSProperties), [classColorValue]);
 
-  const CardContent = () => (
+  const cardContent = (
     <InteractiveHover 
       scale={!needsAttention} 
       glow={isHighPerformer}
@@ -307,17 +307,17 @@ const EnhancedAgentCard = memo<EnhancedAgentCardProps>(({
 
   if (animateIn && inView) {
     return (
-      <div ref={ref as React.RefObject<HTMLDivElement>}>
+      <div ref={ref}>
         <FadeIn>
-          <CardContent />
+          {cardContent}
         </FadeIn>
       </div>
     );
   }
 
   return (
-    <div ref={ref as React.RefObject<HTMLDivElement>}>
-      <CardContent />
+    <div ref={ref}>
+      {cardContent}
     </div>
   );
 });

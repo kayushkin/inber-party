@@ -745,9 +745,21 @@ export function useOptimizedWebSocket(
       (typeof window !== 'undefined' && window.location.hostname === 'localhost') ||
       // Additional checks for global flags set during test initialization
       (typeof window !== 'undefined' && (
-        (window as any).__TEST_WEBSOCKET_PERSISTENT_MODE__ ||
-        (window as any).__WEBSOCKET_PERMANENT_LOCK__ ||
-        (window as any).__INBER_PARTY_TEST_INITIALIZED__
+        (window as Window & { 
+          __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean;
+          __WEBSOCKET_PERMANENT_LOCK__?: boolean;
+          __INBER_PARTY_TEST_INITIALIZED__?: boolean;
+        }).__TEST_WEBSOCKET_PERSISTENT_MODE__ ||
+        (window as Window & { 
+          __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean;
+          __WEBSOCKET_PERMANENT_LOCK__?: boolean;
+          __INBER_PARTY_TEST_INITIALIZED__?: boolean;
+        }).__WEBSOCKET_PERMANENT_LOCK__ ||
+        (window as Window & { 
+          __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean;
+          __WEBSOCKET_PERMANENT_LOCK__?: boolean;
+          __INBER_PARTY_TEST_INITIALIZED__?: boolean;
+        }).__INBER_PARTY_TEST_INITIALIZED__
       ))
     );
     
@@ -757,7 +769,8 @@ export function useOptimizedWebSocket(
     if (testDetected) {
       console.log(`🧪 TEST ENVIRONMENT DETECTED: Component WebSocket completely disabled for ${subscriberId}`);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // One-time initialization only
   
   useEffect(() => {
     // PRIMARY BLOCK: Use test WebSocket blocker
@@ -810,7 +823,8 @@ export function useOptimizedWebSocket(
       unsubscribe();
       unsubscribeRef.current = null;
     };
-  }, [url, subscriberId]); // Removed handlers from deps to prevent re-connections
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, subscriberId]); // Handlers intentionally excluded to prevent re-connections
   
   // Update handlers without recreating connection
   useEffect(() => {

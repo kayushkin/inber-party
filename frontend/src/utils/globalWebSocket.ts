@@ -68,7 +68,10 @@ class GlobalWebSocketManager {
       this.state.preventCleanup = true;
       
       // Set global flag to prevent any React cleanup
-      const globalWin = window as any;
+      const globalWin = window as Window & { 
+        __GLOBAL_WEBSOCKET_ACTIVE__?: boolean;
+        __PREVENT_WEBSOCKET_CLEANUP__?: boolean;
+      };
       globalWin.__GLOBAL_WEBSOCKET_ACTIVE__ = true;
       globalWin.__PREVENT_WEBSOCKET_CLEANUP__ = true;
       

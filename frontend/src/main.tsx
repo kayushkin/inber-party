@@ -19,7 +19,7 @@ const isTest = !!(
 // Set global test persistent mode flag to prevent any WebSocket disconnections
 if (isTest) {
   console.log('🧪 Test environment detected - activating GLOBAL WEBSOCKET PERSISTENT MODE');
-  (window as any).__TEST_WEBSOCKET_PERSISTENT_MODE__ = true;
+  (window as Window & { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__ = true;
 }
 
 const AppComponent = (

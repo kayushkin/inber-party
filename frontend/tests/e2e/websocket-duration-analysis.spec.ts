@@ -52,7 +52,7 @@ test.describe('WebSocket Duration Analysis', () => {
     
     // Calculate average connection duration (rough approximation)
     let totalConnectionTime = 0;
-    let connectionDurations: number[] = [];
+    const connectionDurations: number[] = [];
     
     for (let i = 0; i < connectionEvents.length - 1; i++) {
       const current = connectionEvents[i];

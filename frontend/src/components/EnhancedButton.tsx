@@ -95,6 +95,19 @@ const EnhancedButton = forwardRef<HTMLButtonElement, EnhancedButtonProps>(({
 
   // If href is provided, render as anchor tag with button styling
   if (href && !disabled && !loading) {
+    // Extract valid anchor props - cast to any to access HTML attributes
+    const allProps = props as Record<string, unknown>;
+    
+    const anchorProps = {
+      id: allProps.id as string | undefined,
+      'aria-label': allProps['aria-label'] as string | undefined,
+      'aria-describedby': allProps['aria-describedby'] as string | undefined,
+      'data-testid': allProps['data-testid'] as string | undefined,
+      target: allProps.target as string | undefined,
+      rel: allProps.rel as string | undefined,
+      download: allProps.download as string | undefined
+    };
+    
     return (
       <a
         href={href}
@@ -107,7 +120,7 @@ const EnhancedButton = forwardRef<HTMLButtonElement, EnhancedButtonProps>(({
             window.location.href = href;
           }
         }}
-        {...(props as any)} // Type assertion needed for anchor props
+        {...anchorProps}
       >
         {content}
       </a>
@@ -156,30 +169,3 @@ export const GhostButton = (props: Omit<EnhancedButtonProps, 'variant'>) => (
 export const FloatingActionButton = (props: Omit<EnhancedButtonProps, 'fab'>) => (
   <EnhancedButton fab {...props} />
 );
-
-// Hook for programmatic ripple effects
-export const useRippleEffect = () => {
-  const createRipple = (element: HTMLElement, x: number, y: number) => {
-    const ripple = document.createElement('span');
-    ripple.style.cssText = `
-      position: absolute;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.6);
-      transform: translate(-50%, -50%) scale(0);
-      animation: ripple-effect 0.6s ease-out;
-      pointer-events: none;
-      left: ${x}px;
-      top: ${y}px;
-      width: 100px;
-      height: 100px;
-    `;
-    
-    element.appendChild(ripple);
-    
-    setTimeout(() => {
-      ripple.remove();
-    }, 600);
-  };
-  
-  return { createRipple };
-};

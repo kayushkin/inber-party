@@ -1,5 +1,25 @@
 import { test, expect } from '@playwright/test';
 
+// Type definitions for test environment WebSocket manager
+interface WebSocketManager {
+  getTestOptimizationStatus(): {
+    isTestEnvironment: boolean;
+    testPersistenceMode: boolean;
+    persistentConnections: string[];
+  };
+  getStats(): {
+    totalConnections: number;
+    activeConnections: number;
+    reconnectAttempts: number;
+  };
+}
+
+declare global {
+  interface Window {
+    wsManager: WebSocketManager;
+  }
+}
+
 test.describe('WebSocket Debug Tests', () => {
   test('should show WebSocket manager status', async ({ page }) => {
     // Go to main page
@@ -11,7 +31,7 @@ test.describe('WebSocket Debug Tests', () => {
     // Inject debug script to check WebSocket manager status
     const wsManagerStatus = await page.evaluate(() => {
       // Access the WebSocket manager instance
-      const wsManager = (window as any).wsManager;
+      const wsManager = window.wsManager;
       
       if (!wsManager) {
         return { error: 'WebSocket manager not found in window' };
@@ -44,7 +64,7 @@ test.describe('WebSocket Debug Tests', () => {
     await page.waitForTimeout(2000);
     
     const wsManagerStatusAfterNav = await page.evaluate(() => {
-      const wsManager = (window as any).wsManager;
+      const wsManager = window.wsManager;
       return wsManager ? {
         connectionStats: wsManager.getStats(),
         testOptimizationStatus: wsManager.getTestOptimizationStatus()

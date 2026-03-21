@@ -8,6 +8,31 @@ import { test, expect } from '@playwright/test';
  * independent of React component lifecycle.
  */
 
+// Type definitions for test tracking
+declare global {
+  interface Window {
+    wsConnectionEvents: string[];
+    wsConnectionCount: number;
+    wsManager: {
+      getTestOptimizationStatus(): {
+        isTestEnvironment: boolean;
+        testPersistenceMode: boolean;
+      };
+      getStats(): {
+        totalConnections: number;
+        activeConnections: number;
+        reconnectAttempts: number;
+      };
+    };
+    __GLOBAL_WEBSOCKET__: {
+      url: string;
+      readyState: number;
+      send: (data: string) => void;
+      close: () => void;
+    };
+  }
+}
+
 test.describe('Global WebSocket Connection', () => {
   test.beforeEach(async ({ page }) => {
     test.setTimeout(90000); // Extended timeout for thorough testing
@@ -15,8 +40,8 @@ test.describe('Global WebSocket Connection', () => {
     // Enable detailed WebSocket monitoring
     await page.addInitScript(() => {
       // Track all WebSocket events globally
-      (window as any).wsConnectionEvents = [];
-      (window as any).wsConnectionCount = 0;
+      window.wsConnectionEvents = [];
+      window.wsConnectionCount = 0;
       
       // Override WebSocket constructor to track all connection activity
       const OriginalWebSocket = window.WebSocket;
@@ -25,15 +50,15 @@ test.describe('Global WebSocket Connection', () => {
           super(url, protocols);
           const urlStr = url.toString();
           const timestamp = Date.now();
-          (window as any).wsConnectionCount++;
-          const eventData = `[${timestamp}] CONNECT #${(window as any).wsConnectionCount}: ${urlStr}`;
-          (window as any).wsConnectionEvents.push(eventData);
+          window.wsConnectionCount++;
+          const eventData = `[${timestamp}] CONNECT #${window.wsConnectionCount}: ${urlStr}`;
+          window.wsConnectionEvents.push(eventData);
           console.log(`🧪 WebSocket Event: ${eventData}`);
           
           this.addEventListener('close', () => {
             const closeTimestamp = Date.now();
             const closeEventData = `[${closeTimestamp}] DISCONNECT: ${urlStr}`;
-            (window as any).wsConnectionEvents.push(closeEventData);
+            window.wsConnectionEvents.push(closeEventData);
             console.log(`🧪 WebSocket Event: ${closeEventData}`);
           });
         }
@@ -52,8 +77,8 @@ test.describe('Global WebSocket Connection', () => {
     
     // Clear any initial connection events to focus on navigation churn
     await page.evaluate(() => {
-      (window as any).wsConnectionEvents = [];
-      (window as any).wsConnectionCount = 0;
+      window.wsConnectionEvents = [];
+      window.wsConnectionCount = 0;
     });
     
     // Extended navigation sequence to thoroughly test stability
@@ -86,11 +111,11 @@ test.describe('Global WebSocket Connection', () => {
     
     // Check WebSocket connection events after navigation
     const events = await page.evaluate(() => {
-      return (window as any).wsConnectionEvents;
+      return window.wsConnectionEvents;
     });
     
     const totalConnectionEvents = await page.evaluate(() => {
-      return (window as any).wsConnectionCount;
+      return window.wsConnectionCount;
     });
     
     console.log('🧪 WebSocket Connection Analysis:');
@@ -114,8 +139,8 @@ test.describe('Global WebSocket Connection', () => {
     
     // Clear connection events
     await page.evaluate(() => {
-      (window as any).wsConnectionEvents = [];
-      (window as any).wsConnectionCount = 0;
+      window.wsConnectionEvents = [];
+      window.wsConnectionCount = 0;
     });
     
     // Extremely rapid navigation (simulating stress test)
@@ -139,11 +164,11 @@ test.describe('Global WebSocket Connection', () => {
     await page.waitForTimeout(2000);
     
     const events = await page.evaluate(() => {
-      return (window as any).wsConnectionEvents;
+      return window.wsConnectionEvents;
     });
     
     const totalConnections = await page.evaluate(() => {
-      return (window as any).wsConnectionCount;
+      return window.wsConnectionCount;
     });
     
     console.log(`🧪 Rapid navigation results:`);
@@ -197,8 +222,8 @@ test.describe('Global WebSocket Connection', () => {
     
     // Clear connection tracking
     await page.evaluate(() => {
-      (window as any).wsConnectionEvents = [];
-      (window as any).wsConnectionCount = 0;
+      window.wsConnectionEvents = [];
+      window.wsConnectionCount = 0;
     });
     
     // Navigate to different component-heavy pages
@@ -218,11 +243,11 @@ test.describe('Global WebSocket Connection', () => {
     }
     
     const events = await page.evaluate(() => {
-      return (window as any).wsConnectionEvents;
+      return window.wsConnectionEvents;
     });
     
     const connections = await page.evaluate(() => {
-      return (window as any).wsConnectionCount;
+      return window.wsConnectionCount;
     });
     
     console.log(`🧪 Component lifecycle test results:`);
@@ -254,8 +279,8 @@ test.describe('Global WebSocket Connection', () => {
     
     // Clear tracking before test operations
     await page.evaluate(() => {
-      (window as any).wsConnectionEvents = [];
-      (window as any).wsConnectionCount = 0;
+      window.wsConnectionEvents = [];
+      window.wsConnectionCount = 0;
     });
     
     for (const operation of operations) {
@@ -264,11 +289,11 @@ test.describe('Global WebSocket Connection', () => {
     }
     
     const finalConnectionCount = await page.evaluate(() => {
-      return (window as any).wsConnectionCount;
+      return window.wsConnectionCount;
     });
     
     const finalEventCount = await page.evaluate(() => {
-      return (window as any).wsConnectionEvents.length;
+      return window.wsConnectionEvents.length;
     });
     
     console.log(`🧪 IMPROVEMENT METRICS:`);

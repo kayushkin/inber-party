@@ -123,7 +123,8 @@ function App() {
         clearInterval(seasonalInterval);
       };
     }
-  }, []); // Empty dependency array - this effect runs once and only once
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - this effect runs once and only once on mount
 
   // Apply theme on mount and when theme changes
   useEffect(() => {

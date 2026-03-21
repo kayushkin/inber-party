@@ -5,6 +5,28 @@
  * with no-op implementations to eliminate any possibility of connection churn.
  */
 
+// Extend Window interface for test environment globals
+declare global {
+  interface Window {
+    __TEST_WEBSOCKET_BLOCKER_ACTIVE__?: boolean;
+    __WEBSOCKET_ABSOLUTE_LOCK__?: boolean;
+    WebSocket: typeof WebSocket | Record<string, unknown>;
+  }
+}
+
+interface MockWebSocketInterface {
+  url: string;
+  readyState: number;
+  onopen: ((event: Event) => void) | null;
+  onclose: ((event: CloseEvent) => void) | null;
+  onmessage: ((event: MessageEvent) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  send: (data: string | ArrayBufferLike | Blob | ArrayBufferView) => void;
+  close: (code?: number, reason?: string) => void;
+  addEventListener: (type: string, listener: EventListenerOrEventListenerObject) => void;
+  removeEventListener: (type: string, listener: EventListenerOrEventListenerObject) => void;
+}
+
 export class TestWebSocketBlocker {
   private static instance: TestWebSocketBlocker;
   private isTestEnvironment: boolean;
@@ -44,13 +66,13 @@ export class TestWebSocketBlocker {
     if (typeof window === 'undefined') return;
 
     // Set global flags to indicate WebSocket blocking is active
-    (window as any).__TEST_WEBSOCKET_BLOCKER_ACTIVE__ = true;
-    (window as any).__WEBSOCKET_ABSOLUTE_LOCK__ = true;
+    window.__TEST_WEBSOCKET_BLOCKER_ACTIVE__ = true;
+    window.__WEBSOCKET_ABSOLUTE_LOCK__ = true;
     
     // Override WebSocket constructor to prevent any real connections
     // const OriginalWebSocket = window.WebSocket; // Keep reference if needed for restoration
     
-    (window as any).WebSocket = class MockWebSocket {
+    (window as unknown as Record<string, unknown>).WebSocket = class MockWebSocket implements MockWebSocketInterface {
       url: string;
       readyState: number = 1; // OPEN
       onopen: ((event: Event) => void) | null = null;
@@ -80,17 +102,23 @@ export class TestWebSocketBlocker {
         }, 0);
       }
 
+      addEventListener(type: string, _listener: EventListenerOrEventListenerObject): void {
+        console.log(`🧪 MOCK WEBSOCKET: Blocked addEventListener for ${this.url}:`, type);
+        // No-op for test environment
+      }
+
+      removeEventListener(type: string, _listener: EventListenerOrEventListenerObject): void {
+        console.log(`🧪 MOCK WEBSOCKET: Blocked removeEventListener for ${this.url}:`, type);
+        // No-op for test environment
+      }
+
       static CONNECTING = 0;
       static OPEN = 1;
       static CLOSING = 2;
       static CLOSED = 3;
     };
 
-    // Also set static properties on the mock
-    (window as any).WebSocket.CONNECTING = 0;
-    (window as any).WebSocket.OPEN = 1;
-    (window as any).WebSocket.CLOSING = 2;
-    (window as any).WebSocket.CLOSED = 3;
+    // Static properties are already set on the MockWebSocket class
 
     console.log('🧪 GLOBAL WEBSOCKET OVERRIDE: All WebSocket connections are now mocked');
   }
@@ -117,7 +145,7 @@ export class TestWebSocketBlocker {
         console.log('🧪 MOCK: WebSocket always connected');
         return true;
       },
-      subscribe: (url: string, id: string, _messageHandler?: any, stateHandler?: any) => {
+      subscribe: (url: string, id: string, _messageHandler?: (data: unknown) => void, stateHandler?: (connected: boolean) => void) => {
         console.log(`🧪 MOCK: WebSocket subscribe blocked - ${id} → ${url}`);
         
         // Immediately call state handler with connected state

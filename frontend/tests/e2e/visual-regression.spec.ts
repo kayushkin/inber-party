@@ -36,7 +36,7 @@ async function waitForVisualStability(page: Page, timeout = 20000) {
         // Don't trigger onclose to prevent reconnection attempts
       }
       
-      send(data) {
+      send() {
         // Silently accept messages without processing
       }
     };

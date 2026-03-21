@@ -11,6 +11,8 @@ declare global {
   interface Window {
     __TEST_WEBSOCKET_INITIALIZED__: boolean;
     __TEST_WEBSOCKET_PERSISTENT_MODE__: boolean;
+    __INBER_PARTY_TEST_INITIALIZED__: boolean;
+    __WEBSOCKET_PERMANENT_LOCK__: boolean;
   }
 }
 
@@ -51,8 +53,8 @@ export function initTestWebSockets() {
   window.__TEST_WEBSOCKET_PERSISTENT_MODE__ = true;
   
   // Additional global flag for component blocking
-  (window as any).__INBER_PARTY_TEST_INITIALIZED__ = true;
-  (window as any).__WEBSOCKET_PERMANENT_LOCK__ = true;
+  window.__INBER_PARTY_TEST_INITIALIZED__ = true;
+  window.__WEBSOCKET_PERMANENT_LOCK__ = true;
 
   console.log('🧪 Test WebSocket initialization complete. Component WebSocket operations are now BLOCKED.');
   console.log('🧪 Store will handle all WebSocket connections exclusively.');

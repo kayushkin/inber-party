@@ -244,13 +244,13 @@ export const StaggerList: React.FC<{
   </div>
 );
 
-// Typewriter effect component
-export const Typewriter: React.FC<{ 
+// Internal typewriter component that doesn't need to handle text changes
+const TypewriterInternal: React.FC<{ 
   text: string; 
-  speed?: number;
-  className?: string;
+  speed: number;
+  className: string;
   onComplete?: () => void;
-}> = ({ text, speed = 50, className = '', onComplete }) => {
+}> = ({ text, speed, className, onComplete }) => {
   const [displayText, setDisplayText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -261,20 +261,33 @@ export const Typewriter: React.FC<{
         setCurrentIndex(prev => prev + 1);
       }, speed);
       return () => clearTimeout(timeout);
-    } else if (onComplete) {
+    } else if (onComplete && currentIndex === text.length && displayText === text) {
       onComplete();
     }
-  }, [currentIndex, text, speed, onComplete]);
-
-  useEffect(() => {
-    setDisplayText('');
-    setCurrentIndex(0);
-  }, [text]);
+  }, [currentIndex, text, speed, onComplete, displayText]);
 
   return (
     <span className={`typewriter ${className}`}>
       {displayText}
     </span>
+  );
+};
+
+// Wrapper component that handles text changes with key reset pattern
+export const Typewriter: React.FC<{ 
+  text: string; 
+  speed?: number;
+  className?: string;
+  onComplete?: () => void;
+}> = ({ text, speed = 50, className = '', onComplete }) => {
+  return (
+    <TypewriterInternal
+      key={text} // This will reset the component when text changes
+      text={text}
+      speed={speed}
+      className={className}
+      onComplete={onComplete}
+    />
   );
 };
 
@@ -335,13 +348,14 @@ export const FloatingElement: React.FC<{
 );
 
 // Enhanced button with ripple effect
-export const RippleButton: React.FC<{
+interface RippleButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   onClick?: (e: React.MouseEvent) => void;
   className?: string;
   disabled?: boolean;
-  [key: string]: any;
-}> = ({ children, onClick, className = '', disabled, ...props }) => {
+}
+
+export const RippleButton: React.FC<RippleButtonProps> = ({ children, onClick, className = '', disabled, ...props }) => {
   const createRipple = (event: React.MouseEvent<HTMLButtonElement>) => {
     const button = event.currentTarget;
     const rect = button.getBoundingClientRect();
@@ -387,32 +401,6 @@ export const RippleButton: React.FC<{
       {children}
     </button>
   );
-};
-
-// Hook for animation visibility
-export const useInViewAnimation = (threshold = 0.1) => {
-  const [inView, setInView] = useState(false);
-  const ref = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          observer.disconnect();
-        }
-      },
-      { threshold }
-    );
-
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
-    return () => observer.disconnect();
-  }, [threshold]);
-
-  return { ref, inView };
 };
 
 // Global CSS injection for ripple animation
