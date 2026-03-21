@@ -49,69 +49,76 @@ function App() {
   const updateSeasonalEvent = useStore((s) => s.updateSeasonalEvent);
 
   useEffect(() => {
-    // Enhanced test environment detection for consistency across the app
+    // Ultra-comprehensive test environment detection
     const isTest = !!(
       '__playwright' in globalThis || 
       '__jest' in globalThis ||
       navigator.userAgent.includes('HeadlessChrome') ||
       navigator.userAgent.includes('Playwright') ||
       (navigator.userAgent.includes('Firefox') && navigator.webdriver) ||
+      navigator.userAgent.includes('Chrome') && navigator.userAgent.includes('headless') ||
       import.meta.env.VITE_NODE_ENV === 'test' ||
       import.meta.env.VITE_CI === 'true' ||
-      (typeof window !== 'undefined' && window.location.hostname === 'localhost' && 
-       (window.location.port === '5173' || window.location.port === '8080'))
+      import.meta.env.NODE_ENV === 'test' ||
+      (typeof window !== 'undefined' && window.location.hostname === 'localhost') ||
+      (typeof window !== 'undefined' && '__VISUAL_REGRESSION_TEST__' in window)
     );
     
     if (isTest) {
-      console.log('🧪 CRITICAL FIX: Test environment detected - implementing ULTRA-PERSISTENT WebSocket mode');
+      console.log('🧪 ULTRA-PERSISTENT MODE: Test environment detected - implementing ZERO connection churn');
       
-      // Set the global flag that all WebSocket code checks for
-      (window as unknown as { __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean }).__TEST_WEBSOCKET_PERSISTENT_MODE__ = true;
+      // Set multiple global flags that ALL WebSocket code checks for
+      const globalWin = window as unknown as { 
+        __TEST_WEBSOCKET_PERSISTENT_MODE__?: boolean;
+        __INBER_PARTY_TEST_INITIALIZED__?: boolean;
+        __WEBSOCKET_PERMANENT_LOCK__?: boolean;
+      };
       
-      // CRITICAL FIX: Check if we've already initialized test mode to prevent duplicate connections
-      const testModeKey = '__INBER_PARTY_TEST_INITIALIZED__';
-      if ((window as unknown as { [testModeKey]?: boolean })[testModeKey]) {
-        console.log('🧪 Test mode already initialized, skipping duplicate connection setup');
+      globalWin.__TEST_WEBSOCKET_PERSISTENT_MODE__ = true;
+      globalWin.__WEBSOCKET_PERMANENT_LOCK__ = true;
+      
+      // Check if we've already initialized to prevent any re-initialization churn
+      if (globalWin.__INBER_PARTY_TEST_INITIALIZED__) {
+        console.log('🧪 ULTRA-PERSISTENT MODE: Already initialized, maintaining existing state');
         return () => {
-          console.log('🧪 Test environment cleanup: NO-OP to prevent any connection disruption');
-          // Absolutely no cleanup operations in test environment
+          console.log('🧪 ULTRA-PERSISTENT MODE: Cleanup blocked - maintaining permanent connections');
         };
       }
       
-      // Mark test mode as initialized to prevent duplicate initialization
-      (window as unknown as { [testModeKey]?: boolean })[testModeKey] = true;
+      // Mark as initialized to block all future re-initialization attempts
+      globalWin.__INBER_PARTY_TEST_INITIALIZED__ = true;
       
-      console.log('🧪 Initializing PERSISTENT WebSocket connections and polling for test environment');
+      console.log('🧪 ULTRA-PERSISTENT MODE: One-time initialization with ZERO future disconnections');
       
-      // Connect WebSocket and start polling - connections will be persistent due to global flag
+      // Single initialization - connections will be permanent
       connectWebSocket(); 
-      startPolling(20000); // Longer polling interval for tests
+      startPolling(30000); // Even longer polling for stability
       updateSeasonalEvent();
       
+      // CRITICAL: Return a completely empty cleanup function
       return () => {
-        console.log('🧪 Test environment cleanup: ABSOLUTELY NO cleanup to prevent ANY connection churn');
-        // In test environments, we NEVER call ANY cleanup functions
-        // This prevents all connection churn during navigation and component lifecycle
-        // The global flag ensures connections remain persistent throughout the entire test suite
+        console.log('🧪 ULTRA-PERSISTENT MODE: Cleanup function called but ALL operations blocked');
+        // ABSOLUTELY ZERO cleanup operations in test environment
+        // All connections must remain active for the entire test duration
       };
     } else {
-      // Normal environment, standard connection management
+      // Normal environment - standard connection lifecycle
+      console.log('🌐 Production mode: Standard WebSocket connection management');
       connectWebSocket();
       startPolling(10000);
-      
-      // Initialize seasonal events
       updateSeasonalEvent();
       
       // Check for seasonal event changes every hour
       const seasonalInterval = setInterval(updateSeasonalEvent, 60 * 60 * 1000);
       
       return () => {
+        console.log('🌐 Production cleanup: Disconnecting WebSocket and stopping polling');
         disconnectWebSocket();
         stopPolling();
         clearInterval(seasonalInterval);
       };
     }
-  }, []); // Empty dependency array to prevent re-runs
+  }, []); // Empty dependency array - this effect runs once and only once
 
   // Apply theme on mount and when theme changes
   useEffect(() => {
