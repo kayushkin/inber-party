@@ -1486,3 +1486,12 @@
   cursor: not-allowed;
   transform: none;
 }
+
+/* Auto-refresh indicator */
+.last-updated {
+  font-size: 0.875rem;
+  color: #666;
+  opacity: 0.8;
+  margin-top: 0.5rem;
+  font-style: italic;
+}

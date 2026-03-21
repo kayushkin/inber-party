@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SkeletonQuestCard } from '../components/SkeletonLoader';
 import CreateBountyForm from '../components/CreateBountyForm';
 import { useNotifications } from '../hooks/useNotifications';
@@ -74,6 +74,13 @@ export default function BountyBoard() {
   const [disputeEvidence, setDisputeEvidence] = useState('');
   const [submittingDispute, setSubmittingDispute] = useState(false);
   
+  // Auto-refresh configuration
+  const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
+  const REFRESH_AFTER_ACTION_DELAY = 1000; // 1 second after user action
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const refreshIntervalRef = useRef<number | null>(null);
+  const refreshTimeoutRef = useRef<number | null>(null);
+  
   const fetchBounties = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -81,6 +88,7 @@ export default function BountyBoard() {
       if (response.ok) {
         const data = await response.json();
         setBounties(data);
+        setLastUpdated(new Date());
       } else {
         showError('Failed to fetch bounties', `Server responded with status: ${response.status}`);
       }
@@ -105,10 +113,39 @@ export default function BountyBoard() {
     }
   }, [showError]);
 
+  // Auto-refresh after user action
+  const refreshAfterAction = useCallback(() => {
+    // Clear any existing timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    
+    // Schedule refresh after a short delay
+    refreshTimeoutRef.current = setTimeout(() => {
+      fetchBounties(); // Refresh bounty data after user action
+    }, REFRESH_AFTER_ACTION_DELAY);
+  }, [fetchBounties, REFRESH_AFTER_ACTION_DELAY]);
+
   useEffect(() => {
+    // Initial data fetch
     fetchBounties();
     fetchAgents();
-  }, [fetchBounties, fetchAgents]);
+    
+    // Set up auto-refresh interval
+    refreshIntervalRef.current = setInterval(() => {
+      fetchBounties(); // Background refresh without loading spinner
+    }, AUTO_REFRESH_INTERVAL);
+    
+    // Cleanup on unmount
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, [fetchBounties, fetchAgents, AUTO_REFRESH_INTERVAL]);
 
   const handleCreateBounty = async (bountyData: CreateBountyData) => {
     const response = await fetch('/api/bounties', {
@@ -131,6 +168,7 @@ export default function BountyBoard() {
     const newBounty = await response.json();
     setBounties(prev => [newBounty, ...prev]);
     showSuccess('Bounty Created!', `Successfully created bounty: ${newBounty.title}`);
+    refreshAfterAction();
   };
 
   const handleClaimClick = (bountyId: number) => {
@@ -160,7 +198,7 @@ export default function BountyBoard() {
 
       // Refresh bounties to show updated status
       showSuccess('Bounty Claimed!', 'You have successfully claimed this bounty.');
-      await fetchBounties();
+      refreshAfterAction();
       setShowClaimModal(false);
       setSelectedBountyId(null);
     } catch (error) {
@@ -394,6 +432,11 @@ export default function BountyBoard() {
         <div className="bounty-board-title">
           <h1>💰 Bounty Board</h1>
           <p className="bounty-board-subtitle">Task marketplace for adventurers</p>
+          {lastUpdated && (
+            <div className="last-updated">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </div>
+          )}
         </div>
         
         <div className="bounty-board-actions">
