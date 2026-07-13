@@ -1,0 +1,32 @@
+[Unit]
+Description=Inber Party
+After=network.target
+
+[Service]
+ExecStart=%h/bin/inber-party
+Environment=PORT=8180
+Environment=INBER_URL=http://127.0.0.1:8200
+Environment=INBER_SESSIONS_DB=%h/inber-workspace/.inber/sessions.db
+
+# DATABASE_URL is deliberately ABSENT, and its absence is a real config choice
+# rather than an omission to be helpfully filled in. main.go treats Postgres as
+# optional (cmd/server/main.go:38-70): with no DATABASE_URL it logs "running in
+# inber-only mode" and skips migrate+seed, and the write paths 503. This host has
+# no PostgreSQL at all -- so setting DATABASE_URL here would not enable the write
+# paths, it would just make the service log a connection failure on every boot.
+# The quest/bounty write features stay off until somebody stands up a Postgres and
+# decides that is what they want. Do not "fix" this line in.
+
+# WorkingDirectory IS load-bearing, and not for the usual reason. main.go serves
+# the UI with http.FileServer(http.Dir("frontend/dist")) -- a RELATIVE path -- so
+# the directory systemd chdirs into decides where the frontend is read from. Point
+# this anywhere else and the binary starts, binds, answers /health with a cheerful
+# 200, and serves 404 for every asset of the actual site. That is why deploy.sh
+# builds the frontend into THIS checkout rather than installing it somewhere else:
+# for inber-party the repo working tree really is production.
+WorkingDirectory=%h/repos/inber-party
+
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
