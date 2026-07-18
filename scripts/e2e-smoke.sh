@@ -266,17 +266,25 @@ docker run -d --rm --name "$PG_CONTAINER" \
 PG_STARTED=1
 echo "    container: $PG_CONTAINER ($PG_IMAGE) on 127.0.0.1:$PG_PORT"
 
-# Poll with the container's OWN pg_isready — the host has none. Never sleep-and-hope:
-# postgres accepts TCP before it accepts queries, so a port check would race.
+# Poll with the container's OWN psql over TCP+auth — the host has no client.
+# CRITICAL: gate on the exact path the app uses (a real TCP connect + auth +
+# query), NOT the unix socket. The postgres entrypoint runs a temporary
+# socket-only server during initdb, so socket `pg_isready` reports "ready" ~250ms
+# before the final server accepts external TCP. The app pings the DB exactly once
+# at boot (main.go:43) and falls into permanent degraded mode on failure, so a
+# ping that lands in that gap dies with "connection reset by peer" and the whole
+# phase-2 health assertion fails — which is the flake this smoke exhibited. A
+# SELECT over TCP is ready only when the real path the app takes is ready.
 pg_up=0
 for _ in $(seq 1 60); do
-  if docker exec "$PG_CONTAINER" pg_isready -U "$PG_USER" -d "$PG_DB" -q >/dev/null 2>&1; then
+  if docker exec -e PGPASSWORD="$PG_PASS" "$PG_CONTAINER" \
+       psql -h 127.0.0.1 -p 5432 -U "$PG_USER" -d "$PG_DB" -tAc 'select 1' >/dev/null 2>&1; then
     pg_up=1; break
   fi
   sleep 0.5
 done
 [ "$pg_up" = "1" ] || fail "the throwaway postgres never became ready within 30s"
-echo "    postgres ready"
+echo "    postgres ready (TCP + auth + query)"
 
 step "PHASE 2 — boot against it: migrations and seed must run (both are Fatal)"
 DSN="postgres://$PG_USER:$PG_PASS@127.0.0.1:$PG_PORT/$PG_DB?sslmode=disable"
