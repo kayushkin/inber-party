@@ -14,8 +14,8 @@ import (
 	"time"
 	"unicode"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/kayushkin/inber-party/internal/textutil"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // RPG model types derived from inber data
