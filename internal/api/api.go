@@ -22,6 +22,7 @@ import (
 	"github.com/kayushkin/inber-party/internal/verifiers"
 	"github.com/kayushkin/inber-party/internal/version"
 	"github.com/kayushkin/inber-party/internal/ws"
+	"github.com/kayushkin/inber-party/internal/textutil"
 )
 
 type Server struct {
@@ -1590,6 +1591,33 @@ func (s *Server) handleConversationDetail(w http.ResponseWriter, r *http.Request
 }
 
 // Webhook handler for spawn events
+// spawnEventMessage renders a spawn webhook payload as the human-readable line
+// shown on the dashboard. It is split out of handleSpawnWebhook because it is a
+// pure function of the payload, and the task text it cuts is the part that needs
+// pinning: a prompt is the likeliest string in this file to carry a multi-byte
+// rune, and the cut lands wherever that prompt happens to reach 100 bytes.
+func spawnEventMessage(eventType, agentID, label, task string) string {
+	labelSuffix := ""
+	if label != "" {
+		labelSuffix = " (" + label + ")"
+	}
+
+	switch eventType {
+	case "spawn_started":
+		message := "🚀 " + agentID + " spawned a sub-agent" + labelSuffix
+		if len(task) > 100 {
+			return message + ": " + textutil.TruncateAtRuneBoundary(task, 100) + "..."
+		}
+		return message + ": " + task
+	case "spawn_completed":
+		return "✅ Sub-agent completed task for " + agentID + labelSuffix
+	case "spawn_failed":
+		return "❌ Sub-agent failed task for " + agentID + labelSuffix
+	default:
+		return "📍 Spawn event " + eventType + " for " + agentID
+	}
+}
+
 func (s *Server) handleSpawnWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -1617,36 +1645,7 @@ func (s *Server) handleSpawnWebhook(w http.ResponseWriter, r *http.Request) {
 		spawnEvent.Type, spawnEvent.AgentID, spawnEvent.SessionID)
 
 	// Generate a human-readable message based on the event type
-	var message string
-	var eventIcon string
-	switch spawnEvent.Type {
-	case "spawn_started":
-		eventIcon = "🚀"
-		message = eventIcon + " " + spawnEvent.AgentID + " spawned a sub-agent"
-		if spawnEvent.Label != "" {
-			message += " (" + spawnEvent.Label + ")"
-		}
-		if len(spawnEvent.Task) > 100 {
-			message += ": " + spawnEvent.Task[:100] + "..."
-		} else {
-			message += ": " + spawnEvent.Task
-		}
-	case "spawn_completed":
-		eventIcon = "✅"
-		message = eventIcon + " Sub-agent completed task for " + spawnEvent.AgentID
-		if spawnEvent.Label != "" {
-			message += " (" + spawnEvent.Label + ")"
-		}
-	case "spawn_failed":
-		eventIcon = "❌"
-		message = eventIcon + " Sub-agent failed task for " + spawnEvent.AgentID
-		if spawnEvent.Label != "" {
-			message += " (" + spawnEvent.Label + ")"
-		}
-	default:
-		eventIcon = "📍"
-		message = eventIcon + " Spawn event " + spawnEvent.Type + " for " + spawnEvent.AgentID
-	}
+	message := spawnEventMessage(spawnEvent.Type, spawnEvent.AgentID, spawnEvent.Label, spawnEvent.Task)
 
 	// Broadcast the event via WebSocket
 	s.Hub.Broadcast(ws.Message{

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"github.com/kayushkin/inber-party/internal/textutil"
 )
 
 // LogstackClient provides access to OpenClaw session logs
@@ -265,7 +266,7 @@ func (lc *LogstackClient) parseSessionFile(sessionFile, agentID string) (*Conver
 	conv := &Conversation{
 		ID:           sessionID,
 		AgentID:      agentID,
-		AgentName:    titleCase(agentID),
+		AgentName:    textutil.UpperFirstRune(agentID),
 		Title:        title,
 		Messages:     messages,
 		StartTime:    startTime,
@@ -324,7 +325,7 @@ func generateConversationTitle(messages []ConversationMsg) string {
 			title = lines[0]
 			
 			if len(title) > 60 {
-				title = title[:57] + "..."
+				title = textutil.TruncateAtRuneBoundary(title, 57) + "..."
 			}
 			
 			if title != "" {
@@ -334,13 +335,6 @@ func generateConversationTitle(messages []ConversationMsg) string {
 	}
 	
 	return "Untitled Conversation"
-}
-
-func titleCase(s string) string {
-	if s == "" {
-		return s
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 func min(a, b int) int {

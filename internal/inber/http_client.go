@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"time"
+	"github.com/kayushkin/inber-party/internal/textutil"
 )
 
 // HTTPClient fetches data from inber's HTTP API.
@@ -104,7 +105,7 @@ func (c *HTTPClient) GetAgents() ([]RPGAgent, error) {
 
 		agents = append(agents, RPGAgent{
 			ID:           name,
-			Name:         titleCase(name),
+			Name:         textutil.UpperFirstRune(name),
 			Title:        title,
 			Class:        class,
 			Level:        level,
@@ -175,7 +176,7 @@ func (c *HTTPClient) GetQuests(limit int) ([]RPGQuest, error) {
 		questName := generateQuestName(s.InputText, s.Status)
 		questDesc := s.InputText
 		if len(questDesc) > 200 {
-			questDesc = questDesc[:200] + "..."
+			questDesc = textutil.TruncateAtRuneBoundary(questDesc, 200) + "..."
 		}
 
 		difficulty := 1
@@ -206,7 +207,7 @@ func (c *HTTPClient) GetQuests(limit int) ([]RPGQuest, error) {
 			XPReward:    xpReward,
 			Status:      questStatus,
 			AgentID:     s.Agent,
-			AgentName:   titleCase(s.Agent),
+			AgentName:   textutil.UpperFirstRune(s.Agent),
 			Progress:    progress,
 			Turns:       s.Turns,
 			TokensUsed:  totalTokens,
@@ -432,7 +433,7 @@ func (c *HTTPClient) GetAgentJournal(agentID string, date string) (*RPGJournal, 
 	if agent == nil {
 		return &RPGJournal{
 			AgentID:     agentID,
-			AgentName:   titleCase(agentID),
+			AgentName:   textutil.UpperFirstRune(agentID),
 			Date:        date,
 			Title:       "Unknown Adventurer",
 			Narrative:   "This agent is known to the guild but their detailed adventures are recorded only in the deeper archives. Connect to the full database for complete journal entries.",

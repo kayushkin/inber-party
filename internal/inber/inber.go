@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/kayushkin/inber-party/internal/textutil"
 )
 
 // RPG model types derived from inber data
@@ -394,7 +395,7 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 
 			agentMap[agentName] = &RPGAgent{
 				ID:           agentName,
-				Name:         titleCase(agentName),
+				Name:         textutil.UpperFirstRune(agentName),
 				Title:        title,
 				Class:        class,
 				Level:        level,
@@ -482,7 +483,7 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 
 					a := &RPGAgent{
 						ID:           agentName,
-						Name:         titleCase(agentName),
+						Name:         textutil.UpperFirstRune(agentName),
 						Title:        title,
 						Class:        class,
 						Level:        level,
@@ -546,7 +547,7 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 		class, emoji, title := classFor(ra.Name)
 		a := &RPGAgent{
 			ID:           ra.Name,
-			Name:         titleCase(ra.Name),
+			Name:         textutil.UpperFirstRune(ra.Name),
 			Title:        title,
 			Class:        class,
 			Level:        1,
@@ -644,7 +645,7 @@ func (s *Store) GetQuests(limit int) ([]RPGQuest, error) {
 			if inputText.Valid && inputText.String != "" {
 				questDesc = inputText.String
 				if len(questDesc) > 200 {
-					questDesc = questDesc[:200] + "..."
+					questDesc = textutil.TruncateAtRuneBoundary(questDesc, 200) + "..."
 				}
 			}
 
@@ -678,7 +679,7 @@ func (s *Store) GetQuests(limit int) ([]RPGQuest, error) {
 				XPReward:    xpReward,
 				Status:      questStatus,
 				AgentID:     agent,
-				AgentName:   titleCase(agent),
+				AgentName:   textutil.UpperFirstRune(agent),
 				Progress:    progress,
 				Turns:       turns,
 				TokensUsed:  totalTokens,
@@ -1033,25 +1034,25 @@ func (s *Store) GetConversations(limit int) ([]RPGConversation, error) {
 			// Add participants
 			if mainAgent.Valid && !contains(conv.ParticipantIDs, mainAgent.String) {
 				conv.ParticipantIDs = append(conv.ParticipantIDs, mainAgent.String)
-				conv.Participants = append(conv.Participants, titleCase(mainAgent.String))
+				conv.Participants = append(conv.Participants, textutil.UpperFirstRune(mainAgent.String))
 			}
 			if spawnedAgent.Valid && !contains(conv.ParticipantIDs, spawnedAgent.String) {
 				conv.ParticipantIDs = append(conv.ParticipantIDs, spawnedAgent.String)
-				conv.Participants = append(conv.Participants, titleCase(spawnedAgent.String))
+				conv.Participants = append(conv.Participants, textutil.UpperFirstRune(spawnedAgent.String))
 			}
 
 			// Create initial message from spawn action
 			if initialMessage.Valid && spawnedAgent.Valid && mainAgent.Valid {
 				msgContent := initialMessage.String
 				if len(msgContent) > 100 {
-					msgContent = msgContent[:100] + "..."
+					msgContent = textutil.TruncateAtRuneBoundary(msgContent, 100) + "..."
 				}
 				
 				msg := RPGMessage{
 					ID:        fmt.Sprintf("%s-spawn-%s", sessionID, spawnedAgent.String),
-					FromAgent: titleCase(mainAgent.String),
-					ToAgent:   titleCase(spawnedAgent.String),
-					Content:   fmt.Sprintf("🎯 Spawned %s: %s", titleCase(spawnedAgent.String), msgContent),
+					FromAgent: textutil.UpperFirstRune(mainAgent.String),
+					ToAgent:   textutil.UpperFirstRune(spawnedAgent.String),
+					Content:   fmt.Sprintf("🎯 Spawned %s: %s", textutil.UpperFirstRune(spawnedAgent.String), msgContent),
 					Type:      "spawn",
 				}
 				if startedAt.Valid {
@@ -1107,7 +1108,7 @@ func (s *Store) GetConversations(limit int) ([]RPGConversation, error) {
 					if content.Valid && content.String != "" {
 						msgContent = content.String
 						if len(msgContent) > 200 {
-							msgContent = msgContent[:200] + "..."
+							msgContent = textutil.TruncateAtRuneBoundary(msgContent, 200) + "..."
 						}
 					}
 
@@ -1118,7 +1119,7 @@ func (s *Store) GetConversations(limit int) ([]RPGConversation, error) {
 
 					msg := RPGMessage{
 						ID:        fmt.Sprintf("%s-%s", turnID, agent),
-						FromAgent: titleCase(agent),
+						FromAgent: textutil.UpperFirstRune(agent),
 						Content:   msgContent,
 						Type:      msgType,
 					}
@@ -1181,15 +1182,6 @@ func stringSliceToInterfaceSlice(strs []string) []interface{} {
 	return result
 }
 
-func titleCase(s string) string {
-	if s == "" {
-		return s
-	}
-	runes := []rune(s)
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
-}
-
 // generateQuestName creates an immersive RPG quest name from the request text using procedural generation.
 func generateQuestName(input, status string) string {
 	if input == "" {
@@ -1222,7 +1214,7 @@ func generateQuestName(input, status string) string {
 	if len(questName) > 80 {
 		text := originalText
 		if len(text) > 60 {
-			text = text[:57] + "..."
+			text = textutil.TruncateAtRuneBoundary(text, 57) + "..."
 		}
 		return getTaskEmoji(taskType) + " " + text
 	}
@@ -2079,7 +2071,7 @@ func (s *Store) GetAgentJournal(agentID string, date string) (*RPGJournal, error
 	if s.gatewayDB == nil {
 		return &RPGJournal{
 			AgentID:     agentID,
-			AgentName:   titleCase(agentID),
+			AgentName:   textutil.UpperFirstRune(agentID),
 			Date:        date,
 			Title:       "No Activity Recorded",
 			Narrative:   "The archives are silent about this agent's deeds on this day. Perhaps they were resting, or their adventures went unrecorded.",
@@ -2106,7 +2098,7 @@ func (s *Store) GetAgentJournal(agentID string, date string) (*RPGJournal, error
 	if agent == nil {
 		return &RPGJournal{
 			AgentID:     agentID,
-			AgentName:   titleCase(agentID),
+			AgentName:   textutil.UpperFirstRune(agentID),
 			Date:        date,
 			Title:       "Unknown Adventurer",
 			Narrative:   "This mysterious agent remains unknown to the guild records. Their deeds, if any, are shrouded in mystery.",
@@ -2365,5 +2357,5 @@ func truncateText(text string, maxLen int) string {
 	if len(text) <= maxLen {
 		return text
 	}
-	return text[:maxLen-3] + "..."
+	return textutil.TruncateAtRuneBoundary(text, maxLen-3) + "..."
 }

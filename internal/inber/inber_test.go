@@ -367,15 +367,6 @@ func TestEnergyFromActivity(t *testing.T) {
 	}
 }
 
-func TestTitleCase(t *testing.T) {
-	if titleCase("claxon") != "Claxon" {
-		t.Error("expected Claxon")
-	}
-	if titleCase("") != "" {
-		t.Error("empty string should stay empty")
-	}
-}
-
 func TestClassFor(t *testing.T) {
 	class, emoji, _ := classFor("claxon")
 	if class != "Overlord" || emoji != "♚" {
