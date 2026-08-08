@@ -148,4 +148,9 @@ var Inputs = []Input{
 		Text:    "the rusty spanner",
 		Reaches: "the 48 stop words the two lists share. It is the entry above plus a word both sides drop, so it stays an agreement — and it separates the shared part of the two stop lists from the 62 words only one of them carries.",
 	},
+	{
+		Name:    "words-of-exactly-three-letters",
+		Text:    "orb cog axe",
+		Reaches: "the length floor at the one width that can tell \"longer than 2\" from \"longer than 3\". Every other entry answers with a word of four letters or more, so before this one the corpus recorded the same eighteen answers whether either floor was 2 or 3, and no golden could see a change to it. Three letters is also the width the two functions' scan directions and term limits are cleanest on: inber walks back from the end and keeps two, questgiver walks forward and keeps three, so one input measures the floor, the direction and both limits at once.",
+	},
 }

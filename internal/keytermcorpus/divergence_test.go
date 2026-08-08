@@ -41,6 +41,7 @@ var divergentInputs = []string{
 	"stop-word-unique-to-inber",
 	"stop-word-unique-to-questgiver",
 	"term-limit-two-versus-three",
+	"words-of-exactly-three-letters",
 }
 
 // TestTheTwoExtractorsDivergeOnExactlyTheRecordedInputs compares the two golden
