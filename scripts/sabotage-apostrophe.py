@@ -14,10 +14,11 @@ which is a non-zero exit exactly like a test failure, and scoring that as
 "something caught it" is how a scorer reports a comforting lie.
 """
 
-import subprocess
-import sys
 import os
 import re
+import signal
+import subprocess
+import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -172,15 +173,53 @@ def main():
     print("baseline green\n")
 
     rows = []
-    for label, path, old, new, expectation in MUTATIONS:
-        err = apply_mutation(path, old, new)
-        if err:
-            restore()
-            rows.append((label, "VOID", err, expectation))
-            continue
-        verdict, failing, detail = classify()
+    # The mutated file holds a deliberately broken version of itself from the write
+    # in the loop below until the restore that follows it, so every way out of that
+    # window has to restore — including the ways this script does not choose to
+    # take. A killed run left the mutated file behind as ordinary-looking
+    # uncommitted work: a semantic edit to a tracked source file, which
+    # `git status` reports the same way it reports real work in progress, and which
+    # this box's standing rule tells the next agent not to throw away.
+    #
+    # A try/finally alone does NOT close this, and measuring it is how you find that
+    # out. Python raises KeyboardInterrupt for SIGINT, so a finally is on the way
+    # out for that one and for nothing else. SIGTERM and SIGHUP kill the process
+    # between the write and the restore — and those are exactly what a wall-clock
+    # cap, systemd and a process-group kill send. So the one signal a finally covers
+    # is the one you press by hand while watching, and the ones it misses are the
+    # ones an unattended run actually receives. Measured by kill on this scorer
+    # before these handlers existed: SIGTERM left the mutated file behind.
+    #
+    # The handler restores, reinstates the disposition it replaced and re-raises, so
+    # the process dies BY the signal (rc 128+signum). A handler that restores and
+    # exits 0 tells every caller a killed run succeeded.
+    #
+    # SIGKILL cannot be caught by the process that receives it. It is the one gap
+    # left here, and it is named rather than papered over.
+    previous_handlers = {}
+
+    def restore_and_reraise(signum, frame):
         restore()
-        rows.append((label, verdict, detail or ", ".join(sorted(failing)), expectation))
+        signal.signal(signum, previous_handlers[signum])
+        os.kill(os.getpid(), signum)
+
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        previous_handlers[sig] = signal.signal(sig, restore_and_reraise)
+
+    try:
+        for label, path, old, new, expectation in MUTATIONS:
+            err = apply_mutation(path, old, new)
+            if err:
+                restore()
+                rows.append((label, "VOID", err, expectation))
+                continue
+            verdict, failing, detail = classify()
+            restore()
+            rows.append((label, verdict, detail or ", ".join(sorted(failing)), expectation))
+    finally:
+        restore()
+        for sig, handler in previous_handlers.items():
+            signal.signal(sig, handler)
 
     print(f"{'MUTATION':<62} | {'VERDICT':<14} | DETAIL")
     print("-" * 130)
