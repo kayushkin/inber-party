@@ -303,6 +303,37 @@ func energyFromActivity(lastActive *time.Time) int {
 	return energy
 }
 
+// timestampFormats are the layouts a timestamp reaches this package in.
+//
+// Which one arrives is not a property of the data but of how it was read. The
+// sqlite driver converts a column whose declared type is DATETIME into a
+// time.Time, so scanning it back into a string yields RFC 3339; read the same
+// column through an aggregate or any other expression and the declared type is
+// lost, so the raw "2006-01-02 15:04:05" text comes through untouched. One table
+// therefore serves both, and parsing against a single layout works or fails
+// depending on the shape of the query above it — which is not a difference any
+// caller should have to know about.
+//
+// Two entries cover it. RFC3339Nano parses a fractional part only when one is
+// present and accepts both "Z" and a numeric offset, so it subsumes plain
+// RFC 3339 and the offset-only spelling that this list used to carry as separate
+// entries; that was measured against all four input shapes, not assumed.
+var timestampFormats = []string{
+	time.RFC3339Nano,
+	"2006-01-02 15:04:05",
+}
+
+// parseTimestampInAnyKnownFormat parses a timestamp written in any of the
+// layouts this package receives, reporting whether it recognised one.
+func parseTimestampInAnyKnownFormat(value string) (time.Time, bool) {
+	for _, layout := range timestampFormats {
+		if t, err := time.Parse(layout, value); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
+
 // fetchRegistry fetches the full agent list from inber's HTTP API.
 func (s *Store) fetchRegistry() []inberRegistryAgent {
 	if s.inberURL == "" {
@@ -381,7 +412,7 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 
 			var la *time.Time
 			if lastActive.Valid {
-				if t, err := time.Parse("2006-01-02 15:04:05", lastActive.String); err == nil {
+				if t, ok := parseTimestampInAnyKnownFormat(lastActive.String); ok {
 					la = &t
 				}
 			}
@@ -767,10 +798,9 @@ func (s *Store) GetStats() (*RPGStats, error) {
 	return stats, nil
 }
 
-// GetAchievements computes achievements for an agent based on their data and quest history.
+// GetAchievements computes achievements for an agent from their data and quest
+// history, using the same rules as every other source of agents.
 func (s *Store) GetAchievements(agentID string) ([]RPGAchievement, error) {
-	var achievements []RPGAchievement
-
 	agents, err := s.GetAgents()
 	if err != nil {
 		return nil, err
@@ -791,122 +821,8 @@ func (s *Store) GetAchievements(agentID string) ([]RPGAchievement, error) {
 		return nil, err
 	}
 
-	var agentQuests []RPGQuest
-	for _, q := range quests {
-		if q.AgentID == agentID {
-			agentQuests = append(agentQuests, q)
-		}
-	}
-
-	completedCount := 0
-	hasError := false
-	hasNightOwl := false
-	hasMarathon := false
-	var firstQuestTime string
-
-	for _, q := range agentQuests {
-		if q.Status == "completed" {
-			completedCount++
-		}
-		if q.Status == "failed" {
-			hasError = true
-		}
-		// Night owl: activity after midnight (00:00-05:00)
-		if q.StartedAt != "" {
-			if t, err := time.Parse("2006-01-02 15:04:05", q.StartedAt); err == nil {
-				h := t.Hour()
-				if h >= 0 && h < 5 {
-					hasNightOwl = true
-				}
-			}
-			if firstQuestTime == "" || q.StartedAt < firstQuestTime {
-				firstQuestTime = q.StartedAt
-			}
-		}
-		// Marathon: >30 turns (proxy for long session)
-		if q.Turns > 30 {
-			hasMarathon = true
-		}
-	}
-
-	ts := time.Now().Format("2006-01-02T15:04:05Z")
-
-	if len(agentQuests) > 0 {
-		achievements = append(achievements, RPGAchievement{
-			ID: "first_quest", Name: "First Quest", Description: "Completed their first quest",
-			Icon: "⚔️", UnlockedAt: firstQuestTime,
-		})
-	}
-
-	if agent.TotalTokens >= 1000 {
-		achievements = append(achievements, RPGAchievement{
-			ID: "1k_tokens", Name: "Apprentice Scribe", Description: "Used 1,000 tokens",
-			Icon: "📜", UnlockedAt: ts,
-		})
-	}
-	if agent.TotalTokens >= 100000 {
-		achievements = append(achievements, RPGAchievement{
-			ID: "100k_tokens", Name: "Master Scribe", Description: "Used 100,000 tokens",
-			Icon: "📚", UnlockedAt: ts,
-		})
-	}
-	if agent.TotalTokens >= 1000000 {
-		achievements = append(achievements, RPGAchievement{
-			ID: "1m_tokens", Name: "Archmage of Words", Description: "Used 1,000,000 tokens",
-			Icon: "🌟", UnlockedAt: ts,
-		})
-	}
-
-	if hasError {
-		achievements = append(achievements, RPGAchievement{
-			ID: "first_error", Name: "Battle Scarred", Description: "Survived their first failed quest",
-			Icon: "💀", UnlockedAt: ts,
-		})
-	}
-
-	if completedCount >= 10 {
-		achievements = append(achievements, RPGAchievement{
-			ID: "10_quests", Name: "Veteran", Description: "Completed 10 quests",
-			Icon: "🛡️", UnlockedAt: ts,
-		})
-	}
-	if completedCount >= 50 {
-		achievements = append(achievements, RPGAchievement{
-			ID: "50_quests", Name: "Champion", Description: "Completed 50 quests",
-			Icon: "👑", UnlockedAt: ts,
-		})
-	}
-
-	if hasNightOwl {
-		achievements = append(achievements, RPGAchievement{
-			ID: "night_owl", Name: "Night Owl", Description: "Active after midnight",
-			Icon: "🦉", UnlockedAt: ts,
-		})
-	}
-
-	if hasMarathon {
-		achievements = append(achievements, RPGAchievement{
-			ID: "marathon", Name: "Marathon Runner", Description: "Completed a quest with 30+ turns",
-			Icon: "🏃", UnlockedAt: ts,
-		})
-	}
-
-	if agent.Level >= 5 {
-		achievements = append(achievements, RPGAchievement{
-			ID: "level5", Name: "Seasoned Adventurer", Description: "Reached level 5",
-			Icon: "⭐", UnlockedAt: ts,
-		})
-	}
-	if agent.Level >= 10 {
-		achievements = append(achievements, RPGAchievement{
-			ID: "level10", Name: "Elite", Description: "Reached level 10",
-			Icon: "💎", UnlockedAt: ts,
-		})
-	}
-
-	return achievements, nil
+	return computeAchievements(agent, quests), nil
 }
-
 // GetQuestHistory returns recent quest data for an agent (for charts).
 func (s *Store) GetQuestHistory(agentID string, limit int) ([]QuestHistoryEntry, error) {
 	if limit <= 0 {

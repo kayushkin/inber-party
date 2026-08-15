@@ -90,11 +90,8 @@ func (c *HTTPClient) GetAgents() ([]RPGAgent, error) {
 
 		var la *time.Time
 		if a.LastActive != "" {
-			for _, fmt := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02T15:04:05-07:00", "2006-01-02 15:04:05"} {
-				if t, err := time.Parse(fmt, a.LastActive); err == nil {
-					la = &t
-					break
-				}
+			if t, ok := parseTimestampInAnyKnownFormat(a.LastActive); ok {
+				la = &t
 			}
 		}
 
@@ -349,7 +346,7 @@ func computeAchievements(agent *RPGAgent, allQuests []RPGQuest) []RPGAchievement
 			hasError = true
 		}
 		if q.StartedAt != "" {
-			if t, err := time.Parse("2006-01-02 15:04:05", q.StartedAt); err == nil {
+			if t, ok := parseTimestampInAnyKnownFormat(q.StartedAt); ok {
 				if h := t.Hour(); h >= 0 && h < 5 {
 					hasNightOwl = true
 				}
