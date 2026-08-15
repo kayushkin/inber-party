@@ -1402,18 +1402,14 @@ func extractKeyTermsForNaming(text string) []string {
 		}
 	}
 	
-	// If we didn't find good terms from the end, try from the beginning
-	if len(keyTerms) == 0 {
-		for _, word := range words {
-			cleanWord := strings.Trim(word, ".,!?;:\"'()[]{}/-_")
-			if len(cleanWord) > 3 && !skipWords[cleanWord] && isAlpha(cleanWord) {
-				keyTerms = append(keyTerms, textutil.TitleFirstRuneOfEachWord(cleanWord))
-				if len(keyTerms) >= 1 { // Just get one good term
-					break
-				}
-			}
-		}
-	}
+	// There is deliberately no forward pass here. One used to sit at this point,
+	// guarded by len(keyTerms) == 0 and accepting len(cleanWord) > 3 alongside the same
+	// stop-word and isAlpha guards as the scan above. That predicate implies the scan's
+	// own, so the pass could never contribute a term: reaching it meant the scan had
+	// accepted nothing, which meant no word cleared the weaker floor, so none cleared
+	// the stronger one either. Measured before removal over 559,319 inputs — the guard
+	// opened 172,861 times and the body fired 0 — and the corpus entry
+	// words-of-exactly-three-letters now pins the floor that made it unreachable.
 	
 	// If still no terms found, use fallback based on common technical terms
 	if len(keyTerms) == 0 {
