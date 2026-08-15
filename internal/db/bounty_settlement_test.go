@@ -427,9 +427,15 @@ func TestClaimBountyAdmitsAnAgentAtTheTierFloor(t *testing.T) {
 
 	// "implement a new parser" infers the coding domain. Seed a reputation there that
 	// clears the silver floor of 250.
+	//
+	// ⚠️ task_count is deliberately 2, not 10. The gate refuses only when the score is
+	// below the floor AND the agent has fewer than 3 tasks in the domain, so an agent
+	// with 3 or more tasks is admitted no matter what the floor is — and this test
+	// would then pass against any floor value at all, including an absurd one. The
+	// score is the only thing admitting this agent.
 	if _, err := database.Exec(
 		`INSERT INTO reputation (agent_id, domain, score, task_count, success_rate)
-		 VALUES ($1, 'coding', 300, 10, 0.9)`, claimerID); err != nil {
+		 VALUES ($1, 'coding', 300, 2, 0.9)`, claimerID); err != nil {
 		t.Fatalf("seed reputation: %v", err)
 	}
 

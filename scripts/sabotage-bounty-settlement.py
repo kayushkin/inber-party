@@ -180,10 +180,19 @@ CASES = [
         [("\t\tagentReputation = &Reputation{Score: 100, TaskCount: 0, SuccessRate: 1.0}",
           "\t\tagentReputation = &Reputation{Score: 1000, TaskCount: 0, SuccessRate: 1.0}")],
     ),
+    # Dominated by construction, and declared rather than chased. ClaimBounty
+    # checks `status = 'open'` TWICE — once in the SELECT that opens the
+    # function, once in the UPDATE that closes it — and the SELECT refuses a
+    # claimed bounty before the UPDATE is ever reached. The UPDATE's copy is
+    # not redundant: it is the compare-and-swap that closes the check-then-act
+    # race between two agents claiming at once. No sequential test can separate
+    # them, which is the 221st's shape — check whether the mutation is
+    # observable at all before reading an UNNOTICED row as a coverage hole.
     Case(
         "the claim writes over whatever the bounty's current state is, so a claimed bounty is re-claimable",
         [("\t\tWHERE id = $2 AND status = 'open'\n\t`\n\t\n\tresult, err := db.Exec(query, claimerID, bountyID)",
           "\t\tWHERE id = $2\n\t`\n\t\n\tresult, err := db.Exec(query, claimerID, bountyID)")],
+        expected_unnoticed="the SELECT at the top of ClaimBounty rejects a non-open bounty before this UPDATE runs, so sequentially the two guards are the same guard; this copy only closes the concurrent check-then-act race",
     ),
 
     # ---- SubmitWork ----
@@ -202,9 +211,14 @@ CASES = [
         "verification acts on a bounty in any state, so an unsubmitted bounty can be approved",
         [("\t\tWHERE id = $4 AND status = 'submitted'", "\t\tWHERE id = $4")],
     ),
+    # The second edit is the engine's orphan escape: dropping the only use of
+    # `now` makes this a compile error rather than a score, which is the 223rd's
+    # warning and the 225th's generalisation of it.
     Case(
         "an approved bounty is never stamped complete",
-        [("\t\tcompletedAt = &now", "\t\tcompletedAt = nil")],
+        [("\t\tcompletedAt = &now", "\t\tcompletedAt = nil"),
+         ('\tstatus := "rejected"\n\tcompletedAt := (*time.Time)(nil)\n\tnow := time.Now()',
+          '\tstatus := "rejected"\n\tcompletedAt := (*time.Time)(nil)\n\tnow := time.Now()\n\t_ = now')],
     ),
     Case(
         "the payout is recorded against the bounty's creator rather than its claimer",
@@ -319,14 +333,19 @@ CASES = [
         [("\t\tINSERT INTO bounties (title, description, requirements, payout_amount, ",
           "\t\tINSERT INTO bounties (title, description, requirements, payout_amount_v2, ")],
     ),
-    # Known-negative: the WORDING of the already-claimed refusal. It is REACHED —
-    # TestClaimBountyRefusesAnAlreadyClaimedBounty runs straight through it — and
-    # the suite asserts that the claim was refused and that the first claimer kept
-    # the bounty, never the sentence the refusal is phrased in.
+    # Known-negative: the WORDING of the already-claimed refusal, taken at the
+    # SELECT that actually raises it. ⚠️ The obvious site — the identical
+    # sentence under `rowsAffected == 0` — would be a WORTHLESS negative: that
+    # branch is unreachable sequentially for exactly the reason declared on the
+    # re-claim case above, so it would score UNNOTICED whether or not the suite
+    # was any good. This site IS reached: TestClaimBountyRefusesAnAlreadyClaimed
+    # Bounty runs straight through it, and the suite asserts that the claim was
+    # refused and that the first claimer still holds the bounty — never the
+    # sentence the refusal is phrased in.
     Case(
         "CONTROL known-negative: the already-claimed refusal is reworded",
-        [('\tif rowsAffected == 0 {\n\t\treturn fmt.Errorf("bounty not found or already claimed")\n\t}\n\t\n\treturn nil\n}\n\n// getAgentReputationInDomain',
-          '\tif rowsAffected == 0 {\n\t\treturn fmt.Errorf("this bounty has already been taken by another agent")\n\t}\n\t\n\treturn nil\n}\n\n// getAgentReputationInDomain')],
+        [('\tif err != nil {\n\t\treturn fmt.Errorf("bounty not found or already claimed")\n\t}',
+          '\tif err != nil {\n\t\treturn fmt.Errorf("this bounty has already been taken by another agent")\n\t}')],
         expected_unnoticed="the suite asserts the claim was refused and that the first claimer still holds the bounty, never the sentence the refusal is phrased in",
     ),
 ]
