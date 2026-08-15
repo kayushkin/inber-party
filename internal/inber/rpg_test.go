@@ -42,7 +42,17 @@ func TestLevelForXPComprehensive(t *testing.T) {
 		
 		// Edge case: very high XP should cap at level 99
 		{"Level cap test", 1000000, 99, 0},
-		
+
+		// The four rows below straddle the cap. The row above reaches it but pins
+		// nothing: at 1,000,000 XP the loop runs past level 99 whatever the cap
+		// literal says, so `level > 99` and `level > 98` both answer (99, 0).
+		// The cap only becomes observable between the XP total that first reaches
+		// level 99 and the total that would otherwise reach level 100.
+		{"Level 98 end", 485099, 98, 1},
+		{"Level 99 start, cap not yet engaged", 485100, 99, 9900},
+		{"Level 99 last XP before the cap", 494999, 99, 1},
+		{"Level 99 cap engages", 495000, 99, 0},
+
 		// Verify the progression formula: level N requires sum(1 to N-1) * 100 XP
 		{"Formula verification level 6", 1500, 6, 600}, // sum(1 to 5) * 100 = 15 * 100 = 1500
 		{"Formula verification level 7", 2100, 7, 700},   // sum(1 to 6) * 100 = 21 * 100 = 2100
