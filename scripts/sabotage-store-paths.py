@@ -270,6 +270,23 @@ CASES = [
     ("the available progress drifts up, so an unstarted quest reads 1",
      [(INBER, "progress = 0", "progress = 1")], "progress available 0"),
 
+    # -- The 200-byte description cut, scored to PROVE it is already held ---
+    # The card listed this cut as in scope. It was done one pass earlier, by
+    # truncation_budgets_test.go on test/the-truncation-budgets-are-unpinned,
+    # which is in this branch's base. Dropping it from the case table would
+    # have made that a claim; scoring it makes it a measurement, and the two
+    # rows below are expected to report PRIOR=CAUGHT -> "already held" rather
+    # than to count toward this sweep's closed gaps. If they ever read
+    # "gap closed", the base branch is wrong and every number here is inflated.
+    ("the description cut's GUARD drifts up by one",
+     [(INBER, "if len(questDesc) > 200 {", "if len(questDesc) > 201 {")],
+     "description cut guard (neighbour)"),
+
+    ("the description cut's BUDGET drifts down by one",
+     [(INBER, "TruncateAtRuneBoundary(questDesc, 200)",
+       "TruncateAtRuneBoundary(questDesc, 199)")],
+     "description cut budget (neighbour)"),
+
     # -- The substituted `limit <= 0` defaults ------------------------------
     # The 184th's rule: a parameter every test supplies is not the value that
     # ships. Both callers below can pass nothing, and neither default was
