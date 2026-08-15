@@ -186,18 +186,27 @@ CASES = [
      [(TEXTUTIL, "if maxBytes <= 0 {", "if maxBytes < 0 {")], False,
      "a behavioural no-op: maxBytes==0 already yields \"\" through s[:0] below"),
 
-    # Reported, not hidden. These two call sites sit inside functions that read
-    # PostgreSQL, so pinning them would mean standing up a database. They are
-    # covered by the helper's guarantee, not by a test of their own.
+    # ⛔ Both rows below used to say these call sites "read PostgreSQL", so
+    # pinning them would mean standing up a database. That reason was false and
+    # it made the target look far bigger than it is. internal/inber opens
+    # sqlite3 (inber.go:232,241); the only lib/pq in the repo is internal/db.
+    # inber_test.go's createTestGatewayDB already builds a real SQLite gateway
+    # in t.TempDir(). "Needs a database" and "needs a fixture row" are a day
+    # apart in cost, and collapsing them is what left these unscored.
     ("KNOWN GAP: the spawn-message cut in GetConversations reverts",
      [(INBER, "msgContent = textutil.TruncateAtRuneBoundary(msgContent, 100) + \"...\"",
        "msgContent = msgContent[:100] + \"...\"")], False,
-     "GetConversations reads PostgreSQL; no test reaches this line"),
+     "GetConversations is unreached for a SCHEMA reason, not a database one: its "
+     "query needs sessions.parent_session_id, initial_message and last_message_at, "
+     "none of which the fixture defines, so it errors out before the cut"),
 
-    ("KNOWN GAP: the quest description in GetQuests reverts",
+    # No longer a gap. The branch was unreached because every input_text in the
+    # shared fixture is shorter than 200 bytes — one longer row reaches it, and
+    # truncation_budgets_test.go now drives it through its own gateway DB.
+    ("the quest description in GetQuests reverts",
      [(INBER, "questDesc = textutil.TruncateAtRuneBoundary(questDesc, 200) + \"...\"",
-       "questDesc = questDesc[:200] + \"...\"")], False,
-     "GetQuests reads PostgreSQL; the HTTP client's copy of this cut IS pinned"),
+       "questDesc = questDesc[:200] + \"...\"")], True,
+     "pinned by TestAStoreQuestDescription* against a SQLite fixture, not PostgreSQL"),
 ]
 
 TRACKED = [TEXTUTIL, INBER, HTTPCLIENT, LOGSTACK, API]
