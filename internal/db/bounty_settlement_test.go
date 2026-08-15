@@ -1071,6 +1071,46 @@ func TestWithdrawDisputeRefusesAnAlreadyResolvedDispute(t *testing.T) {
 	}
 }
 
+// ⛔ CHARACTERISATION, not an endorsement. Withdrawing a dispute returns the bounty to
+// 'rejected' — precisely the state CreateDispute accepts — and then refuses the claimer
+// forever: the withdrawn row still satisfies the duplicate check, and disputes carries
+// UNIQUE(bounty_id, claimer_id), so no second dispute on that bounty can ever be
+// written. The claimer is told "dispute already exists for this bounty" about a dispute
+// they withdrew.
+//
+// The two halves contradict each other. If withdrawal is meant to be final, reverting
+// the bounty to a disputable state is the wrong ending; if it is meant to be a retraction
+// the claimer can reconsider, the duplicate check must skip withdrawn rows and the
+// UNIQUE constraint must go. Filed for that decision as noteboard card
+// `4fa1bc01-a2e3-4b6d-b0b8-a3b8b802f77f`; this test pins today's behaviour so whichever
+// repair is chosen has to come here and say so.
+func TestWithdrawingADisputeBarsTheClaimerFromEverDisputingAgain(t *testing.T) {
+	database := setupSettlementDB(t)
+	creatorID := makeAgent(t, database, "creator", 0)
+	claimerID := makeAgent(t, database, "claimer", 0)
+
+	b, d := disputedBounty(t, database, creatorID, claimerID, 25)
+	if err := database.WithdrawDispute(d.ID, claimerID); err != nil {
+		t.Fatalf("WithdrawDispute: %v", err)
+	}
+
+	// The bounty is back in the state a dispute is filed against.
+	if got := bountyStatus(t, database, b.ID); got != "rejected" {
+		t.Fatalf("bounty status after withdrawal = %q, want %q", got, "rejected")
+	}
+
+	again := &Dispute{BountyID: b.ID, ClaimerID: claimerID, Reason: "on reflection", Evidence: ""}
+	err := database.CreateDispute(again)
+	if err == nil {
+		t.Fatal("re-filing now succeeds — the withdrawal-is-a-retraction repair has landed; " +
+			"delete this characterisation and assert the new behaviour")
+	}
+	if err.Error() != "dispute already exists for this bounty" {
+		t.Fatalf("re-file was refused with %q; the behaviour this pins has changed, so revisit "+
+			"card 4fa1bc01-a2e3-4b6d-b0b8-a3b8b802f77f before editing this test", err.Error())
+	}
+}
+
 // -----------------------------------------------------------------------------
 // InferTaskDomain — the router the claim gate depends on
 // -----------------------------------------------------------------------------
