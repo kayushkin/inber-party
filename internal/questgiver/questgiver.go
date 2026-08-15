@@ -9,6 +9,7 @@ import (
 
 	"github.com/kayushkin/inber-party/internal/db"
 	"github.com/kayushkin/inber-party/internal/inber"
+	"github.com/kayushkin/inber-party/internal/textutil"
 )
 
 // QuestGiver is an AI agent that reviews and assigns tasks to appropriate agents
@@ -659,7 +660,7 @@ func (qng *QuestNameGenerator) generateGenericEpicName(analysis *TaskAnalysis, o
 	// Use the main subject from the original name if available
 	subject := "Quest"
 	if len(keyTerms) > 0 {
-		subject = strings.Title(strings.ToLower(keyTerms[0]))
+		subject = textutil.TitleFirstRuneOfEachWord(strings.ToLower(keyTerms[0]))
 	}
 	
 	return fmt.Sprintf("%s %s %s", prefix, subject, suffix)
@@ -677,7 +678,7 @@ func extractKeyTerms(originalName string) []string {
 	
 	for _, word := range words {
 		if len(word) > 2 && !skipWords[word] {
-			keyTerms = append(keyTerms, strings.Title(word))
+			keyTerms = append(keyTerms, textutil.TitleFirstRuneOfEachWord(word))
 			if len(keyTerms) >= 3 { // Limit to 3 key terms
 				break
 			}

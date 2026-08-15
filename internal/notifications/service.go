@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kayushkin/inber-party/internal/textutil"
 	"github.com/kayushkin/inber-party/internal/ws"
 )
 
@@ -175,7 +176,7 @@ func (s *Service) NotifySkillMatch(bountyID int, bountyTitle string, requiredSki
 
 		title := "New Bounty Matches Your Skills"
 		skillsText := strings.Join(match.MatchedSkills, ", ")
-		message := fmt.Sprintf("New %s bounty \"%s\" (₹%d) matches your skills: %s", strings.Title(tier), bountyTitle, payoutAmount, skillsText)
+		message := fmt.Sprintf("New %s bounty \"%s\" (₹%d) matches your skills: %s", textutil.TitleFirstRuneOfEachWord(tier), bountyTitle, payoutAmount, skillsText)
 		
 		_, err := s.CreateNotification(match.AgentID, NotificationTypeSkillMatch, title, message, data, PriorityNormal)
 		if err != nil {
