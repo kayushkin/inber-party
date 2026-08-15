@@ -233,9 +233,8 @@ CASES = [
      block_case(CONVERSATIONS_BLOCK, "if limit > 100 {", "if limit > 101 {"),
      "conversations cap guard"),
 
-    ("the conversation cap GUARD drifts down, so 100 is cut too",
-     block_case(CONVERSATIONS_BLOCK, "if limit > 100 {", "if limit > 99 {"),
-     "conversations cap guard"),
+    # The GUARD's other direction is DOMINATED and is scored as a control
+    # below, not as a case. See the note there.
 
     ("the conversation cap VALUE drifts up to 101",
      block_case(CONVERSATIONS_BLOCK, "\t\t\t\tlimit = 100", "\t\t\t\tlimit = 101"),
@@ -378,6 +377,17 @@ CONTROLS = [
      "the strings are as dead as the thresholds; if this ever reports CAUGHT, "
      "CreateBounty stopped overwriting the tier and api.go's ladder is live "
      "again — at which point four more rows become real gaps"),
+
+    ("KNOWN-NEGATIVE: the conversation cap guard drifts DOWN to `> 99`",
+     block_case(CONVERSATIONS_BLOCK, "if limit > 100 {", "if limit > 99 {"), False,
+     "DOMINATED, not an open gap: the guard and the value it cuts to are the "
+     "SAME number, so loosening the guard by one only pulls in limit=100, which "
+     "the branch then assigns 100 — the value it already had. Enumerated over "
+     "99/100/101/500 the mutated handler returns an identical answer at every "
+     "input, so no test can separate it. The 207th's rule: score the "
+     "unreachable direction as a declared control. This is why the sweep pins "
+     "each ceiling from ONE side and pins the VALUE separately, and it applies "
+     "verbatim to listDisputes' identical block"),
 
     ("KNOWN-NEGATIVE: logstack's own substituted default drifts to 19",
      [(LOGSTACK, LOGSTACK_DEFAULT, LOGSTACK_DEFAULT.replace("limit = 20", "limit = 19"))],

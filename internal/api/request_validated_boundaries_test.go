@@ -299,6 +299,15 @@ func TestConversationLimitIsCappedAtOneHundred(t *testing.T) {
 	server := NewServer(nil, ws.NewHub(), nil, nil)
 	server.LogstackClient = seedSessionFiles(t, "elf", 105)
 
+	// ⚠️ The guard is pinned from ONE side only, and that is not an omission.
+	// `if limit > 100 { limit = 100 }` spells the same number twice, so
+	// loosening the guard to `> 99` is DOMINATED: it pulls in limit=100 and
+	// then assigns 100, the value it already had. Enumerated over 99/100/101/
+	// 500 the loosened handler returns an identical answer at every input, so
+	// no test can catch it. sabotage-request-boundaries.py carries it as a
+	// declared known-negative rather than as a gap, per the 207th pass's rule —
+	// filing it would send the next pass after a test that cannot exist.
+	// Tightening the guard to `> 101` IS observable, and limit=101 catches it.
 	cases := []struct {
 		limit int
 		want  int
