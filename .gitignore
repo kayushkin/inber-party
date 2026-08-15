@@ -42,3 +42,7 @@ Thumbs.db
 
 # OpenClaw workspace
 .openclaw/
+
+# Python bytecode from scripts/
+__pycache__/
+*.pyc
