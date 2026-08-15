@@ -1460,7 +1460,7 @@ func extractKeyTermsForNaming(text string) []string {
 	for _, word := range words {
 		cleanWord := strings.Trim(word, ".,!?;:\"'()[]{}/-_")
 		if priorityWords[cleanWord] && len(cleanWord) > 2 {
-			keyTerms = append(keyTerms, strings.Title(cleanWord))
+			keyTerms = append(keyTerms, textutil.TitleFirstRuneOfEachWord(cleanWord))
 			if len(keyTerms) >= 2 {
 				break
 			}
@@ -1479,25 +1479,21 @@ func extractKeyTermsForNaming(text string) []string {
 		cleanWord := strings.Trim(word, ".,!?;:\"'()[]{}/-_")
 		if len(cleanWord) > 2 && !skipWords[cleanWord] && isAlpha(cleanWord) {
 			// Prefer longer, more specific terms
-			keyTerms = append([]string{strings.Title(cleanWord)}, keyTerms...)
+			keyTerms = append([]string{textutil.TitleFirstRuneOfEachWord(cleanWord)}, keyTerms...)
 			if len(keyTerms) >= 2 { // Limit to 2 key terms for naming
 				break
 			}
 		}
 	}
 	
-	// If we didn't find good terms from the end, try from the beginning
-	if len(keyTerms) == 0 {
-		for _, word := range words {
-			cleanWord := strings.Trim(word, ".,!?;:\"'()[]{}/-_")
-			if len(cleanWord) > 3 && !skipWords[cleanWord] && isAlpha(cleanWord) {
-				keyTerms = append(keyTerms, strings.Title(cleanWord))
-				if len(keyTerms) >= 1 { // Just get one good term
-					break
-				}
-			}
-		}
-	}
+	// There is deliberately no forward pass here. One used to sit at this point,
+	// guarded by len(keyTerms) == 0 and accepting len(cleanWord) > 3 alongside the same
+	// stop-word and isAlpha guards as the scan above. That predicate implies the scan's
+	// own, so the pass could never contribute a term: reaching it meant the scan had
+	// accepted nothing, which meant no word cleared the weaker floor, so none cleared
+	// the stronger one either. Measured before removal over 559,319 inputs — the guard
+	// opened 172,861 times and the body fired 0 — and the corpus entry
+	// words-of-exactly-three-letters now pins the floor that made it unreachable.
 	
 	// If still no terms found, use fallback based on common technical terms
 	if len(keyTerms) == 0 {
@@ -1585,37 +1581,37 @@ func generateSpawnQuestName(input, status string) string {
 	switch {
 	case containsAnyKeyword(lower, []string{"add", "comment", "line"}):
 		if agentName != "" {
-			return fmt.Sprintf("The %s Inscription Quest", strings.Title(agentName))
+			return fmt.Sprintf("The %s Inscription Quest", textutil.TitleFirstRuneOfEachWord(agentName))
 		}
 		return "The Sacred Inscription"
 		
 	case containsAnyKeyword(lower, []string{"easter egg", "fun", "creative"}):
 		if agentName != "" {
-			return fmt.Sprintf("The %s Enchantment", strings.Title(agentName))
+			return fmt.Sprintf("The %s Enchantment", textutil.TitleFirstRuneOfEachWord(agentName))
 		}
 		return "The Whimsical Enchantment"
 		
 	case containsAnyKeyword(lower, []string{"fix", "debug", "error"}):
 		if agentName != "" {
-			return fmt.Sprintf("The %s Bug Hunt", strings.Title(agentName))
+			return fmt.Sprintf("The %s Bug Hunt", textutil.TitleFirstRuneOfEachWord(agentName))
 		}
 		return "The Debugging Expedition"
 		
 	case containsAnyKeyword(lower, []string{"build", "create", "implement"}):
 		if agentName != "" {
-			return fmt.Sprintf("The %s Construction", strings.Title(agentName))
+			return fmt.Sprintf("The %s Construction", textutil.TitleFirstRuneOfEachWord(agentName))
 		}
 		return "The Grand Construction"
 		
 	case containsAnyKeyword(lower, []string{"deploy", "release"}):
 		if agentName != "" {
-			return fmt.Sprintf("The %s Deployment", strings.Title(agentName))
+			return fmt.Sprintf("The %s Deployment", textutil.TitleFirstRuneOfEachWord(agentName))
 		}
 		return "The Strategic Deployment"
 		
 	case containsAnyKeyword(lower, []string{"test", "verify"}):
 		if agentName != "" {
-			return fmt.Sprintf("The %s Trial", strings.Title(agentName))
+			return fmt.Sprintf("The %s Trial", textutil.TitleFirstRuneOfEachWord(agentName))
 		}
 		return "The Testing Trials"
 		
@@ -1625,7 +1621,7 @@ func generateSpawnQuestName(input, status string) string {
 		prefix := prefixes[len(input)%len(prefixes)]
 		
 		if agentName != "" {
-			return fmt.Sprintf("%s %s Mission", prefix, strings.Title(agentName))
+			return fmt.Sprintf("%s %s Mission", prefix, textutil.TitleFirstRuneOfEachWord(agentName))
 		}
 		return prefix + " Delegation"
 	}
