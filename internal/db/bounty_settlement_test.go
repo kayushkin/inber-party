@@ -354,6 +354,71 @@ func TestUpdateReputationRejectsAnUnknownAgent(t *testing.T) {
 	}
 }
 
+// TestCreateBountyStoresEachFieldInItsOwnColumn pins where CreateBounty's INSERT puts
+// each value. Nothing else in this package reads a written bounty back by value except
+// the required_skills round trip, so a value that lands in a neighbouring column is
+// invisible to every other test here: the row still inserts, every fixture still gets
+// its bounty, and no assertion ever looks.
+//
+// Every column is read with raw SQL rather than through GetBountyByID. That is the same
+// rule agentGold follows — an assertion must not be satisfiable by the code that made
+// the value — and it also keeps the check reachable: StringSlice.Scan runs the column
+// through json.Unmarshal, so a drift that puts non-JSON in required_skills would fail
+// the read and abort before any assertion ran, which is the failure mode this test
+// exists to remove.
+func TestCreateBountyStoresEachFieldInItsOwnColumn(t *testing.T) {
+	database := setupSettlementDB(t)
+	creatorID := makeAgent(t, database, "creator", 0)
+
+	// Every value is distinct, so a swap between any two columns changes what is
+	// read back. A shared placeholder would make neighbouring columns interchangeable.
+	b := &Bounty{
+		Title:          "a title and nothing else",
+		Description:    "a description and nothing else",
+		Requirements:   "acceptance criteria and nothing else",
+		PayoutAmount:   250,
+		CreatorID:      creatorID,
+		RequiredSkills: []string{"go", "sql"},
+	}
+	if err := database.CreateBounty(b); err != nil {
+		t.Fatalf("CreateBounty: %v", err)
+	}
+
+	var title, description, requirements, requiredSkills, tier string
+	var payoutAmount, storedCreatorID int
+	err := database.QueryRow(`
+		SELECT title, description, requirements, payout_amount, creator_id, required_skills, tier
+		FROM bounties WHERE id = $1`, b.ID).Scan(
+		&title, &description, &requirements, &payoutAmount, &storedCreatorID, &requiredSkills, &tier)
+	if err != nil {
+		t.Fatalf("read the stored row: %v", err)
+	}
+
+	if title != "a title and nothing else" {
+		t.Errorf("title column = %q, want the title", title)
+	}
+	if description != "a description and nothing else" {
+		t.Errorf("description column = %q, want the description", description)
+	}
+	if requirements != "acceptance criteria and nothing else" {
+		t.Errorf("requirements column = %q, want the requirements", requirements)
+	}
+	if payoutAmount != 250 {
+		t.Errorf("payout_amount column = %d, want 250", payoutAmount)
+	}
+	if storedCreatorID != creatorID {
+		t.Errorf("creator_id column = %d, want %d", storedCreatorID, creatorID)
+	}
+	if requiredSkills != `["go","sql"]` {
+		t.Errorf("required_skills column = %q, want the encoded skills", requiredSkills)
+	}
+	// 250 gold is gold tier; the value is derived here rather than handed in, and
+	// TestCreateBountyDerivesTheTierFromThePayout pins the thresholds themselves.
+	if tier != "gold" {
+		t.Errorf("tier column = %q, want %q", tier, "gold")
+	}
+}
+
 // -----------------------------------------------------------------------------
 // The claim gate — CreateBounty's tier rule and ClaimBounty's reputation floor
 // -----------------------------------------------------------------------------

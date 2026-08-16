@@ -325,13 +325,27 @@ CASES = [
     ),
 
     # ---- controls ----
-    # Known-positive: the column every bounty in this suite is written through.
-    # Drifts the name rather than deleting the statement, per the case rules —
-    # every test here creates a bounty, so it has to redden.
+    # Known-positive: a bounty's values land in the wrong columns. Swaps two
+    # neighbouring names rather than drifting one to a name the table does not
+    # have. ⚠️ The drift-to-payout_amount_v2 version this replaces scored CAUGHT
+    # off a FIXTURE GUARD and nothing else: an unknown column makes the INSERT
+    # fail, every test aborts at its `CreateBounty:` setup fatal, and the one
+    # assertion in the package that reads a written column back never executes.
+    # A known-positive control whose detection is a reach guard proves the
+    # harness reddens, not that anything is watching — which is the weaker claim,
+    # and it is made one level in where it is hardest to see. Measured 2026-08-16
+    # by the 256th nightly pass; card 0cda310c, note b7492775.
+    #
+    # A swap keeps the INSERT valid, so no guard fires and the only thing that
+    # can catch it is an assertion that reads the columns back:
+    # TestCreateBountyStoresEachFieldInItsOwnColumn, which reads them with raw
+    # SQL. This control is narrower than the one it replaces — one test reddens
+    # rather than all of them — and that is the trade on purpose. Breadth bought
+    # by reach guards is the thing being removed.
     Case(
-        "CONTROL known-positive: bounties are written to a neighbouring column name",
+        "CONTROL known-positive: two of a bounty's values are written to each other's columns",
         [("\t\tINSERT INTO bounties (title, description, requirements, payout_amount, ",
-          "\t\tINSERT INTO bounties (title, description, requirements, payout_amount_v2, ")],
+          "\t\tINSERT INTO bounties (description, title, requirements, payout_amount, ")],
     ),
     # Known-negative: the WORDING of the already-claimed refusal, taken at the
     # SELECT that actually raises it. ⚠️ The obvious site — the identical
