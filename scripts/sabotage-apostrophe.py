@@ -130,6 +130,29 @@ def restore():
     run("git checkout -- .")
 
 
+def refuse_a_dirty_tree():
+    """Stop before the first restore() if it would delete uncommitted work.
+
+    restore() is `git checkout -- .`, and main() calls it BEFORE the first case,
+    so scoring a fix that is written but not yet committed reverts the fix and
+    then scores HEAD. The symptom accuses the wrong file: rows read
+    "mutation site appears 0 times, not once" against a source this script has
+    already reverted, so the obvious next move is to edit the case list.
+
+    ⚠️ The check is the whole repository, not a target list, because
+    `git checkout -- .` is the whole repository. A per-file check would clear a
+    tree this still destroys.
+
+    Untracked files are excluded: `git checkout` cannot touch them, and this
+    script's own scripts/__pycache__/ would otherwise make it refuse to run over
+    damage it caused and that does not matter.
+    """
+    dirty = run("git status --porcelain --untracked-files=no").stdout.strip()
+    if dirty:
+        sys.exit("REFUSING TO RUN: uncommitted changes, and this script restores "
+                 "the whole tree from git:\n" + dirty)
+
+
 def classify():
     """Return (verdict_kind, failing_tests, detail)."""
     build = run("go build ./... && go vet ./...")
@@ -164,6 +187,7 @@ def classify():
 
 
 def main():
+    refuse_a_dirty_tree()
     restore()
     base = run("go test -count=1 ./...")
     if base.returncode != 0:
