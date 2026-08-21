@@ -70,6 +70,20 @@ func createTestServer(t *testing.T) (*Server, func()) {
 			tier TEXT NOT NULL,
 			auto_generated BOOLEAN DEFAULT FALSE
 		);
+
+		-- Translated from schema/rating_system.sql. The UNIQUE is on (bounty_id, rater_id),
+		-- the same two columns the Go guard in db.CreateBountyRating checks by hand.
+		CREATE TABLE IF NOT EXISTS bounty_ratings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			bounty_id INTEGER NOT NULL,
+			rater_id INTEGER NOT NULL,
+			rated_id INTEGER NOT NULL,
+			rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+			comment TEXT DEFAULT '',
+			categories TEXT DEFAULT '{}',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(bounty_id, rater_id)
+		);
 	`
 
 	if _, err := rawDB.Exec(schema); err != nil {

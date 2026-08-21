@@ -87,6 +87,23 @@ func setupSettlementDB(t *testing.T) *DB {
 			processed_by INTEGER REFERENCES agents(id) ON DELETE SET NULL,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
+		// Translated from schema/rating_system.sql, which is where bounty_ratings is
+		// declared — it is NOT in db.go's migration list, so Migrate() never creates it.
+		// The UNIQUE is on TWO columns, (bounty_id, rater_id): one rating per bounty per
+		// rater, whoever is being rated. db_test.go's migrateSQLite builds a differently
+		// named `ratings` table with a THREE-column UNIQUE that no production code reads;
+		// a test written against that one would pin a constraint this code never meets.
+		`CREATE TABLE bounty_ratings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			bounty_id INTEGER NOT NULL REFERENCES bounties(id) ON DELETE CASCADE,
+			rater_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			rated_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+			comment TEXT DEFAULT '',
+			categories TEXT DEFAULT '{}',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(bounty_id, rater_id)
+		)`,
 		`CREATE TABLE disputes (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			bounty_id INTEGER NOT NULL REFERENCES bounties(id) ON DELETE CASCADE,
