@@ -2,11 +2,11 @@ package api
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/kayushkin/inber-party/internal/bounty"
@@ -24,70 +24,23 @@ func createTestServer(t *testing.T) (*Server, func()) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
 
-	rawDB, err := sql.Open("sqlite3", dbPath)
+	// Build the production schema — db.go's own migration list, translated into SQLite,
+	// on a connection that enforces foreign keys. The hand-written schema this replaced
+	// had three columns production has never had (currency, verified_at, auto_generated)
+	// and was missing three it does have (work_submission, verification_notes,
+	// submitted_at), so a test could pass against a bounties table the server never runs
+	// on.
+	rawDB, err := db.OpenSQLiteMirrorOfProductionSchema(dbPath)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
 
-	// Create minimal schema for testing
-	schema := `
-		CREATE TABLE IF NOT EXISTS agents (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL,
-			title TEXT NOT NULL,
-			class TEXT NOT NULL,
-			level INTEGER DEFAULT 1,
-			xp INTEGER DEFAULT 0,
-			gold INTEGER DEFAULT 50,
-			energy INTEGER DEFAULT 100,
-			status TEXT DEFAULT 'active',
-			avatar_emoji TEXT DEFAULT '🤖',
-			mood TEXT DEFAULT 'neutral',
-			mood_score REAL DEFAULT 50.0,
-			workload INTEGER DEFAULT 0,
-			last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		);
-
-		CREATE TABLE IF NOT EXISTS bounties (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			title TEXT NOT NULL,
-			description TEXT NOT NULL,
-			requirements TEXT,
-			payout_amount INTEGER NOT NULL,
-			currency TEXT DEFAULT 'USD',
-			deadline TIMESTAMP,
-			status TEXT NOT NULL DEFAULT 'open',
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			creator_id INTEGER NOT NULL,
-			claimer_id INTEGER,
-			claimed_at TIMESTAMP,
-			completed_at TIMESTAMP,
-			verified_at TIMESTAMP,
-			required_skills TEXT,
-			tier TEXT NOT NULL,
-			auto_generated BOOLEAN DEFAULT FALSE
-		);
-
-		-- Translated from schema/rating_system.sql. The UNIQUE is on (bounty_id, rater_id),
-		-- the same two columns the Go guard in db.CreateBountyRating checks by hand.
-		CREATE TABLE IF NOT EXISTS bounty_ratings (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			bounty_id INTEGER NOT NULL,
-			rater_id INTEGER NOT NULL,
-			rated_id INTEGER NOT NULL,
-			rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-			comment TEXT DEFAULT '',
-			categories TEXT DEFAULT '{}',
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(bounty_id, rater_id)
-		);
-	`
-
-	if _, err := rawDB.Exec(schema); err != nil {
-		t.Fatalf("Failed to create schema: %v", err)
+	// bounty_ratings is not in db.go's migration list — it is declared in
+	// schema/rating_system.sql, which Migrate() never reads — so the mirror cannot create
+	// it and the rating tests need it. Applying it here, visibly and by itself, is what
+	// keeps that anomaly readable; see internal/db/sqlite_rating_system_schema.go.
+	if err := db.ApplyRatingSystemSchemaToSQLite(rawDB); err != nil {
+		t.Fatalf("Failed to create the rating system schema: %v", err)
 	}
 
 	// Wrap in the custom DB type
@@ -326,7 +279,7 @@ func TestCreateAgent_MissingFields(t *testing.T) {
 
 	// Check if response contains validation errors (this might vary based on implementation)
 	responseBody := rr.Body.String()
-	
+
 	// For debugging, let's see what we actually get
 	if rr.Code == http.StatusBadRequest && responseBody != "" {
 		// This is a valid response indicating validation failed
@@ -348,7 +301,7 @@ func TestCreateAgent_MissingFields(t *testing.T) {
 			if _, exists := response["message"]; exists {
 				hasErrors = true
 			}
-			
+
 			if !hasErrors {
 				t.Logf("Warning: Response doesn't contain recognizable error fields")
 			}
@@ -485,10 +438,36 @@ func TestWriteValidationError(t *testing.T) {
 	}
 }
 
+// insertTestAgent creates one agent and returns its id as the string the bounty repository
+// stores in creator_id. Every table in the production schema that names an agent does it
+// with a REFERENCES clause, so a test that invents an agent id is writing a row the
+// product cannot hold.
+func insertTestAgent(t *testing.T, database *db.DB, name string) string {
+	t.Helper()
+
+	result, err := database.Exec(
+		`INSERT INTO agents (name, title, class, avatar_emoji) VALUES (?, ?, ?, ?)`,
+		name, "Tester", "rogue", "\U0001F9EA")
+	if err != nil {
+		t.Fatalf("insert test agent %q: %v", name, err)
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		t.Fatalf("read the id of test agent %q: %v", name, err)
+	}
+	return strconv.FormatInt(id, 10)
+}
+
 // Integration test for bounty endpoints via API
 func TestBountyEndpoints_Integration(t *testing.T) {
 	server, cleanup := createTestServer(t)
 	defer cleanup()
+
+	// bounties.creator_id REFERENCES agents(id), so the creating agent has to exist
+	// before the bounty does. This test used to name creator "1" against an empty agents
+	// table and pass, because the mirror created the REFERENCES clause and SQLite did not
+	// enforce it; PostgreSQL refuses that row.
+	creatorID := insertTestAgent(t, server.DB, "bounty-creator")
 
 	// Test creating a bounty through the API
 	newBounty := bounty.AutoBountyRequest{
@@ -527,7 +506,7 @@ func TestBountyEndpoints_Integration(t *testing.T) {
 			Description:  req.Description,
 			Requirements: req.Requirements,
 			PayoutAmount: req.PayoutAmount,
-			CreatedBy:    "1", // Mock user ID
+			CreatedBy:    creatorID,
 			Currency:     "USD",
 		}
 

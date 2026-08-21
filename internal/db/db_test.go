@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,42 +10,46 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// Test helper to create a temporary SQLite database for testing
+// Test helper to create a temporary file-backed SQLite database carrying the production
+// schema. Both helpers go through OpenSQLiteMirrorOfProductionSchema rather than
+// sql.Open: a connection opened by hand ignores every REFERENCES clause in the schema,
+// silently, so a helper that hands one out is a trap for whoever writes the next test.
 func setupTestDB(t *testing.T) (*DB, func()) {
-	// Create a temporary file for SQLite
+	t.Helper()
+
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test.db")
-	
-	// Use SQLite for testing (easier to set up than PostgreSQL)
-	db, err := sql.Open("sqlite3", dbPath)
+
+	db, err := OpenSQLiteMirrorOfProductionSchema(dbPath)
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
 
 	testDB := &DB{db}
-	
-	// Cleanup function
+
 	cleanup := func() {
 		testDB.Close()
 		os.Remove(dbPath)
 	}
-	
+
 	return testDB, cleanup
 }
 
-// Test helper to create an in-memory SQLite database
+// Test helper to create an in-memory SQLite database carrying the production schema.
 func setupInMemoryDB(t *testing.T) (*DB, func()) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	t.Helper()
+
+	db, err := OpenSQLiteMirrorOfProductionSchema(":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open in-memory database: %v", err)
 	}
 
 	testDB := &DB{db}
-	
+
 	cleanup := func() {
 		testDB.Close()
 	}
-	
+
 	return testDB, cleanup
 }
 
@@ -119,60 +122,12 @@ func TestDB_Close(t *testing.T) {
 	}
 }
 
-func TestDB_Migrate(t *testing.T) {
-	db, cleanup := setupInMemoryDB(t)
-	defer cleanup()
-
-	// Convert PostgreSQL-specific migrations to SQLite for testing
-	err := db.migrateSQLite()
-	if err != nil {
-		t.Fatalf("Migration failed: %v", err)
-	}
-
-	// Verify that tables were created
-	tables := []string{"agents", "parties", "bounties", "party_members", "applications", "skills", "agent_skills", "payouts", "ratings", "reputation"}
-	
-	for _, table := range tables {
-		var count int
-		query := fmt.Sprintf("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='%s'", table)
-		err := db.QueryRow(query).Scan(&count)
-		if err != nil {
-			t.Errorf("Failed to check for table %s: %v", table, err)
-			continue
-		}
-		
-		if count != 1 {
-			t.Errorf("Expected table %s to exist after migration", table)
-		}
-	}
-}
-
-func TestDB_Migrate_Idempotent(t *testing.T) {
-	db, cleanup := setupInMemoryDB(t)
-	defer cleanup()
-
-	// Run migration multiple times - should not fail
-	for i := 0; i < 3; i++ {
-		err := db.migrateSQLite()
-		if err != nil {
-			t.Fatalf("Migration attempt %d failed: %v", i+1, err)
-		}
-	}
-
-	// Verify tables still exist and are accessible
-	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM agents").Scan(&count)
-	if err != nil {
-		t.Fatalf("Failed to query agents table after multiple migrations: %v", err)
-	}
-}
-
 func TestDB_BasicOperations(t *testing.T) {
 	db, cleanup := setupInMemoryDB(t)
 	defer cleanup()
 
-	// Run migrations first
-	err := db.migrateSQLite()
+	// Build the production schema, translated into SQLite
+	err := ApplyProductionMigrationsToSQLite(db.DB)
 	if err != nil {
 		t.Fatalf("Migration failed: %v", err)
 	}
@@ -211,8 +166,8 @@ func TestDB_TransactionRollback(t *testing.T) {
 	db, cleanup := setupInMemoryDB(t)
 	defer cleanup()
 
-	// Run migrations
-	err := db.migrateSQLite()
+	// Build the production schema, translated into SQLite
+	err := ApplyProductionMigrationsToSQLite(db.DB)
 	if err != nil {
 		t.Fatalf("Migration failed: %v", err)
 	}
@@ -254,8 +209,8 @@ func TestDB_MultipleOperations(t *testing.T) {
 	db, cleanup := setupInMemoryDB(t)
 	defer cleanup()
 
-	// Run migrations
-	err := db.migrateSQLite()
+	// Build the production schema, translated into SQLite
+	err := ApplyProductionMigrationsToSQLite(db.DB)
 	if err != nil {
 		t.Fatalf("Migration failed: %v", err)
 	}
@@ -321,8 +276,8 @@ func TestDB_PreparedStatements(t *testing.T) {
 	db, cleanup := setupInMemoryDB(t)
 	defer cleanup()
 
-	// Run migrations
-	err := db.migrateSQLite()
+	// Build the production schema, translated into SQLite
+	err := ApplyProductionMigrationsToSQLite(db.DB)
 	if err != nil {
 		t.Fatalf("Migration failed: %v", err)
 	}
@@ -353,117 +308,4 @@ func TestDB_PreparedStatements(t *testing.T) {
 	if count != len(agents) {
 		t.Errorf("Expected %d prepared agents, got %d", len(agents), count)
 	}
-}
-
-// migrateSQLite runs SQLite-compatible migrations for testing
-func (db *DB) migrateSQLite() error {
-	migrations := []string{
-		`CREATE TABLE IF NOT EXISTS agents (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL,
-			title TEXT NOT NULL,
-			class TEXT NOT NULL,
-			level INTEGER DEFAULT 1,
-			xp INTEGER DEFAULT 0,
-			energy INTEGER DEFAULT 100,
-			status TEXT DEFAULT 'idle',
-			avatar_emoji TEXT NOT NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE IF NOT EXISTS parties (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL,
-			description TEXT,
-			leader_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE IF NOT EXISTS bounties (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			title TEXT NOT NULL,
-			description TEXT NOT NULL,
-			payout REAL NOT NULL,
-			status TEXT DEFAULT 'open',
-			created_by INTEGER REFERENCES agents(id) ON DELETE CASCADE,
-			assigned_to INTEGER REFERENCES agents(id) ON DELETE SET NULL,
-			tier TEXT NOT NULL,
-			difficulty TEXT NOT NULL,
-			type TEXT NOT NULL,
-			tags TEXT,
-			deadline DATETIME,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE IF NOT EXISTS party_members (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			party_id INTEGER REFERENCES parties(id) ON DELETE CASCADE,
-			agent_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
-			role TEXT DEFAULT 'member',
-			joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(party_id, agent_id)
-		)`,
-		`CREATE TABLE IF NOT EXISTS applications (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			bounty_id INTEGER REFERENCES bounties(id) ON DELETE CASCADE,
-			agent_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
-			message TEXT,
-			status TEXT DEFAULT 'pending',
-			applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			reviewed_at DATETIME,
-			UNIQUE(bounty_id, agent_id)
-		)`,
-		`CREATE TABLE IF NOT EXISTS skills (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT UNIQUE NOT NULL,
-			description TEXT,
-			category TEXT,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE IF NOT EXISTS agent_skills (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			agent_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
-			skill_id INTEGER REFERENCES skills(id) ON DELETE CASCADE,
-			level INTEGER DEFAULT 1,
-			acquired_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(agent_id, skill_id)
-		)`,
-		`CREATE TABLE IF NOT EXISTS payouts (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			bounty_id INTEGER REFERENCES bounties(id) ON DELETE CASCADE,
-			recipient_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
-			amount REAL NOT NULL,
-			reason TEXT,
-			status TEXT DEFAULT 'pending',
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			processed_at DATETIME
-		)`,
-		`CREATE TABLE IF NOT EXISTS ratings (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			bounty_id INTEGER REFERENCES bounties(id) ON DELETE CASCADE,
-			rater_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
-			rated_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
-			score INTEGER NOT NULL CHECK (score >= 1 AND score <= 5),
-			comment TEXT,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(bounty_id, rater_id, rated_id)
-		)`,
-		`CREATE TABLE IF NOT EXISTS reputation (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			agent_id INTEGER UNIQUE REFERENCES agents(id) ON DELETE CASCADE,
-			total_score REAL DEFAULT 0,
-			total_ratings INTEGER DEFAULT 0,
-			average_rating REAL DEFAULT 0,
-			last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-	}
-
-	for _, migration := range migrations {
-		_, err := db.Exec(migration)
-		if err != nil {
-			return fmt.Errorf("migration failed: %w", err)
-		}
-	}
-
-	return nil
 }
