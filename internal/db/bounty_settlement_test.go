@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -11,124 +12,50 @@ import (
 // reputation ledger beside it were executed by no test at all. A panic() at the entry
 // of any of these functions left `go test ./...` green on main.
 //
-// ⚠️ These tests deliberately do NOT use db_test.go's migrateSQLite. That helper builds
-// a `bounties` table with columns `payout`, `created_by` and `assigned_to`, and a
-// `reputation` table keyed on agent_id alone with `total_score`/`average_rating`. The
-// code in bounties.go and reputation.go queries `payout_amount`, `creator_id`,
-// `claimer_id`, and a reputation row keyed on (agent_id, domain) with
-// `score`/`task_count`/`success_rate`. The two schemas are different shapes, so a test
-// written against the helper would pin a table this code never reads. The schema below
-// is translated from the production migration in db.go — SERIAL to AUTOINCREMENT,
-// VARCHAR/JSONB to TEXT, TIMESTAMP to DATETIME — and nothing else.
+// The fixture below builds its database from db.go's own migration list, translated into
+// SQLite by ApplyProductionMigrationsToSQLite, on a connection that enforces foreign keys.
+// It used to hand-write the schema instead, because the helper of the day built a
+// `bounties` table with columns this code never reads (`payout`, `created_by`,
+// `assigned_to`) and a `reputation` table keyed on agent_id alone. That reason is gone:
+// the helper is no longer hand-written either, so both fixtures now translate the same
+// production schema and neither can drift from it on its own.
+//
+// One table is still applied separately, and it is not an oversight: bounty_ratings is
+// declared in schema/rating_system.sql rather than in db.go, so the mirror does not create
+// it. See internal/db/sqlite_rating_system_schema.go for what that means and what is open.
 
 func setupSettlementDB(t *testing.T) *DB {
 	t.Helper()
 
-	sqlDB, err := sql.Open("sqlite3", ":memory:")
+	sqlDB, err := OpenSQLiteMirrorOfProductionSchema(":memory:")
 	if err != nil {
-		t.Fatalf("open in-memory database: %v", err)
+		t.Fatalf("open the SQLite mirror of the production schema: %v", err)
 	}
 	t.Cleanup(func() { sqlDB.Close() })
 
-	database := &DB{sqlDB}
-
-	schema := []string{
-		`CREATE TABLE agents (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL,
-			title TEXT NOT NULL DEFAULT '',
-			class TEXT NOT NULL DEFAULT '',
-			level INTEGER DEFAULT 1,
-			avatar_emoji TEXT NOT NULL DEFAULT '',
-			gold INTEGER DEFAULT 0,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE reputation (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			agent_id INTEGER REFERENCES agents(id) ON DELETE CASCADE,
-			domain TEXT NOT NULL,
-			score INTEGER DEFAULT 100,
-			task_count INTEGER DEFAULT 0,
-			success_rate REAL DEFAULT 1.0,
-			last_update DATETIME DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(agent_id, domain)
-		)`,
-		`CREATE TABLE bounties (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			title TEXT NOT NULL,
-			description TEXT NOT NULL,
-			requirements TEXT NOT NULL DEFAULT '',
-			payout_amount INTEGER NOT NULL DEFAULT 0,
-			status TEXT NOT NULL DEFAULT 'open',
-			deadline DATETIME,
-			creator_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-			claimer_id INTEGER REFERENCES agents(id) ON DELETE SET NULL,
-			work_submission TEXT,
-			verification_notes TEXT,
-			required_skills TEXT DEFAULT '[]',
-			tier TEXT NOT NULL DEFAULT 'bronze',
-			claimed_at DATETIME,
-			submitted_at DATETIME,
-			completed_at DATETIME,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE payout_entries (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-			amount INTEGER NOT NULL,
-			source TEXT NOT NULL,
-			source_id INTEGER,
-			description TEXT NOT NULL,
-			transaction_type TEXT NOT NULL CHECK (transaction_type IN ('credit', 'debit', 'adjustment')),
-			balance_before INTEGER NOT NULL DEFAULT 0,
-			balance_after INTEGER NOT NULL DEFAULT 0,
-			processed_by INTEGER REFERENCES agents(id) ON DELETE SET NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-		// Translated from schema/rating_system.sql, which is where bounty_ratings is
-		// declared — it is NOT in db.go's migration list, so Migrate() never creates it.
-		// The UNIQUE is on TWO columns, (bounty_id, rater_id): one rating per bounty per
-		// rater, whoever is being rated. db_test.go's migrateSQLite builds a differently
-		// named `ratings` table with a THREE-column UNIQUE that no production code reads;
-		// a test written against that one would pin a constraint this code never meets.
-		`CREATE TABLE bounty_ratings (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			bounty_id INTEGER NOT NULL REFERENCES bounties(id) ON DELETE CASCADE,
-			rater_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-			rated_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-			rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-			comment TEXT DEFAULT '',
-			categories TEXT DEFAULT '{}',
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(bounty_id, rater_id)
-		)`,
-		`CREATE TABLE disputes (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			bounty_id INTEGER NOT NULL REFERENCES bounties(id) ON DELETE CASCADE,
-			claimer_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-			creator_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-			reason TEXT NOT NULL,
-			evidence TEXT NOT NULL DEFAULT '',
-			status TEXT NOT NULL DEFAULT 'open',
-			admin_notes TEXT,
-			resolution TEXT,
-			resolved_by INTEGER REFERENCES agents(id) ON DELETE SET NULL,
-			resolved_at DATETIME,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(bounty_id, claimer_id)
-		)`,
+	if err := ApplyRatingSystemSchemaToSQLite(sqlDB); err != nil {
+		t.Fatalf("apply the rating system schema: %v", err)
 	}
 
-	for _, stmt := range schema {
-		if _, err := sqlDB.Exec(stmt); err != nil {
-			t.Fatalf("create schema: %v\n%s", err, stmt)
-		}
-	}
+	return &DB{sqlDB}
+}
 
-	return database
+// The settlement fixture's own known-negative. Before the collapse it opened
+// sql.Open("sqlite3", ":memory:") by hand, which creates every REFERENCES clause in the
+// schema and obeys none of them — so a test could insert a bounty whose creator_id named
+// no agent and nothing said so. Going through the mirror is what fixed that, and this is
+// the test that keeps it fixed.
+func TestTheSettlementFixtureEnforcesForeignKeys(t *testing.T) {
+	database := setupSettlementDB(t)
+
+	_, err := database.Exec(
+		`INSERT INTO bounties (title, description, payout_amount, creator_id, tier) VALUES ('x', 'y', 1, 424242, 'bronze')`)
+	if err == nil {
+		t.Fatal("stored a bounty whose creator_id names no agent — the fixture is not enforcing foreign keys")
+	}
+	if !strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+		t.Errorf("refused for the wrong reason: %v", err)
+	}
 }
 
 func makeAgent(t *testing.T, database *DB, name string, gold int) int {

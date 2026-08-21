@@ -367,3 +367,59 @@ func TestForeignKeyEnforcementIsAddedToADataSourceNameWithoutLosingItsParameters
 		}
 	}
 }
+
+// TestAPrivateInMemoryMirrorIsOneDatabaseAcrossThePool holds the reason
+// OpenSQLiteMirrorOfProductionSchema caps such a pool at one connection. SQLite gives
+// ":memory:" a per-connection meaning, and database/sql grows its pool on demand, so
+// without the cap the schema lands in the connection that served the first call and the
+// second connection opens an empty database — no error, no missing row, just every table
+// gone. Measured before the cap: the second connection reported "no such table" for
+// bounties.
+func TestAPrivateInMemoryMirrorIsOneDatabaseAcrossThePool(t *testing.T) {
+	mirror, err := OpenSQLiteMirrorOfProductionSchema(":memory:")
+	if err != nil {
+		t.Fatalf("open the mirror: %v", err)
+	}
+	defer mirror.Close()
+
+	if capped := mirror.Stats().MaxOpenConnections; capped != 1 {
+		t.Fatalf("a private in-memory pool has to be capped at one connection, got %d", capped)
+	}
+
+	for attempt := 0; attempt < 3; attempt++ {
+		connection, err := mirror.Conn(t.Context())
+		if err != nil {
+			t.Fatalf("take connection %d from the pool: %v", attempt, err)
+		}
+		var name string
+		err = connection.QueryRowContext(t.Context(),
+			`SELECT name FROM sqlite_master WHERE type='table' AND name='bounties'`).Scan(&name)
+		connection.Close()
+		if err != nil {
+			t.Fatalf("pool connection %d cannot see the schema the mirror just applied: %v", attempt, err)
+		}
+	}
+}
+
+// TestOnlyAPrivateMemoryDataSourceIsCapped keeps the cap off the data source names that do
+// not need it. A file database and a shared-cache memory database are both one database
+// however many connections read them, and capping either would serialise a pool for
+// nothing.
+func TestOnlyAPrivateMemoryDataSourceIsCapped(t *testing.T) {
+	for _, dataSource := range []struct {
+		name      string
+		isPrivate bool
+	}{
+		{":memory:", true},
+		{"file::memory:", true},
+		{"file:test.db?mode=memory", true},
+		{"file::memory:?cache=shared", false},
+		{"file:named.db?mode=memory&cache=shared", false},
+		{"/tmp/party.db", false},
+		{"file:/tmp/party.db?_foreign_keys=on", false},
+	} {
+		if got := namesAPrivateInMemoryDatabase(dataSource.name); got != dataSource.isPrivate {
+			t.Errorf("namesAPrivateInMemoryDatabase(%q) = %v, want %v", dataSource.name, got, dataSource.isPrivate)
+		}
+	}
+}

@@ -60,11 +60,41 @@ func OpenSQLiteMirrorOfProductionSchema(dataSourceName string) (*sql.DB, error) 
 	if err != nil {
 		return nil, fmt.Errorf("open SQLite mirror %q: %w", dataSourceName, err)
 	}
+	if namesAPrivateInMemoryDatabase(dataSourceName) {
+		sqlDB.SetMaxOpenConns(1)
+	}
 	if err := ApplyProductionMigrationsToSQLite(sqlDB); err != nil {
 		sqlDB.Close()
 		return nil, err
 	}
 	return sqlDB, nil
+}
+
+// privateInMemoryDataSource matches the data source names that give every connection its
+// own empty database instead of a shared one.
+var privateInMemoryDataSource = regexp.MustCompile(`(?i):memory:|mode=memory`)
+
+// sharedCacheParameter is what turns a memory database from per-connection into
+// per-process. A data source name carrying it is shared, so the pool may open as many
+// connections as it likes.
+const sharedCacheParameter = "cache=shared"
+
+// namesAPrivateInMemoryDatabase reports whether a data source name means "a fresh empty
+// database per connection". SQLite gives ":memory:" that meaning, and database/sql hands
+// out connections from a pool it grows on demand — so the schema this file applies lands
+// in whichever connection served the first call, and a second connection sees an empty
+// database with no error to say so. Measured on this box: the second pool connection
+// reports "no such table" for every table the mirror just created.
+//
+// The mirror pins such a pool to a single connection. That is the only reading of
+// ":memory:" that matches what a caller asking for one means — one database, for the life
+// of the handle. A caller that wants several connections over one in-memory database has
+// to say so in the data source name, with a shared cache.
+func namesAPrivateInMemoryDatabase(dataSourceName string) bool {
+	if strings.Contains(strings.ToLower(dataSourceName), sharedCacheParameter) {
+		return false
+	}
+	return privateInMemoryDataSource.MatchString(dataSourceName)
 }
 
 // withForeignKeyEnforcement adds the foreign key parameter to a SQLite data source name,
