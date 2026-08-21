@@ -126,6 +126,34 @@ echo "==> Building $BINARY_NAME..."
 CGO_ENABLED=1 "$GO" build -ldflags "-X github.com/kayushkin/inber-party/internal/version.Version=$(git describe --tags --always --dirty 2>/dev/null || echo dev) -X github.com/kayushkin/inber-party/internal/version.GitCommit=$(git rev-parse --short HEAD) -X github.com/kayushkin/inber-party/internal/version.BuildTime=$STAMP" -o "$BINARY_NAME" ./cmd/server
 echo "    built: $(ls -lh "$BINARY_NAME" | awk '{print $5}')"
 
+# Provenance. Asserted here, immediately after the build and long before the
+# backups, the unit install or the binary rename -- nothing destructive has
+# happened yet at this point. `go build` writes no VCS stamp when it cannot find
+# a .git DIRECTORY, and it does not fail when that happens, not even with
+# -buildvcs=true; the usual cause is building from a git worktree, whose .git is
+# a pointer file. Such a binary compiles, links, vets green and reads clean in
+# the log -- it simply cannot be traced back to a commit, which is the whole
+# point of the ldflags stamp two lines above.
+#
+# `$GO` and not a bare `go`: this script resolves its own toolchain, and a bare
+# `go` here would read the stamp with a different binary than the one that wrote
+# it -- or with none at all, failing the deploy for the wrong reason.
+echo "==> Checking provenance..."
+buildinfo="$("$GO" version -m "$BINARY_NAME")"
+vcs_revision="$(printf '%s\n' "$buildinfo" | awk -F= '$1 ~ /[[:space:]]vcs\.revision$/ {print $2}')"
+vcs_modified="$(printf '%s\n' "$buildinfo" | awk -F= '$1 ~ /[[:space:]]vcs\.modified$/ {print $2}')"
+if [ -z "$vcs_revision" ]; then
+  echo "    REFUSING TO INSTALL: this binary carries no vcs.revision, so nothing can tie" >&2
+  echo "    it back to a commit. Build from a real clone or checkout, not a worktree." >&2
+  exit 1
+fi
+echo "    vcs.revision=$vcs_revision"
+if [ "$vcs_modified" = "true" ]; then
+  echo "    WARNING: built from a DIRTY tree (vcs.modified=true). $vcs_revision names the" >&2
+  echo "    commit this binary was built NEAR, not the source it was built FROM, and that" >&2
+  echo "    source is not recoverable from any commit. Commit first for a reproducible build." >&2
+fi
+
 # Gate on vet, not `go test ./...`: several suites here want a live Postgres and
 # would go red on a perfectly good tree, and a deploy gate that fails for reasons
 # unrelated to the deploy is one people learn to ignore. vet still typechecks the
