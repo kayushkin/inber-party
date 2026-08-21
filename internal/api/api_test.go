@@ -29,50 +29,12 @@ func createTestServer(t *testing.T) (*Server, func()) {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
 
-	// Create minimal schema for testing
-	schema := `
-		CREATE TABLE IF NOT EXISTS agents (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL,
-			title TEXT NOT NULL,
-			class TEXT NOT NULL,
-			level INTEGER DEFAULT 1,
-			xp INTEGER DEFAULT 0,
-			gold INTEGER DEFAULT 50,
-			energy INTEGER DEFAULT 100,
-			status TEXT DEFAULT 'active',
-			avatar_emoji TEXT DEFAULT '🤖',
-			mood TEXT DEFAULT 'neutral',
-			mood_score REAL DEFAULT 50.0,
-			workload INTEGER DEFAULT 0,
-			last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		);
-
-		CREATE TABLE IF NOT EXISTS bounties (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			title TEXT NOT NULL,
-			description TEXT NOT NULL,
-			requirements TEXT,
-			payout_amount INTEGER NOT NULL,
-			currency TEXT DEFAULT 'USD',
-			deadline TIMESTAMP,
-			status TEXT NOT NULL DEFAULT 'open',
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			creator_id INTEGER NOT NULL,
-			claimer_id INTEGER,
-			claimed_at TIMESTAMP,
-			completed_at TIMESTAMP,
-			verified_at TIMESTAMP,
-			required_skills TEXT,
-			tier TEXT NOT NULL,
-			auto_generated BOOLEAN DEFAULT FALSE
-		);
-	`
-
-	if _, err := rawDB.Exec(schema); err != nil {
+	// Build the production schema — db.go's own migration list, translated into SQLite.
+	// The hand-written schema this replaced had three columns production has never had
+	// (currency, verified_at, auto_generated) and was missing three it does have
+	// (work_submission, verification_notes, submitted_at), so a test could pass against a
+	// bounties table the server never runs on.
+	if err := db.ApplyProductionMigrationsToSQLite(rawDB); err != nil {
 		t.Fatalf("Failed to create schema: %v", err)
 	}
 

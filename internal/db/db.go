@@ -27,9 +27,13 @@ func Connect(databaseURL string) (*DB, error) {
 	return &DB{db}, nil
 }
 
-// Migrate runs all database migrations
-func (db *DB) Migrate() error {
-	migrations := []string{
+// postgresMigrations returns the production schema: the ordered PostgreSQL DDL
+// statements Migrate applies, in the order it applies them. It is a function rather
+// than a literal inside Migrate so the test mirror can translate this exact list into
+// SQLite instead of hand-writing a second schema beside it — see
+// ApplyProductionMigrationsToSQLite in sqlite_mirror.go.
+func postgresMigrations() []string {
+	return []string{
 		`CREATE TABLE IF NOT EXISTS agents (
 			id SERIAL PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
@@ -296,6 +300,11 @@ func (db *DB) Migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_agent_relationships_type ON agent_relationships(relationship_type)`,
 		`CREATE INDEX IF NOT EXISTS idx_agent_relationships_strength ON agent_relationships(strength DESC)`,
 	}
+}
+
+// Migrate runs all database migrations
+func (db *DB) Migrate() error {
+	migrations := postgresMigrations()
 
 	for i, migration := range migrations {
 		if _, err := db.Exec(migration); err != nil {
