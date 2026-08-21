@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,42 +10,46 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// Test helper to create a temporary SQLite database for testing
+// Test helper to create a temporary file-backed SQLite database carrying the production
+// schema. Both helpers go through OpenSQLiteMirrorOfProductionSchema rather than
+// sql.Open: a connection opened by hand ignores every REFERENCES clause in the schema,
+// silently, so a helper that hands one out is a trap for whoever writes the next test.
 func setupTestDB(t *testing.T) (*DB, func()) {
-	// Create a temporary file for SQLite
+	t.Helper()
+
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test.db")
-	
-	// Use SQLite for testing (easier to set up than PostgreSQL)
-	db, err := sql.Open("sqlite3", dbPath)
+
+	db, err := OpenSQLiteMirrorOfProductionSchema(dbPath)
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
 
 	testDB := &DB{db}
-	
-	// Cleanup function
+
 	cleanup := func() {
 		testDB.Close()
 		os.Remove(dbPath)
 	}
-	
+
 	return testDB, cleanup
 }
 
-// Test helper to create an in-memory SQLite database
+// Test helper to create an in-memory SQLite database carrying the production schema.
 func setupInMemoryDB(t *testing.T) (*DB, func()) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	t.Helper()
+
+	db, err := OpenSQLiteMirrorOfProductionSchema(":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open in-memory database: %v", err)
 	}
 
 	testDB := &DB{db}
-	
+
 	cleanup := func() {
 		testDB.Close()
 	}
-	
+
 	return testDB, cleanup
 }
 

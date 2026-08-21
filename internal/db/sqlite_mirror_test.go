@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 	"regexp"
 	"sort"
@@ -250,4 +251,119 @@ func sortedTableNames(schema map[string][]string) []string {
 
 func firstLine(statement string) string {
 	return strings.SplitN(strings.TrimSpace(statement), "\n", 2)[0]
+}
+
+// The four tests below are the controls for foreign key enforcement. Without them, "the
+// suite is green under enforcement" and "the DSN parameter never took" print the same
+// result — which is the state this mirror was in until 2026-08-21, carrying all 25 of
+// db.go's REFERENCES clauses and obeying none of them.
+
+func TestAMirrorDatabaseEnforcesForeignKeys(t *testing.T) {
+	db, cleanup := setupInMemoryDB(t)
+	defer cleanup()
+
+	var enforced int
+	if err := db.QueryRow(`PRAGMA foreign_keys`).Scan(&enforced); err != nil {
+		t.Fatalf("read PRAGMA foreign_keys: %v", err)
+	}
+	if enforced != 1 {
+		t.Fatalf("a mirror database must enforce foreign keys, PRAGMA foreign_keys = %d", enforced)
+	}
+}
+
+// TestTheMirrorRefusesAChildRowWhoseParentDoesNotExist is the positive control: it drives
+// the enforcement itself rather than the pragma that switches it on, because a pragma
+// reading 1 on one pooled connection is not proof that the connection running the INSERT
+// has it too.
+func TestTheMirrorRefusesAChildRowWhoseParentDoesNotExist(t *testing.T) {
+	db, cleanup := setupInMemoryDB(t)
+	defer cleanup()
+
+	// party_members.agent_id REFERENCES agents(id), and agents is empty.
+	_, err := db.Exec(`INSERT INTO party_members (party_id, agent_id, role) VALUES (NULL, ?, 'member')`, 999999)
+	if err == nil {
+		t.Fatal("expected the mirror to refuse a party_members row naming an agent that does not exist")
+	}
+	if !strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+		t.Errorf("expected a foreign key error, got: %v", err)
+	}
+}
+
+// TestTheMirrorCascadesADeleteTheProductionSchemaDeclaresCascading covers the other half
+// of what enforcement buys. ON DELETE CASCADE is inert on an unenforcing connection, so a
+// test that deleted an agent and asserted its rows went with it was asserting against a
+// database that never cascaded and would have passed either way.
+func TestTheMirrorCascadesADeleteTheProductionSchemaDeclaresCascading(t *testing.T) {
+	db, cleanup := setupInMemoryDB(t)
+	defer cleanup()
+
+	result, err := db.Exec(
+		`INSERT INTO agents (name, title, class, avatar_emoji) VALUES ('cascade-subject', 'Tester', 'rogue', 'x')`)
+	if err != nil {
+		t.Fatalf("insert agent: %v", err)
+	}
+	agentID, err := result.LastInsertId()
+	if err != nil {
+		t.Fatalf("read the inserted agent's id: %v", err)
+	}
+
+	if _, err := db.Exec(`INSERT INTO skills (agent_id, skill_name) VALUES (?, 'lockpicking')`, agentID); err != nil {
+		t.Fatalf("insert skill: %v", err)
+	}
+
+	if _, err := db.Exec(`DELETE FROM agents WHERE id = ?`, agentID); err != nil {
+		t.Fatalf("delete agent: %v", err)
+	}
+
+	var remaining int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM skills WHERE agent_id = ?`, agentID).Scan(&remaining); err != nil {
+		t.Fatalf("count skills after deleting their agent: %v", err)
+	}
+	if remaining != 0 {
+		t.Errorf("skills.agent_id is declared ON DELETE CASCADE and %d row(s) survived the delete", remaining)
+	}
+}
+
+// TestTheMirrorRefusesAConnectionThatIsNotEnforcingForeignKeys proves the guard in
+// ApplyProductionMigrationsToSQLite is live rather than dead code. It is the only test
+// that opens SQLite by hand, and it does so to produce exactly the connection every other
+// caller used to get by accident.
+func TestTheMirrorRefusesAConnectionThatIsNotEnforcingForeignKeys(t *testing.T) {
+	unenforcing, err := sql.Open(sqliteDriverName, ":memory:")
+	if err != nil {
+		t.Fatalf("open an unenforcing SQLite database: %v", err)
+	}
+	defer unenforcing.Close()
+
+	err = ApplyProductionMigrationsToSQLite(unenforcing)
+	if err == nil {
+		t.Fatal("expected the mirror to refuse a connection with foreign key enforcement off")
+	}
+	if !strings.Contains(err.Error(), "foreign key enforcement") {
+		t.Errorf("expected the error to name the problem, got: %v", err)
+	}
+
+	var tables int
+	if err := unenforcing.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table'`).Scan(&tables); err != nil {
+		t.Fatalf("count tables after the refusal: %v", err)
+	}
+	if tables != 0 {
+		t.Errorf("the mirror refused the connection and still created %d table(s) in it", tables)
+	}
+}
+
+func TestForeignKeyEnforcementIsAddedToADataSourceNameWithoutLosingItsParameters(t *testing.T) {
+	for _, testCase := range []struct {
+		dataSourceName string
+		want           string
+	}{
+		{":memory:", ":memory:?_foreign_keys=on"},
+		{"/tmp/test.db", "/tmp/test.db?_foreign_keys=on"},
+		{"/tmp/test.db?_journal_mode=WAL", "/tmp/test.db?_journal_mode=WAL&_foreign_keys=on"},
+		{"/tmp/test.db?_foreign_keys=on", "/tmp/test.db?_foreign_keys=on"},
+	} {
+		if got := withForeignKeyEnforcement(testCase.dataSourceName); got != testCase.want {
+			t.Errorf("withForeignKeyEnforcement(%q) = %q, want %q", testCase.dataSourceName, got, testCase.want)
+		}
+	}
 }

@@ -22,22 +22,99 @@ import (
 // statement it does not recognise is an error, not a silent skip — that is what keeps the
 // mirror honest as db.go grows.
 //
-// Two things the product's schema does that this mirror deliberately does not carry, both
+// One thing the product's schema does that this mirror deliberately does not carry,
 // because SQLite has no equivalent of what db.go writes:
 //
 //   - the plpgsql updated_at touch triggers on notifications and notification_preferences.
 //     No test can observe an automatic updated_at through the mirror.
-//   - foreign key enforcement. The mirror creates the REFERENCES clauses, but SQLite
-//     ignores them unless the connection asks for them (`_foreign_keys=on` in the DSN), so
-//     a test can insert a row PostgreSQL would reject.
+//
+// Foreign keys used to be a second entry on that list. They are not any more.
+// OpenSQLiteMirrorOfProductionSchema turns enforcement on in the DSN and
+// ApplyProductionMigrationsToSQLite refuses a connection that has it off, so a REFERENCES
+// clause in db.go is a REFERENCES clause the tests obey. That matters because the failure
+// it replaces was silent in both directions: a test could insert a bounty whose creator_id
+// named no agent, and a test could delete an agent and assert its rows went with it while
+// ON DELETE CASCADE did nothing at all.
+
+// sqliteDriverName is the driver mattn/go-sqlite3 registers with database/sql. The
+// package that imports it for its side effect is the one that owns the import; this file
+// only names the driver.
+const sqliteDriverName = "sqlite3"
+
+// foreignKeyEnforcementParameter is go-sqlite3's DSN parameter for PRAGMA foreign_keys.
+// It has to be in the DSN rather than executed as a pragma afterwards: enforcement is a
+// property of a connection, database/sql hands out connections from a pool, and a pragma
+// run through the pool reaches whichever single connection served it. A DSN parameter is
+// applied by the driver every time it opens one, so it holds for the whole pool.
+const foreignKeyEnforcementParameter = "_foreign_keys=on"
+
+// OpenSQLiteMirrorOfProductionSchema opens a SQLite database with foreign key enforcement
+// on and creates the production schema in it. It is how a test gets a mirror database:
+// sql.Open("sqlite3", path) by hand returns a connection that ignores every REFERENCES
+// clause in the schema it is about to be given, and ignores them without saying so.
+//
+// dataSourceName is a plain SQLite path — a file, or ":memory:". Any parameters already on
+// it are kept.
+func OpenSQLiteMirrorOfProductionSchema(dataSourceName string) (*sql.DB, error) {
+	sqlDB, err := sql.Open(sqliteDriverName, withForeignKeyEnforcement(dataSourceName))
+	if err != nil {
+		return nil, fmt.Errorf("open SQLite mirror %q: %w", dataSourceName, err)
+	}
+	if err := ApplyProductionMigrationsToSQLite(sqlDB); err != nil {
+		sqlDB.Close()
+		return nil, err
+	}
+	return sqlDB, nil
+}
+
+// withForeignKeyEnforcement adds the foreign key parameter to a SQLite data source name,
+// keeping whatever parameters it already carries.
+func withForeignKeyEnforcement(dataSourceName string) string {
+	if strings.Contains(dataSourceName, foreignKeyEnforcementParameter) {
+		return dataSourceName
+	}
+	separator := "?"
+	if strings.Contains(dataSourceName, "?") {
+		separator = "&"
+	}
+	return dataSourceName + separator + foreignKeyEnforcementParameter
+}
+
+// confirmForeignKeyEnforcementIsOn reads PRAGMA foreign_keys back off the connection. The
+// DSN parameter is the thing that turns enforcement on, and a misspelled or unsupported
+// parameter is accepted silently by go-sqlite3 — so "the DSN said so" and "the connection
+// does it" are two different claims, and this checks the second one.
+func confirmForeignKeyEnforcementIsOn(sqlDB *sql.DB) error {
+	var enforced int
+	if err := sqlDB.QueryRow(`PRAGMA foreign_keys`).Scan(&enforced); err != nil {
+		return fmt.Errorf("read PRAGMA foreign_keys: %w", err)
+	}
+	if enforced != 1 {
+		return fmt.Errorf(
+			"the SQLite mirror needs foreign key enforcement and this connection has it off "+
+				"(PRAGMA foreign_keys = %d) — open it with %s in the data source name, or through "+
+				"OpenSQLiteMirrorOfProductionSchema, which does that for you. Without it SQLite "+
+				"creates every REFERENCES clause in the schema and obeys none of them",
+			enforced, foreignKeyEnforcementParameter)
+	}
+	return nil
+}
 
 // ApplyProductionMigrationsToSQLite creates the production schema in a SQLite database by
 // translating postgresMigrations() statement by statement. It is the single mirror: no
 // test should write its own CREATE TABLE for a table db.go already declares.
 //
+// It refuses a connection that is not enforcing foreign keys, because the schema it
+// applies is 25 REFERENCES clauses deep and a SQLite connection ignores all of them by
+// default. A mirror that carries the clauses and does not obey them is the drift this file
+// exists to stop, one level down.
+//
 // It is safe to call more than once on the same database, for the same reason Migrate is:
 // every statement it applies is written IF NOT EXISTS.
 func ApplyProductionMigrationsToSQLite(sqlDB *sql.DB) error {
+	if err := confirmForeignKeyEnforcementIsOn(sqlDB); err != nil {
+		return err
+	}
 	for index, statement := range postgresMigrations() {
 		translated, runsOnSQLite, err := translatePostgresMigrationToSQLite(statement)
 		if err != nil {
