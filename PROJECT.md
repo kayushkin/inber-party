@@ -125,7 +125,7 @@ While the core project is complete, potential areas for future enhancement inclu
 
 ### Technical Excellence
 - **Build status**: ✅ Go backend compiles clean, ✅ React frontend builds successfully
-- **Test status**: ✅ All Go tests pass, ✅ E2E tests stable (8/8 passing)
+- **Test status**: Go suite is 75 `func Test` across the repo. The Playwright suite is **56 tests in 11 spec files**, run against two browser projects (chromium, firefox) for **112 runs** — `npx playwright test --list`, 2026-08-21. The "8/8 passing" this line used to claim has not matched the tree for a long time; 8 is the size of a single spec file, not of the suite. ⚠️ Neither suite was **executed** for this edit — the Go tests want PostgreSQL and the Playwright run wants a dev server — so this line now states the size of each suite and says nothing about whether they are green. Do not restore a pass/fail claim without running one.
 - **Code quality**: ✅ Zero linting errors, ✅ TypeScript strict mode compliance
 - **Performance**: ✅ Optimized bundles (279KB main), ✅ Lazy loading, ✅ WebSocket optimization
 
