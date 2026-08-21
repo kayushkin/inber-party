@@ -503,7 +503,10 @@ func TestBountyEndpoints_Integration(t *testing.T) {
 		}
 
 		if err := server.BountyRepo.CreateBounty(newBounty); err != nil {
-			http.Error(w, "Failed to create bounty", http.StatusInternalServerError)
+			// Say what went wrong. This stand-in used to answer with a fixed string and
+			// drop the error, so a red run read as a 500 with no cause: the underlying
+			// "FOREIGN KEY constraint failed" cost a separate probe to identify.
+			http.Error(w, "Failed to create bounty: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 

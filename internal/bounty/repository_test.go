@@ -3,59 +3,61 @@ package bounty
 import (
 	"database/sql"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
+
+	"github.com/kayushkin/inber-party/internal/db"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// createTestDB opens a SQLite mirror of the production schema — db.go's own migration
+// list, translated, on a connection that enforces foreign keys.
+//
+// It used to write its own CREATE TABLE bounties. That copy was the fourth hand-written
+// mirror in this repository and it had drifted the same way the other three had: three
+// columns production has never had (currency, verified_at, auto_generated), three of
+// production's missing (work_submission, verification_notes, submitted_at), and no
+// REFERENCES clause at all where db.go declares two. So every test in this file could
+// name a creator no agents row held, and PostgreSQL refuses that row.
 func createTestDB(t *testing.T) (*sql.DB, func()) {
 	t.Helper()
-	
-	// Create temp SQLite database
+
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test_bounties.db")
-	
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		t.Fatalf("Failed to open test database: %v", err)
-	}
 
-	// Create bounties table schema
-	schema := `
-		CREATE TABLE IF NOT EXISTS bounties (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			title TEXT NOT NULL,
-			description TEXT NOT NULL,
-			requirements TEXT,
-			payout_amount INTEGER NOT NULL,
-			currency TEXT DEFAULT 'USD',
-			deadline TIMESTAMP,
-			status TEXT NOT NULL DEFAULT 'open',
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			creator_id INTEGER NOT NULL,
-			claimer_id INTEGER,
-			claimed_at TIMESTAMP,
-			completed_at TIMESTAMP,
-			verified_at TIMESTAMP,
-			required_skills TEXT,
-			tier TEXT NOT NULL,
-			auto_generated BOOLEAN DEFAULT FALSE
-		);
-	`
-	
-	if _, err := db.Exec(schema); err != nil {
-		t.Fatalf("Failed to create schema: %v", err)
+	sqlDB, err := db.OpenSQLiteMirrorOfProductionSchema(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
 	}
 
 	cleanup := func() {
-		if err := db.Close(); err != nil {
+		if err := sqlDB.Close(); err != nil {
 			t.Errorf("Failed to close test database: %v", err)
 		}
 	}
 
-	return db, cleanup
+	return sqlDB, cleanup
+}
+
+// insertTestAgent creates one agent and returns its id as the string the repository
+// stores in creator_id and claimer_id. bounties declares both as REFERENCES agents(id),
+// so a test that invents an agent id is writing a row the product cannot hold.
+func insertTestAgent(t *testing.T, sqlDB *sql.DB, name string) string {
+	t.Helper()
+
+	result, err := sqlDB.Exec(
+		`INSERT INTO agents (name, title, class, avatar_emoji) VALUES (?, ?, ?, ?)`,
+		name, "Tester", "rogue", "\U0001F9EA")
+	if err != nil {
+		t.Fatalf("insert test agent %q: %v", name, err)
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		t.Fatalf("read the id of test agent %q: %v", name, err)
+	}
+	return strconv.FormatInt(id, 10)
 }
 
 func TestNewRepository(t *testing.T) {
@@ -76,6 +78,7 @@ func TestCreateBounty(t *testing.T) {
 	defer cleanup()
 
 	repo := NewRepository(db)
+	creatorID := insertTestAgent(t, db, "create-bounty-creator")
 
 	// Test basic bounty creation
 	bounty := &Bounty{
@@ -83,7 +86,7 @@ func TestCreateBounty(t *testing.T) {
 		Description:    "There's a memory leak in the auth module",
 		Requirements:   "Must include tests and documentation",
 		PayoutAmount:   5.50,
-		CreatedBy:      "123",
+		CreatedBy:      creatorID,
 		RequiredSkills: []string{"Go", "Testing"},
 	}
 
@@ -119,13 +122,14 @@ func TestGetBounty(t *testing.T) {
 	defer cleanup()
 
 	repo := NewRepository(db)
+	creatorID := insertTestAgent(t, db, "get-bounty-creator")
 
 	// Create a test bounty
 	original := &Bounty{
 		Title:        "Test bounty",
 		Description:  "Test description",
 		PayoutAmount: 10.00,
-		CreatedBy:    "456",
+		CreatedBy:    creatorID,
 	}
 
 	err := repo.CreateBounty(original)
@@ -190,25 +194,29 @@ func TestListBounties_WithData(t *testing.T) {
 
 	repo := NewRepository(db)
 
+	// Two distinct creators, because the creator filter below has to tell them apart.
+	prolificCreatorID := insertTestAgent(t, db, "prolific-creator")
+	occasionalCreatorID := insertTestAgent(t, db, "occasional-creator")
+
 	// Create test bounties with different attributes
 	bounties := []*Bounty{
 		{
 			Title:        "High payout bounty",
 			Description:  "Expensive task",
 			PayoutAmount: 25.00, // Platinum tier
-			CreatedBy:    "1",
+			CreatedBy:    prolificCreatorID,
 		},
 		{
 			Title:        "Low payout bounty",
 			Description:  "Cheap task",
 			PayoutAmount: 0.50, // Bronze tier
-			CreatedBy:    "2",
+			CreatedBy:    occasionalCreatorID,
 		},
 		{
 			Title:        "Medium bounty",
 			Description:  "Medium task",
 			PayoutAmount: 3.00, // Silver tier
-			CreatedBy:    "1",
+			CreatedBy:    prolificCreatorID,
 		},
 	}
 
@@ -242,14 +250,14 @@ func TestListBounties_WithData(t *testing.T) {
 	}
 
 	// Test filtering by creator
-	creator := "1"
+	creator := prolificCreatorID
 	filter = BountyFilter{CreatedBy: &creator}
 	result, err = repo.ListBounties(filter)
 	if err != nil {
 		t.Fatalf("ListBounties with creator filter failed: %v", err)
 	}
 	if len(result) != 2 {
-		t.Errorf("Expected 2 bounties from user1, got %d", len(result))
+		t.Errorf("Expected 2 bounties from the prolific creator, got %d", len(result))
 	}
 
 	// Test payout range filtering
@@ -283,19 +291,21 @@ func TestListBounties_StatusFilter(t *testing.T) {
 	defer cleanup()
 
 	repo := NewRepository(db)
+	creatorID := insertTestAgent(t, db, "status-filter-creator")
+	claimerID := insertTestAgent(t, db, "status-filter-claimer")
 
 	// Create bounties and claim one
 	bounty1 := &Bounty{
 		Title:        "Open bounty",
 		Description:  "Still available",
 		PayoutAmount: 1.00,
-		CreatedBy:    "1",
+		CreatedBy:    creatorID,
 	}
 	bounty2 := &Bounty{
 		Title:        "Will be claimed",
 		Description:  "Will be claimed soon",
 		PayoutAmount: 2.00,
-		CreatedBy:    "1",
+		CreatedBy:    creatorID,
 	}
 
 	err := repo.CreateBounty(bounty1)
@@ -308,7 +318,7 @@ func TestListBounties_StatusFilter(t *testing.T) {
 	}
 
 	// Claim bounty2
-	err = repo.ClaimBounty(bounty2.ID, "500")
+	err = repo.ClaimBounty(bounty2.ID, claimerID)
 	if err != nil {
 		t.Fatalf("Failed to claim bounty: %v", err)
 	}
@@ -338,13 +348,14 @@ func TestClaimBounty(t *testing.T) {
 	defer cleanup()
 
 	repo := NewRepository(db)
+	creatorID := insertTestAgent(t, db, "claim-creator")
 
 	// Create a test bounty
 	bounty := &Bounty{
 		Title:        "Test claim",
 		Description:  "Test claiming",
 		PayoutAmount: 1.00,
-		CreatedBy:    "100",
+		CreatedBy:    creatorID,
 	}
 
 	err := repo.CreateBounty(bounty)
@@ -353,7 +364,7 @@ func TestClaimBounty(t *testing.T) {
 	}
 
 	// Claim the bounty
-	claimerID := "500"
+	claimerID := insertTestAgent(t, db, "first-claimer")
 	err = repo.ClaimBounty(bounty.ID, claimerID)
 	if err != nil {
 		t.Fatalf("ClaimBounty failed: %v", err)
@@ -375,8 +386,10 @@ func TestClaimBounty(t *testing.T) {
 		t.Error("ClaimedAt should be set")
 	}
 
-	// Try to claim already claimed bounty
-	err = repo.ClaimBounty(bounty.ID, "501")
+	// Try to claim already claimed bounty. The second claimer exists, so the only reason
+	// this can fail is the one the test is about.
+	secondClaimerID := insertTestAgent(t, db, "second-claimer")
+	err = repo.ClaimBounty(bounty.ID, secondClaimerID)
 	if err == nil {
 		t.Error("Expected error when claiming already claimed bounty")
 	}
@@ -388,8 +401,10 @@ func TestClaimBounty_NotFound(t *testing.T) {
 
 	repo := NewRepository(db)
 
-	// Try to claim non-existent bounty
-	err := repo.ClaimBounty("99999", "502")
+	// Try to claim non-existent bounty. The claimer is real, so a missing bounty is the
+	// only thing left that can produce the error.
+	claimerID := insertTestAgent(t, db, "claim-not-found-claimer")
+	err := repo.ClaimBounty("99999", claimerID)
 	if err == nil {
 		t.Error("Expected error for non-existent bounty")
 	}
@@ -400,13 +415,14 @@ func TestUpdateBountyStatus(t *testing.T) {
 	defer cleanup()
 
 	repo := NewRepository(db)
+	creatorID := insertTestAgent(t, db, "status-update-creator")
 
 	// Create a test bounty
 	bounty := &Bounty{
 		Title:        "Test status update",
 		Description:  "Test updating status",
 		PayoutAmount: 1.00,
-		CreatedBy:    "100",
+		CreatedBy:    creatorID,
 	}
 
 	err := repo.CreateBounty(bounty)
@@ -429,7 +445,7 @@ func TestUpdateBountyStatus(t *testing.T) {
 	if updated.Status != StatusCompleted {
 		t.Errorf("Expected status %s, got %s", StatusCompleted, updated.Status)
 	}
-	
+
 	// UpdatedAt should be more recent
 	if !updated.UpdatedAt.After(updated.CreatedAt) {
 		t.Error("UpdatedAt should be after CreatedAt")
@@ -455,13 +471,14 @@ func TestBountyRepository_EdgeCases(t *testing.T) {
 	defer cleanup()
 
 	repo := NewRepository(db)
+	creatorID := insertTestAgent(t, db, "edge-case-creator")
 
 	t.Run("CreateBounty with nil deadline", func(t *testing.T) {
 		bounty := &Bounty{
 			Title:        "No deadline",
 			Description:  "Test nil deadline",
 			PayoutAmount: 1.00,
-			CreatedBy:    "100",
+			CreatedBy:    creatorID,
 			Deadline:     nil,
 		}
 
@@ -485,7 +502,7 @@ func TestBountyRepository_EdgeCases(t *testing.T) {
 			Title:        "Future deadline",
 			Description:  "Test future deadline",
 			PayoutAmount: 1.00,
-			CreatedBy:    "100",
+			CreatedBy:    creatorID,
 			Deadline:     &future,
 		}
 
@@ -504,12 +521,16 @@ func TestBountyRepository_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("ListBounties with multiple filters", func(t *testing.T) {
+		// A creator of its own, so the creator filter selects this bounty alone out of the
+		// ones the earlier subtests left behind.
+		filteredCreatorID := insertTestAgent(t, db, "multi-filter-creator")
+
 		// Create bounties with specific characteristics
 		bounty := &Bounty{
 			Title:        "Filtered bounty",
 			Description:  "Should match multiple filters",
 			PayoutAmount: 15.00, // Gold tier (5.0 <= amount < 20.0)
-			CreatedBy:    "999",
+			CreatedBy:    filteredCreatorID,
 		}
 
 		err := repo.CreateBounty(bounty)
@@ -517,7 +538,7 @@ func TestBountyRepository_EdgeCases(t *testing.T) {
 			t.Fatalf("Failed to create test bounty: %v", err)
 		}
 
-		creator := "999"
+		creator := filteredCreatorID
 		minPayout := 10.0
 		filter := BountyFilter{
 			Status:    []BountyStatus{StatusOpen},
