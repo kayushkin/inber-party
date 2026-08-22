@@ -212,6 +212,13 @@ type Store struct {
 	sessionsDB *sql.DB // ~/.inber/sessions.db
 	gatewayDB  *sql.DB // ~/.inber/gateway/gateway.db
 	inberURL   string  // base URL for inber HTTP API (for registry)
+
+	// The paths NewStore was asked to open, whether or not a file was found there.
+	// A read against a database that was never opened reports the path it expected,
+	// because the way this fails in practice is a path pointing at a database
+	// somebody has since renamed.
+	sessionsDBPath string
+	gatewayDBPath  string
 }
 
 // DefaultDBPaths returns the default paths for inber databases.
@@ -223,7 +230,7 @@ func DefaultDBPaths() (sessionsDB, gatewayDB string) {
 
 // NewStore opens read-only connections to inber's databases.
 func NewStore(sessionsDBPath, gatewayDBPath, inberURL string) (*Store, error) {
-	s := &Store{inberURL: inberURL}
+	s := &Store{inberURL: inberURL, sessionsDBPath: sessionsDBPath, gatewayDBPath: gatewayDBPath}
 	var err error
 
 	if sessionsDBPath != "" {
@@ -263,6 +270,37 @@ func (s *Store) Close() {
 	if s.gatewayDB != nil {
 		s.gatewayDB.Close()
 	}
+}
+
+// errDatabaseNotOpen reports that a read needs a database NewStore never opened.
+//
+// NewStore skips a database whose file is missing and returns a Store all the same,
+// so every read path below has to decide what an absent handle means. Returning an
+// empty result is the one answer it must not give: a caller cannot tell it from a
+// quiet week, and this package has already lost a whole quest board to exactly that
+// confusion. The error names the file that was expected so the reader can see at
+// once whether the path is wrong rather than the data absent.
+func errDatabaseNotOpen(name, path string) error {
+	if path == "" {
+		return fmt.Errorf("inber %s database not open: no path configured", name)
+	}
+	return fmt.Errorf("inber %s database not open: no file at %q", name, path)
+}
+
+// requireGatewayDB returns an error unless the gateway database is open.
+func (s *Store) requireGatewayDB() error {
+	if s.gatewayDB == nil {
+		return errDatabaseNotOpen("gateway", s.gatewayDBPath)
+	}
+	return nil
+}
+
+// requireSessionsDB returns an error unless the sessions database is open.
+func (s *Store) requireSessionsDB() error {
+	if s.sessionsDB == nil {
+		return errDatabaseNotOpen("sessions", s.sessionsDBPath)
+	}
+	return nil
 }
 
 // xpForTokens converts token usage to XP (1 XP per 100 tokens).
@@ -578,129 +616,133 @@ func (s *Store) GetQuests(limit int) ([]RPGQuest, error) {
 		limit = 50
 	}
 
+	// An unopened database is not an empty board. Say so, rather than hand back a
+	// zero-length quest list that every caller above renders as "nothing happened".
+	if err := s.requireGatewayDB(); err != nil {
+		return nil, err
+	}
+
 	var quests []RPGQuest
 
-	if s.gatewayDB != nil {
-		rows, err := s.gatewayDB.Query(`
-			SELECT r.id, s.agent, r.status, r.input_text, r.turns,
-				r.input_tokens, r.output_tokens, r.cost,
-				r.started_at, r.completed_at, r.error_text,
-				r.parent_request_id,
-				(SELECT COUNT(*) FROM requests c WHERE c.parent_request_id = r.id) as children
-			FROM requests r
-			JOIN sessions s ON s.key = r.session_key
-			ORDER BY r.id DESC
-			LIMIT ?
-		`, limit)
-		if err != nil {
-			return nil, fmt.Errorf("query quests: %w", err)
+	rows, err := s.gatewayDB.Query(`
+		SELECT r.id, s.agent, r.status, r.input_text, r.turns,
+			r.input_tokens, r.output_tokens, r.cost,
+			r.started_at, r.completed_at, r.error_text,
+			r.parent_request_id,
+			(SELECT COUNT(*) FROM requests c WHERE c.parent_request_id = r.id) as children
+		FROM requests r
+		JOIN sessions s ON s.key = r.session_key
+		ORDER BY r.id DESC
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query quests: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			id            int
+			agent         string
+			status        string
+			inputText     sql.NullString
+			turns         int
+			inTokens      int
+			outTokens     int
+			cost          float64
+			startedAt     sql.NullString
+			completedAt   sql.NullString
+			errorText     sql.NullString
+			parentID      sql.NullInt64
+			children      int
+		)
+		if err := rows.Scan(&id, &agent, &status, &inputText, &turns,
+			&inTokens, &outTokens, &cost, &startedAt, &completedAt,
+			&errorText, &parentID, &children); err != nil {
+			continue
 		}
-		defer rows.Close()
 
-		for rows.Next() {
-			var (
-				id            int
-				agent         string
-				status        string
-				inputText     sql.NullString
-				turns         int
-				inTokens      int
-				outTokens     int
-				cost          float64
-				startedAt     sql.NullString
-				completedAt   sql.NullString
-				errorText     sql.NullString
-				parentID      sql.NullInt64
-				children      int
-			)
-			if err := rows.Scan(&id, &agent, &status, &inputText, &turns,
-				&inTokens, &outTokens, &cost, &startedAt, &completedAt,
-				&errorText, &parentID, &children); err != nil {
-				continue
-			}
-
-			totalTokens := inTokens + outTokens
-			xpReward := xpForTokens(totalTokens)
-			if xpReward < 1 {
-				xpReward = 1
-			}
-
-			// Map inber status to RPG quest status
-			questStatus := "in_progress"
-			switch status {
-			case "completed", "success":
-				questStatus = "completed"
-			case "error", "timeout":
-				questStatus = "failed"
-			case "pending":
-				questStatus = "available"
-			case "interrupted":
-				questStatus = "failed"
-			}
-
-			// Generate quest name from input text
-			questName := generateQuestName(inputText.String, status)
-			questDesc := ""
-			if inputText.Valid && inputText.String != "" {
-				questDesc = inputText.String
-				if len(questDesc) > 200 {
-					questDesc = questDesc[:200] + "..."
-				}
-			}
-
-			// Difficulty based on tokens used
-			difficulty := 1
-			if totalTokens > 5000 {
-				difficulty = 5
-			} else if totalTokens > 2000 {
-				difficulty = 4
-			} else if totalTokens > 1000 {
-				difficulty = 3
-			} else if totalTokens > 500 {
-				difficulty = 2
-			}
-
-			// Progress: completed=100, running=50, error=progress at failure
-			progress := 50
-			if questStatus == "completed" {
-				progress = 100
-			} else if questStatus == "failed" {
-				progress = 30 // died trying
-			} else if questStatus == "available" {
-				progress = 0
-			}
-
-			q := RPGQuest{
-				ID:          id,
-				Name:        questName,
-				Description: questDesc,
-				Difficulty:  difficulty,
-				XPReward:    xpReward,
-				Status:      questStatus,
-				AgentID:     agent,
-				AgentName:   titleCase(agent),
-				Progress:    progress,
-				Turns:       turns,
-				TokensUsed:  totalTokens,
-				Cost:        cost,
-				CreatedAt:   startedAt.String,
-				ErrorText:   errorText.String,
-				Children:    children,
-			}
-			if startedAt.Valid {
-				q.StartedAt = startedAt.String
-			}
-			if completedAt.Valid {
-				q.CompletedAt = completedAt.String
-			}
-
-			// If it's a sub-quest, prefix the name
-			if parentID.Valid {
-				q.Name = "⚔️ " + q.Name
-			}
-
-			quests = append(quests, q)
+		totalTokens := inTokens + outTokens
+		xpReward := xpForTokens(totalTokens)
+		if xpReward < 1 {
+			xpReward = 1
 		}
+
+		// Map inber status to RPG quest status
+		questStatus := "in_progress"
+		switch status {
+		case "completed", "success":
+			questStatus = "completed"
+		case "error", "timeout":
+			questStatus = "failed"
+		case "pending":
+			questStatus = "available"
+		case "interrupted":
+			questStatus = "failed"
+		}
+
+		// Generate quest name from input text
+		questName := generateQuestName(inputText.String, status)
+		questDesc := ""
+		if inputText.Valid && inputText.String != "" {
+			questDesc = inputText.String
+			if len(questDesc) > 200 {
+				questDesc = questDesc[:200] + "..."
+			}
+		}
+
+		// Difficulty based on tokens used
+		difficulty := 1
+		if totalTokens > 5000 {
+			difficulty = 5
+		} else if totalTokens > 2000 {
+			difficulty = 4
+		} else if totalTokens > 1000 {
+			difficulty = 3
+		} else if totalTokens > 500 {
+			difficulty = 2
+		}
+
+		// Progress: completed=100, running=50, error=progress at failure
+		progress := 50
+		if questStatus == "completed" {
+			progress = 100
+		} else if questStatus == "failed" {
+			progress = 30 // died trying
+		} else if questStatus == "available" {
+			progress = 0
+		}
+
+		q := RPGQuest{
+			ID:          id,
+			Name:        questName,
+			Description: questDesc,
+			Difficulty:  difficulty,
+			XPReward:    xpReward,
+			Status:      questStatus,
+			AgentID:     agent,
+			AgentName:   titleCase(agent),
+			Progress:    progress,
+			Turns:       turns,
+			TokensUsed:  totalTokens,
+			Cost:        cost,
+			CreatedAt:   startedAt.String,
+			ErrorText:   errorText.String,
+			Children:    children,
+		}
+		if startedAt.Valid {
+			q.StartedAt = startedAt.String
+		}
+		if completedAt.Valid {
+			q.CompletedAt = completedAt.String
+		}
+
+		// If it's a sub-quest, prefix the name
+		if parentID.Valid {
+			q.Name = "⚔️ " + q.Name
+		}
+
+		quests = append(quests, q)
 	}
 
 	if quests == nil {
@@ -911,8 +953,9 @@ func (s *Store) GetQuestHistory(agentID string, limit int) ([]QuestHistoryEntry,
 	if limit <= 0 {
 		limit = 20
 	}
-	if s.gatewayDB == nil {
-		return []QuestHistoryEntry{}, nil
+	// An empty history and an unopened database are different answers.
+	if err := s.requireGatewayDB(); err != nil {
+		return nil, err
 	}
 
 	rows, err := s.gatewayDB.Query(`
@@ -969,181 +1012,184 @@ func (s *Store) GetConversations(limit int) ([]RPGConversation, error) {
 
 	var conversations []RPGConversation
 
-	if s.sessionsDB != nil {
-		// Query for sessions that involve spawned agents or inter-agent communication
-		rows, err := s.sessionsDB.Query(`
-			SELECT DISTINCT 
-				s1.id as session_id,
-				s1.agent as main_agent,
-				s2.agent as spawned_agent,
-				s1.started_at,
-				s1.last_message_at,
-				s1.initial_message
-			FROM sessions s1
-			LEFT JOIN sessions s2 ON s2.parent_session_id = s1.id
-			WHERE s2.agent IS NOT NULL OR s1.initial_message LIKE '%spawn%' OR s1.initial_message LIKE '%session%'
-			ORDER BY s1.started_at DESC
-			LIMIT ?
-		`, limit)
+	// Same rule as GetQuests: a closed sessions database is not "no conversations".
+	if err := s.requireSessionsDB(); err != nil {
+		return nil, err
+	}
+
+	// Query for sessions that involve spawned agents or inter-agent communication
+	rows, err := s.sessionsDB.Query(`
+		SELECT DISTINCT 
+			s1.id as session_id,
+			s1.agent as main_agent,
+			s2.agent as spawned_agent,
+			s1.started_at,
+			s1.last_message_at,
+			s1.initial_message
+		FROM sessions s1
+		LEFT JOIN sessions s2 ON s2.parent_session_id = s1.id
+		WHERE s2.agent IS NOT NULL OR s1.initial_message LIKE '%spawn%' OR s1.initial_message LIKE '%session%'
+		ORDER BY s1.started_at DESC
+		LIMIT ?
+	`, limit)
+	
+	if err != nil {
+		return nil, fmt.Errorf("query conversations: %w", err)
+	}
+	defer rows.Close()
+
+	conversationMap := make(map[string]*RPGConversation)
+
+	for rows.Next() {
+		var (
+			sessionID      string
+			mainAgent      sql.NullString
+			spawnedAgent   sql.NullString
+			startedAt      sql.NullString
+			lastMessageAt  sql.NullString
+			initialMessage sql.NullString
+		)
+		if err := rows.Scan(&sessionID, &mainAgent, &spawnedAgent, &startedAt, &lastMessageAt, &initialMessage); err != nil {
+			continue
+		}
+
+		conversationKey := sessionID
+		if spawnedAgent.Valid && mainAgent.Valid {
+			// Group by main agent
+			conversationKey = mainAgent.String
+		}
+
+		conv, exists := conversationMap[conversationKey]
+		if !exists {
+			conv = &RPGConversation{
+				ID:           conversationKey,
+				ParticipantIDs: []string{},
+				Participants: []string{},
+				Messages:     []RPGMessage{},
+				Type:         "spawn_chain",
+			}
+			if startedAt.Valid {
+				conv.StartedAt = startedAt.String
+			}
+			if lastMessageAt.Valid {
+				conv.LastActive = lastMessageAt.String
+			}
+			conversationMap[conversationKey] = conv
+		}
+
+		// Add participants
+		if mainAgent.Valid && !contains(conv.ParticipantIDs, mainAgent.String) {
+			conv.ParticipantIDs = append(conv.ParticipantIDs, mainAgent.String)
+			conv.Participants = append(conv.Participants, titleCase(mainAgent.String))
+		}
+		if spawnedAgent.Valid && !contains(conv.ParticipantIDs, spawnedAgent.String) {
+			conv.ParticipantIDs = append(conv.ParticipantIDs, spawnedAgent.String)
+			conv.Participants = append(conv.Participants, titleCase(spawnedAgent.String))
+		}
+
+		// Create initial message from spawn action
+		if initialMessage.Valid && spawnedAgent.Valid && mainAgent.Valid {
+			msgContent := initialMessage.String
+			if len(msgContent) > 100 {
+				msgContent = msgContent[:100] + "..."
+			}
+			
+			msg := RPGMessage{
+				ID:        fmt.Sprintf("%s-spawn-%s", sessionID, spawnedAgent.String),
+				FromAgent: titleCase(mainAgent.String),
+				ToAgent:   titleCase(spawnedAgent.String),
+				Content:   fmt.Sprintf("🎯 Spawned %s: %s", titleCase(spawnedAgent.String), msgContent),
+				Type:      "spawn",
+			}
+			if startedAt.Valid {
+				msg.Timestamp = startedAt.String
+			}
+			
+			// Add if not already exists
+			msgExists := false
+			for _, existingMsg := range conv.Messages {
+				if existingMsg.ID == msg.ID {
+					msgExists = true
+					break
+				}
+			}
+			if !msgExists {
+				conv.Messages = append(conv.Messages, msg)
+			}
+		}
+	}
+
+	// Now get turn messages for each conversation
+	for _, conv := range conversationMap {
+		turnRows, err := s.sessionsDB.Query(`
+			SELECT t.id, s.agent, t.role, t.content, t.timestamp
+			FROM turns t
+			JOIN sessions s ON s.id = t.session_id
+			WHERE s.agent IN (` + generateInClause(len(conv.ParticipantIDs)) + `)
+			ORDER BY t.timestamp ASC
+		`, stringSliceToInterfaceSlice(conv.ParticipantIDs)...)
 		
 		if err != nil {
-			return nil, fmt.Errorf("query conversations: %w", err)
+			continue
 		}
-		defer rows.Close()
+		defer turnRows.Close()
 
-		conversationMap := make(map[string]*RPGConversation)
-
-		for rows.Next() {
+		for turnRows.Next() {
 			var (
-				sessionID      string
-				mainAgent      sql.NullString
-				spawnedAgent   sql.NullString
-				startedAt      sql.NullString
-				lastMessageAt  sql.NullString
-				initialMessage sql.NullString
+				turnID    string
+				agent     string
+				role      string
+				content   sql.NullString
+				timestamp sql.NullString
 			)
-			if err := rows.Scan(&sessionID, &mainAgent, &spawnedAgent, &startedAt, &lastMessageAt, &initialMessage); err != nil {
+			if err := turnRows.Scan(&turnID, &agent, &role, &content, &timestamp); err != nil {
 				continue
 			}
 
-			conversationKey := sessionID
-			if spawnedAgent.Valid && mainAgent.Valid {
-				// Group by main agent
-				conversationKey = mainAgent.String
-			}
-
-			conv, exists := conversationMap[conversationKey]
-			if !exists {
-				conv = &RPGConversation{
-					ID:           conversationKey,
-					ParticipantIDs: []string{},
-					Participants: []string{},
-					Messages:     []RPGMessage{},
-					Type:         "spawn_chain",
-				}
-				if startedAt.Valid {
-					conv.StartedAt = startedAt.String
-				}
-				if lastMessageAt.Valid {
-					conv.LastActive = lastMessageAt.String
-				}
-				conversationMap[conversationKey] = conv
-			}
-
-			// Add participants
-			if mainAgent.Valid && !contains(conv.ParticipantIDs, mainAgent.String) {
-				conv.ParticipantIDs = append(conv.ParticipantIDs, mainAgent.String)
-				conv.Participants = append(conv.Participants, titleCase(mainAgent.String))
-			}
-			if spawnedAgent.Valid && !contains(conv.ParticipantIDs, spawnedAgent.String) {
-				conv.ParticipantIDs = append(conv.ParticipantIDs, spawnedAgent.String)
-				conv.Participants = append(conv.Participants, titleCase(spawnedAgent.String))
-			}
-
-			// Create initial message from spawn action
-			if initialMessage.Valid && spawnedAgent.Valid && mainAgent.Valid {
-				msgContent := initialMessage.String
-				if len(msgContent) > 100 {
-					msgContent = msgContent[:100] + "..."
-				}
+			// Only include assistant messages (agent responses) and system messages about inter-agent activity
+			if role == "assistant" || (role == "system" && content.Valid && 
+				(strings.Contains(content.String, "spawn") || strings.Contains(content.String, "session"))) {
 				
+				msgContent := "No content"
+				if content.Valid && content.String != "" {
+					msgContent = content.String
+					if len(msgContent) > 200 {
+						msgContent = msgContent[:200] + "..."
+					}
+				}
+
+				msgType := "message"
+				if role == "system" {
+					msgType = "system"
+				}
+
 				msg := RPGMessage{
-					ID:        fmt.Sprintf("%s-spawn-%s", sessionID, spawnedAgent.String),
-					FromAgent: titleCase(mainAgent.String),
-					ToAgent:   titleCase(spawnedAgent.String),
-					Content:   fmt.Sprintf("🎯 Spawned %s: %s", titleCase(spawnedAgent.String), msgContent),
-					Type:      "spawn",
+					ID:        fmt.Sprintf("%s-%s", turnID, agent),
+					FromAgent: titleCase(agent),
+					Content:   msgContent,
+					Type:      msgType,
 				}
-				if startedAt.Valid {
-					msg.Timestamp = startedAt.String
+				if timestamp.Valid {
+					msg.Timestamp = timestamp.String
 				}
-				
-				// Add if not already exists
-				msgExists := false
-				for _, existingMsg := range conv.Messages {
-					if existingMsg.ID == msg.ID {
-						msgExists = true
-						break
-					}
-				}
-				if !msgExists {
-					conv.Messages = append(conv.Messages, msg)
-				}
+
+				conv.Messages = append(conv.Messages, msg)
 			}
 		}
+	}
 
-		// Now get turn messages for each conversation
-		for _, conv := range conversationMap {
-			turnRows, err := s.sessionsDB.Query(`
-				SELECT t.id, s.agent, t.role, t.content, t.timestamp
-				FROM turns t
-				JOIN sessions s ON s.id = t.session_id
-				WHERE s.agent IN (` + generateInClause(len(conv.ParticipantIDs)) + `)
-				ORDER BY t.timestamp ASC
-			`, stringSliceToInterfaceSlice(conv.ParticipantIDs)...)
-			
-			if err != nil {
-				continue
-			}
-			defer turnRows.Close()
-
-			for turnRows.Next() {
-				var (
-					turnID    string
-					agent     string
-					role      string
-					content   sql.NullString
-					timestamp sql.NullString
-				)
-				if err := turnRows.Scan(&turnID, &agent, &role, &content, &timestamp); err != nil {
-					continue
-				}
-
-				// Only include assistant messages (agent responses) and system messages about inter-agent activity
-				if role == "assistant" || (role == "system" && content.Valid && 
-					(strings.Contains(content.String, "spawn") || strings.Contains(content.String, "session"))) {
-					
-					msgContent := "No content"
-					if content.Valid && content.String != "" {
-						msgContent = content.String
-						if len(msgContent) > 200 {
-							msgContent = msgContent[:200] + "..."
-						}
-					}
-
-					msgType := "message"
-					if role == "system" {
-						msgType = "system"
-					}
-
-					msg := RPGMessage{
-						ID:        fmt.Sprintf("%s-%s", turnID, agent),
-						FromAgent: titleCase(agent),
-						Content:   msgContent,
-						Type:      msgType,
-					}
-					if timestamp.Valid {
-						msg.Timestamp = timestamp.String
-					}
-
-					conv.Messages = append(conv.Messages, msg)
-				}
-			}
-		}
-
-		// Generate conversation titles and convert to slice
-		for _, conv := range conversationMap {
-			if len(conv.Participants) > 0 {
-				if len(conv.Participants) == 1 {
-					conv.Title = fmt.Sprintf("%s's Work", conv.Participants[0])
-				} else {
-					conv.Title = fmt.Sprintf("Collaboration: %s", strings.Join(conv.Participants, ", "))
-				}
+	// Generate conversation titles and convert to slice
+	for _, conv := range conversationMap {
+		if len(conv.Participants) > 0 {
+			if len(conv.Participants) == 1 {
+				conv.Title = fmt.Sprintf("%s's Work", conv.Participants[0])
 			} else {
-				conv.Title = "Unknown Conversation"
+				conv.Title = fmt.Sprintf("Collaboration: %s", strings.Join(conv.Participants, ", "))
 			}
-			conversations = append(conversations, *conv)
+		} else {
+			conv.Title = "Unknown Conversation"
 		}
+		conversations = append(conversations, *conv)
 	}
 
 	if conversations == nil {
@@ -1959,8 +2005,8 @@ type ReplayToolCall struct {
 
 // GetSessionReplay returns detailed session data for replay visualization
 func (s *Store) GetSessionReplay(sessionID string) (*SessionReplay, error) {
-	if s.gatewayDB == nil {
-		return nil, fmt.Errorf("gateway database not available")
+	if err := s.requireGatewayDB(); err != nil {
+		return nil, err
 	}
 
 	// Get basic session information
@@ -2076,17 +2122,10 @@ func estimateToolDuration(toolName string) float64 {
 
 // GetAgentJournal generates a narrative journal entry for an agent's activities on a specific date
 func (s *Store) GetAgentJournal(agentID string, date string) (*RPGJournal, error) {
-	if s.gatewayDB == nil {
-		return &RPGJournal{
-			AgentID:     agentID,
-			AgentName:   titleCase(agentID),
-			Date:        date,
-			Title:       "No Activity Recorded",
-			Narrative:   "The archives are silent about this agent's deeds on this day. Perhaps they were resting, or their adventures went unrecorded.",
-			Highlights:  []JournalHighlight{},
-			Stats:       JournalStats{},
-			GeneratedAt: time.Now().Format(time.RFC3339),
-		}, nil
+	// This branch used to narrate an unopened database as a restful day. The
+	// archives are not silent; nobody opened them.
+	if err := s.requireGatewayDB(); err != nil {
+		return nil, err
 	}
 
 	// Get agent information
