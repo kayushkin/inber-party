@@ -1372,7 +1372,7 @@ func (s *Server) handleDailyQuests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	quests, err := s.DailyQuestMgr.GetActiveDailyQuests()
+	quests, unreadableRows, err := s.DailyQuestMgr.GetActiveDailyQuests()
 	if err != nil {
 		log.Printf("Error getting daily quests: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -1380,7 +1380,30 @@ func (s *Server) handleDailyQuests(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
+	setUnreadableRowsHeader(w, unreadableRows)
 	json.NewEncoder(w).Encode(quests)
+}
+
+// unreadableRowsHeader names the number of database rows a list response could not read.
+//
+// It is a header rather than a field in the body because this endpoint answers a bare JSON
+// array, and turning that into an object would be a wire change on a published endpoint --
+// a decision, not a repair. A header is additive: a caller that reads the array is unaffected,
+// and a caller that wants to know whether the array is the whole answer now has somewhere to
+// look. Turning the body into an object remains available if anyone decides they want it.
+const unreadableRowsHeader = "X-Unreadable-Rows"
+
+// setUnreadableRowsHeader reports how many rows a list response lost.
+//
+// It is written on every response, including zero, deliberately. An absent header would mean
+// two different things -- "nothing was lost" and "this build does not report" -- and a reader
+// that cannot tell those apart is back where this repair started. Present-and-zero is a claim;
+// absent is a build that makes no claim.
+func setUnreadableRowsHeader(w http.ResponseWriter, unreadableRows int) {
+	w.Header().Set(unreadableRowsHeader, strconv.Itoa(unreadableRows))
+	if unreadableRows > 0 {
+		log.Printf("daily quests: %d row(s) could not be read and are missing from this response", unreadableRows)
+	}
 }
 
 func (s *Server) handleGenerateDailyQuests(w http.ResponseWriter, r *http.Request) {

@@ -405,37 +405,79 @@ func (dqm *DailyQuestManager) createDailyQuest(quest *DailyQuest) error {
 	return nil
 }
 
-// GetActiveDailyQuests returns all currently active daily quests
-func (dqm *DailyQuestManager) GetActiveDailyQuests() ([]db.Task, error) {
-	if dqm.db == nil {
-		return []db.Task{}, nil
-	}
-	
-	// Find all tasks that start with "[DAILY]" and are still active
-	rows, err := dqm.db.Query(`
+// activeDailyQuestsQuery is the statement GetActiveDailyQuests runs. It is a constant so a
+// test can read the column list back and check it against the Scan destinations below. The
+// scan is positional, so a SELECT list that gains, loses or reorders a column without the
+// scan following it lands every later value in the wrong field, and does it silently.
+const activeDailyQuestsQuery = `
 		SELECT id, name, description, difficulty, xp_reward, status, assigned_agent_id, assigned_party_id, progress, created_at, started_at, completed_at
 		FROM tasks 
 		WHERE name LIKE '[DAILY]%' 
 		AND status IN ('available', 'assigned', 'in_progress')
 		AND created_at > NOW() - INTERVAL '1 day'
 		ORDER BY created_at DESC
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query daily quests: %w", err)
-	}
-	defer rows.Close()
-	
-	var quests []db.Task
+	`
+
+// dailyQuestRowCursor is the part of *sql.Rows that scanDailyQuestRows uses. It is an
+// interface for the same reason agentRowCursor is: a test needs all three outcomes of the
+// loop — a row that scans, a row that does not, and a failure of the iteration itself — and a
+// real driver gives no reliable way to produce the third on demand.
+type dailyQuestRowCursor interface {
+	Next() bool
+	Scan(dest ...any) error
+	Err() error
+}
+
+// scanDailyQuestRows reads daily-quest rows off a cursor, returning the quests it could read
+// and separately a count of the rows it could not. See GetActiveDailyQuests for why the count
+// is returned rather than folded into the length of the slice.
+func scanDailyQuestRows(rows dailyQuestRowCursor) (quests []db.Task, unreadableRows int, err error) {
 	for rows.Next() {
 		var task db.Task
 		if err := rows.Scan(&task.ID, &task.Name, &task.Description, &task.Difficulty, &task.XPReward, &task.Status, &task.AssignedAgentID, &task.AssignedPartyID, &task.Progress, &task.CreatedAt, &task.StartedAt, &task.CompletedAt); err != nil {
+			unreadableRows++
 			log.Printf("Error scanning daily quest: %v", err)
 			continue
 		}
 		quests = append(quests, task)
 	}
-	
-	return quests, nil
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("failed to read daily quest rows: %w", err)
+	}
+
+	return quests, unreadableRows, nil
+}
+
+// GetActiveDailyQuests returns all currently active daily quests, and separately the number
+// of quest rows it could not read.
+//
+// The second return value is the point of this signature, and the reason it is not merely
+// hygiene here is that the same population is published as a count by a different endpoint.
+// GetQuestStats answers active_daily_quests with a SQL COUNT(*) over this exact predicate, so
+// /api/daily-quests/stats counts a row that /api/daily-quests silently drops. Before this
+// change the two endpoints disagreed with nothing saying so, and the list was the one that
+// looked complete.
+//
+// The schema permits the input. Of the twelve columns selected, only id and name are declared
+// NOT NULL; description, difficulty, xp_reward, status, progress and created_at carry DEFAULTs
+// without NOT NULL, and db.Task scans them into non-pointer fields. A NULL in any of the six
+// fails the scan for that row and only that row.
+//
+// An error from row iteration itself is returned, not counted, for the same reason it is in
+// getActiveAgents: the driver stops wherever it failed, so how many rows were lost is not
+// knowable and any count would be invented.
+func (dqm *DailyQuestManager) GetActiveDailyQuests() (quests []db.Task, unreadableRows int, err error) {
+	if dqm.db == nil {
+		return []db.Task{}, 0, nil
+	}
+
+	rows, err := dqm.db.Query(activeDailyQuestsQuery)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query daily quests: %w", err)
+	}
+	defer rows.Close()
+
+	return scanDailyQuestRows(rows)
 }
 
 // CleanupExpiredQuests removes daily quests that have expired
