@@ -2,7 +2,9 @@ package dailyquests
 
 import (
 	"errors"
+	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -446,4 +448,49 @@ func TestANilDatabaseReportsNoLostRows(t *testing.T) {
 	if unreadableRows != 0 {
 		t.Errorf("reported %d unreadable rows from a nil database, want 0", unreadableRows)
 	}
+}
+
+// TestTheCountAndTheListAskTheSameQuestion is the cross-endpoint pin, and it is the reason
+// the unreadable-row count at this site is more than hygiene.
+//
+// GetQuestStats publishes active_daily_quests as a SQL COUNT(*); GetActiveDailyQuests returns
+// the rows. Both are answers about the same population, so their predicates are one clause
+// written twice. Measured on this branch, the two WHERE clauses are identical
+// character-for-character -- which means a row that will not scan is counted by
+// /api/daily-quests/stats and absent from /api/daily-quests, and before the repair nothing on
+// either endpoint said the two could disagree.
+//
+// The comparison is normalised on whitespace only. Reordering the AND terms would make the
+// clauses equivalent and this test red, which is the right way round: it is cheap to keep them
+// written the same way, and a reader comparing two endpoints should not have to prove
+// equivalence by hand.
+func TestTheCountAndTheListAskTheSameQuestion(t *testing.T) {
+	listPredicate := wherePredicate(t, activeDailyQuestsQuery)
+	countPredicate := wherePredicate(t, activeDailyQuestCountQuery)
+
+	if listPredicate != countPredicate {
+		t.Errorf("the list and the count select over different predicates, so the two endpoints can disagree with nothing saying so:\n  list  %s\n  count %s", listPredicate, countPredicate)
+	}
+	if listPredicate == "" {
+		t.Fatal("parsed an empty predicate out of activeDailyQuestsQuery; the parser below is wrong, not the query")
+	}
+	if !strings.Contains(countPredicate, "[DAILY]") {
+		t.Errorf("the count predicate %q does not filter to daily quests at all", countPredicate)
+	}
+}
+
+// wherePredicate pulls the WHERE clause out of a statement, normalised on whitespace. It is
+// deliberately narrow and fails loudly on a shape it cannot read, rather than returning an
+// empty string that would make the comparison above pass for the wrong reason.
+func wherePredicate(t *testing.T, query string) string {
+	t.Helper()
+	match := regexp.MustCompile(`(?is)\bWHERE\b(.*?)(?:\bORDER\s+BY\b|$)`).FindStringSubmatch(query)
+	if match == nil {
+		t.Fatalf("could not find a WHERE clause in %q", query)
+	}
+	predicate := strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(match[1], " "))
+	if predicate == "" {
+		t.Fatalf("parsed an empty WHERE clause out of %q", query)
+	}
+	return predicate
 }

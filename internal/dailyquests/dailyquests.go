@@ -418,6 +418,21 @@ const activeDailyQuestsQuery = `
 		ORDER BY created_at DESC
 	`
 
+// activeDailyQuestCountQuery is what GetQuestStats publishes as active_daily_quests, and it
+// must select over exactly the predicate activeDailyQuestsQuery lists. The two are one
+// question asked two ways -- how many active daily quests are there, and which ones -- so a
+// predicate that drifts on one side makes /api/daily-quests/stats and /api/daily-quests
+// disagree with nothing on either endpoint saying they can.
+//
+// It is a constant beside its pair rather than a literal 90 lines away so that
+// TestTheCountAndTheListAskTheSameQuestion can read both back and compare them.
+const activeDailyQuestCountQuery = `
+		SELECT COUNT(*) FROM tasks 
+		WHERE name LIKE '[DAILY]%' 
+		AND status IN ('available', 'assigned', 'in_progress')
+		AND created_at > NOW() - INTERVAL '1 day'
+	`
+
 // dailyQuestRowCursor is the part of *sql.Rows that scanDailyQuestRows uses. It is an
 // interface for the same reason agentRowCursor is: a test needs all three outcomes of the
 // loop — a row that scans, a row that does not, and a failure of the iteration itself — and a
@@ -583,12 +598,7 @@ func (dqm *DailyQuestManager) GetQuestStats() (map[string]interface{}, error) {
 	
 	// Count active daily quests
 	var activeQuests int
-	err := dqm.db.QueryRow(`
-		SELECT COUNT(*) FROM tasks 
-		WHERE name LIKE '[DAILY]%' 
-		AND status IN ('available', 'assigned', 'in_progress')
-		AND created_at > NOW() - INTERVAL '1 day'
-	`).Scan(&activeQuests)
+	err := dqm.db.QueryRow(activeDailyQuestCountQuery).Scan(&activeQuests)
 	if err != nil {
 		log.Printf("Error counting active daily quests: %v", err)
 	}
