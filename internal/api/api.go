@@ -2187,6 +2187,178 @@ type TimelineResponse struct {
 	StartTime time.Time       `json:"start_time"`
 	EndTime   time.Time       `json:"end_time"`
 	Total     int             `json:"total"`
+
+	// UnreadableRows is the number of database ROWS this response could not read.
+	//
+	// Total is len(Events), and Events is built by dropping every row that would not
+	// scan. So Total is computed from the very slice the drop shortened, and unlike the
+	// other list endpoints in this file there is no neighbouring COUNT(*) that could
+	// disagree with it: the response is self-consistently short and nothing outside this
+	// field can notice. That is what this field exists to say.
+	//
+	// It counts ROWS, not events, and the two are deliberately not interchangeable: one
+	// unreadable task row costs up to three events (created, started, completed) and one
+	// unreadable agent row up to two (updated, active). Total+UnreadableRows is therefore
+	// NOT the number of events that were owed, and nothing should add them.
+	//
+	// It is written on every response, including zero. An absent-or-zero field would mean
+	// two different things -- nothing was lost, and this build does not report -- and a
+	// caller that cannot separate those is back where this repair started. So there is no
+	// omitempty here, and adding one would silently remove the claim.
+	UnreadableRows int `json:"unreadable_rows"`
+}
+
+// timelineRowCursor is the part of *sql.Rows the timeline collectors use.
+//
+// The loops live behind it so that an ITERATION failure has an arm at all. A real driver
+// gives no reliable way to make rows.Err() non-nil on demand, so without this interface the
+// rows.Err() repair below would ship untested -- which is how it came to be missing in the
+// first place. The SQLite-backed tests stay on handleActivityTimeline as well, so the call
+// site is covered and not only the extracted collectors.
+type timelineRowCursor interface {
+	Next() bool
+	Scan(dest ...interface{}) error
+	Err() error
+}
+
+// collectTaskTimelineEvents turns task rows into timeline events and counts the rows it
+// could not read.
+//
+// The count is returned beside the events rather than folded into them, because the caller
+// publishes len(events) as `total` and that number must keep meaning "events in this
+// response". Recording the drop and changing the count are different repairs and only the
+// first one is honest here: an unreadable row's events cannot be reconstructed, so any
+// larger total would be invented.
+//
+// An iteration failure is returned, not counted. The driver stops wherever it failed, so how
+// many rows it cost is not knowable and a count would be a guess; the error is the honest
+// report.
+func collectTaskTimelineEvents(rows timelineRowCursor, startTime, endTime time.Time) ([]ActivityEvent, int, error) {
+	events := []ActivityEvent{}
+	unreadableRows := 0
+
+	for rows.Next() {
+		var taskID int
+		var taskName, status string
+		var agentID *int
+		var agentName *string
+		var createdAt, startedAt, completedAt *time.Time
+
+		if err := rows.Scan(&taskID, &taskName, &status, &agentID, &agentName,
+			&createdAt, &startedAt, &completedAt); err != nil {
+			// Counted and logged, never silent. The schema permits the input: of the
+			// columns selected here only tasks.name is NOT NULL, while status carries a
+			// DEFAULT without one and scans into a non-pointer string.
+			unreadableRows++
+			log.Printf("Error scanning task timeline row: %v", err)
+			continue
+		}
+
+		agentNameStr := ""
+		if agentName != nil {
+			agentNameStr = *agentName
+		}
+
+		// Add creation event
+		if createdAt != nil && createdAt.After(startTime) && createdAt.Before(endTime) {
+			events = append(events, ActivityEvent{
+				Timestamp:   *createdAt,
+				Type:        "task_created",
+				AgentID:     agentID,
+				AgentName:   agentNameStr,
+				TaskID:      &taskID,
+				TaskName:    taskName,
+				Status:      status,
+				Description: fmt.Sprintf("Task '%s' created", taskName),
+			})
+		}
+
+		// Add started event
+		if startedAt != nil && startedAt.After(startTime) && startedAt.Before(endTime) {
+			events = append(events, ActivityEvent{
+				Timestamp:   *startedAt,
+				Type:        "task_started",
+				AgentID:     agentID,
+				AgentName:   agentNameStr,
+				TaskID:      &taskID,
+				TaskName:    taskName,
+				Status:      status,
+				Description: fmt.Sprintf("%s started working on '%s'", agentNameStr, taskName),
+			})
+		}
+
+		// Add completion event
+		if completedAt != nil && completedAt.After(startTime) && completedAt.Before(endTime) {
+			events = append(events, ActivityEvent{
+				Timestamp:   *completedAt,
+				Type:        "task_completed",
+				AgentID:     agentID,
+				AgentName:   agentNameStr,
+				TaskID:      &taskID,
+				TaskName:    taskName,
+				Status:      status,
+				Description: fmt.Sprintf("%s completed '%s'", agentNameStr, taskName),
+			})
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating task timeline rows: %w", err)
+	}
+
+	return events, unreadableRows, nil
+}
+
+// collectAgentTimelineEvents turns agent rows into timeline events and counts the rows it
+// could not read. Same contract as collectTaskTimelineEvents: the drop is counted, the
+// iteration failure is returned.
+func collectAgentTimelineEvents(rows timelineRowCursor, startTime, endTime time.Time) ([]ActivityEvent, int, error) {
+	events := []ActivityEvent{}
+	unreadableRows := 0
+
+	for rows.Next() {
+		var agentID int
+		var name, status string
+		var lastActive, updatedAt *time.Time
+
+		if err := rows.Scan(&agentID, &name, &status, &lastActive, &updatedAt); err != nil {
+			// Counted and logged. agents.status carries a DEFAULT and no NOT NULL, and
+			// scans into a non-pointer string, so the schema permits this row.
+			unreadableRows++
+			log.Printf("Error scanning agent timeline row: %v", err)
+			continue
+		}
+
+		// Add status update event
+		if updatedAt != nil && updatedAt.After(startTime) && updatedAt.Before(endTime) {
+			events = append(events, ActivityEvent{
+				Timestamp:   *updatedAt,
+				Type:        "agent_updated",
+				AgentID:     &agentID,
+				AgentName:   name,
+				Status:      status,
+				Description: fmt.Sprintf("%s status updated to %s", name, status),
+			})
+		}
+
+		// Add activity event
+		if lastActive != nil && lastActive.After(startTime) && lastActive.Before(endTime) {
+			events = append(events, ActivityEvent{
+				Timestamp:   *lastActive,
+				Type:        "agent_active",
+				AgentID:     &agentID,
+				AgentName:   name,
+				Status:      status,
+				Description: fmt.Sprintf("%s became active", name),
+			})
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating agent timeline rows: %w", err)
+	}
+
+	return events, unreadableRows, nil
 }
 
 func (s *Server) handleActivityTimeline(w http.ResponseWriter, r *http.Request) {
@@ -2250,65 +2422,13 @@ func (s *Server) handleActivityTimeline(w http.ResponseWriter, r *http.Request) 
 	}
 	defer rows.Close()
 
-	for rows.Next() {
-		var taskID int
-		var taskName, status string
-		var agentID *int
-		var agentName *string
-		var createdAt, startedAt, completedAt *time.Time
-
-		if err := rows.Scan(&taskID, &taskName, &status, &agentID, &agentName,
-			&createdAt, &startedAt, &completedAt); err != nil {
-			continue
-		}
-
-		agentNameStr := ""
-		if agentName != nil {
-			agentNameStr = *agentName
-		}
-
-		// Add creation event
-		if createdAt != nil && createdAt.After(startTime) && createdAt.Before(endTime) {
-			events = append(events, ActivityEvent{
-				Timestamp:   *createdAt,
-				Type:        "task_created",
-				AgentID:     agentID,
-				AgentName:   agentNameStr,
-				TaskID:      &taskID,
-				TaskName:    taskName,
-				Status:      status,
-				Description: fmt.Sprintf("Task '%s' created", taskName),
-			})
-		}
-
-		// Add started event
-		if startedAt != nil && startedAt.After(startTime) && startedAt.Before(endTime) {
-			events = append(events, ActivityEvent{
-				Timestamp:   *startedAt,
-				Type:        "task_started",
-				AgentID:     agentID,
-				AgentName:   agentNameStr,
-				TaskID:      &taskID,
-				TaskName:    taskName,
-				Status:      status,
-				Description: fmt.Sprintf("%s started working on '%s'", agentNameStr, taskName),
-			})
-		}
-
-		// Add completion event
-		if completedAt != nil && completedAt.After(startTime) && completedAt.Before(endTime) {
-			events = append(events, ActivityEvent{
-				Timestamp:   *completedAt,
-				Type:        "task_completed",
-				AgentID:     agentID,
-				AgentName:   agentNameStr,
-				TaskID:      &taskID,
-				TaskName:    taskName,
-				Status:      status,
-				Description: fmt.Sprintf("%s completed '%s'", agentNameStr, taskName),
-			})
-		}
+	taskEvents, unreadableTaskRows, err := collectTaskTimelineEvents(rows, startTime, endTime)
+	if err != nil {
+		log.Printf("Error reading task timeline: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
 	}
+	events = append(events, taskEvents...)
 
 	// Query agent update events
 	agentQuery := `
@@ -2324,6 +2444,13 @@ func (s *Server) handleActivityTimeline(w http.ResponseWriter, r *http.Request) 
 		agentArgs = append(agentArgs, agentFilter)
 	}
 
+	// An agent-query failure is tolerated here and answers 200 with no agent events. That
+	// predates this repair and is left as it was, because turning it into a 500 changes what
+	// a published endpoint returns and is a decision rather than a repair. ⚠️ It is the same
+	// class as the bug this file just fixed -- a short response that says nothing -- and it
+	// is NOT covered by unreadable_rows, which counts rows a cursor handed over and could not
+	// scan, not a query that never ran. Whoever decides it should decide it out loud.
+	unreadableAgentRows := 0
 	rows, err = s.DB.Query(agentQuery, agentArgs...)
 	if err != nil {
 		log.Printf("Error querying agent timeline: %v", err)
@@ -2331,39 +2458,18 @@ func (s *Server) handleActivityTimeline(w http.ResponseWriter, r *http.Request) 
 	} else {
 		defer rows.Close()
 
-		for rows.Next() {
-			var agentID int
-			var name, status string
-			var lastActive, updatedAt *time.Time
-
-			if err := rows.Scan(&agentID, &name, &status, &lastActive, &updatedAt); err != nil {
-				continue
-			}
-
-			// Add status update event
-			if updatedAt != nil && updatedAt.After(startTime) && updatedAt.Before(endTime) {
-				events = append(events, ActivityEvent{
-					Timestamp:   *updatedAt,
-					Type:        "agent_updated",
-					AgentID:     &agentID,
-					AgentName:   name,
-					Status:      status,
-					Description: fmt.Sprintf("%s status updated to %s", name, status),
-				})
-			}
-
-			// Add activity event
-			if lastActive != nil && lastActive.After(startTime) && lastActive.Before(endTime) {
-				events = append(events, ActivityEvent{
-					Timestamp:   *lastActive,
-					Type:        "agent_active",
-					AgentID:     &agentID,
-					AgentName:   name,
-					Status:      status,
-					Description: fmt.Sprintf("%s became active", name),
-				})
-			}
+		agentEvents, unreadable, err := collectAgentTimelineEvents(rows, startTime, endTime)
+		if err != nil {
+			// An iteration failure is not the tolerated case above. The query DID run, the
+			// driver stopped somewhere in the middle of it, and how many rows that cost is
+			// not knowable -- so there is nothing honest to put in unreadable_rows and the
+			// only truthful answer is a failure.
+			log.Printf("Error reading agent timeline: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
 		}
+		events = append(events, agentEvents...)
+		unreadableAgentRows = unreadable
 	}
 
 	// Sort events by timestamp (newest first)
@@ -2380,11 +2486,20 @@ func (s *Server) handleActivityTimeline(w http.ResponseWriter, r *http.Request) 
 		events = events[:limit]
 	}
 
+	// Total keeps meaning "events in this response" and is deliberately NOT adjusted for the
+	// rows that were lost; their events cannot be reconstructed, so any larger number would be
+	// invented. The shortfall is recorded beside it instead.
+	unreadableRows := unreadableTaskRows + unreadableAgentRows
+	if unreadableRows > 0 {
+		log.Printf("activity timeline: %d database row(s) could not be read and are missing from this response; total=%d counts only the events that were read", unreadableRows, len(events))
+	}
+
 	response := TimelineResponse{
-		Events:    events,
-		StartTime: startTime,
-		EndTime:   endTime,
-		Total:     len(events),
+		Events:         events,
+		StartTime:      startTime,
+		EndTime:        endTime,
+		Total:          len(events),
+		UnreadableRows: unreadableRows,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
