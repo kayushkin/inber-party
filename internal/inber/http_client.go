@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -67,13 +68,20 @@ func (c *HTTPClient) get(path string, out interface{}) error {
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
-// GetAgents fetches agents from the HTTP API and maps to RPG agents.
-func (c *HTTPClient) GetAgents() ([]RPGAgent, error) {
+// GetAgents fetches agents from the HTTP API and maps to RPG agents, and returns the number of
+// remote agents it could not read.
+//
+// This arm drops a row too: an agent the remote API names in neither `name` nor `agent` cannot
+// be keyed and is skipped. Before this count existed, GetStats below divided the summed levels
+// by the length of the shortened slice, so a nameless remote agent moved average_agent_level
+// with nothing on screen saying so -- the same defect as the SQLite arm, at a different site.
+func (c *HTTPClient) GetAgents() ([]RPGAgent, int, error) {
 	var raw []inberAPIAgent
 	if err := c.get("/api/agents", &raw); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
+	unreadableRows := 0
 	agents := make([]RPGAgent, 0, len(raw))
 	for _, a := range raw {
 		name := a.Name
@@ -81,6 +89,8 @@ func (c *HTTPClient) GetAgents() ([]RPGAgent, error) {
 			name = a.Agent
 		}
 		if name == "" {
+			unreadableRows++
+			log.Printf("inber agents: remote agent %d has no name in either field and is missing from the agent list", unreadableRows)
 			continue
 		}
 		class, emoji, title := classFor(name)
@@ -141,7 +151,7 @@ func (c *HTTPClient) GetAgents() ([]RPGAgent, error) {
 		}
 	}
 
-	return agents, nil
+	return agents, unreadableRows, nil
 }
 
 // GetQuests fetches sessions from the HTTP API and maps to RPG quests.
@@ -223,7 +233,7 @@ func (c *HTTPClient) GetQuests(limit int) ([]RPGQuest, error) {
 
 // GetStats computes stats from HTTP API data.
 func (c *HTTPClient) GetStats() (*RPGStats, error) {
-	agents, err := c.GetAgents()
+	agents, unreadableRows, err := c.GetAgents()
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +242,7 @@ func (c *HTTPClient) GetStats() (*RPGStats, error) {
 		return nil, err
 	}
 
-	stats := &RPGStats{TotalAgents: len(agents)}
+	stats := &RPGStats{TotalAgents: len(agents), UnreadableAgentRows: unreadableRows}
 	totalLevel := 0
 	for _, a := range agents {
 		stats.TotalXP += a.XP
@@ -259,7 +269,7 @@ func (c *HTTPClient) GetStats() (*RPGStats, error) {
 
 // GetAchievements computes achievements from HTTP API data.
 func (c *HTTPClient) GetAchievements(agentID string) ([]RPGAchievement, error) {
-	agents, err := c.GetAgents()
+	agents, _, err := c.GetAgents()
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +426,7 @@ func (c *HTTPClient) GetSessionReplay(sessionID string) (*SessionReplay, error) 
 // GetAgentJournal returns a simplified journal for HTTP client (limited data available).
 func (c *HTTPClient) GetAgentJournal(agentID string, date string) (*RPGJournal, error) {
 	// Get basic agent info
-	agents, err := c.GetAgents()
+	agents, _, err := c.GetAgents()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agent info: %w", err)
 	}

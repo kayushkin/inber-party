@@ -35,7 +35,9 @@ func (ars *AgentRegistrySync) SyncAgents() (*SyncResult, error) {
 	log.Println("🔄 Starting agent registry sync...")
 	
 	// Get agents from inber
-	inberAgents, err := ars.inberSource.GetAgents()
+	// Count discarded: GetAgents logs each drop at its site. An unreadable row here means an
+	// agent that is not synced into the registry on this pass, which the next pass retries.
+	inberAgents, _, err := ars.inberSource.GetAgents()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agents from inber: %w", err)
 	}

@@ -142,9 +142,12 @@ func TestGetAgents_GatewayOnly(t *testing.T) {
 	}
 	defer store.Close()
 
-	agents, err := store.GetAgents()
+	agents, unreadableRows, err := store.GetAgents()
 	if err != nil {
 		t.Fatal(err)
+	}
+	if unreadableRows != 0 {
+		t.Fatalf("a fixture every row of which scans reported %d unreadable rows, want 0", unreadableRows)
 	}
 
 	if len(agents) != 3 {
@@ -186,9 +189,12 @@ func TestGetAgents_BothDBs(t *testing.T) {
 	}
 	defer store.Close()
 
-	agents, err := store.GetAgents()
+	agents, unreadableRows, err := store.GetAgents()
 	if err != nil {
 		t.Fatal(err)
+	}
+	if unreadableRows != 0 {
+		t.Fatalf("a fixture every row of which scans reported %d unreadable rows, want 0", unreadableRows)
 	}
 
 	// Should have 3 agents (claxon, brigid, run — brigid appears in both DBs)

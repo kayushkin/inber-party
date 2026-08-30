@@ -10,7 +10,14 @@ import (
 
 // DataSource abstracts both SQLite Store and HTTP client.
 type DataSource interface {
-	GetAgents() ([]RPGAgent, error)
+	// GetAgents returns the agents and the number of source rows it could not read.
+	//
+	// The count is part of the interface, not of one implementation, because BOTH
+	// implementations drop rows and both publish the shortened slice's length as a fact.
+	// Store skips a row whose columns will not scan; HTTPClient skips a remote agent with no
+	// name. Each counts its own drops, so the number is always a claim the implementation is
+	// entitled to make -- there is no arm here that has to return a zero it cannot stand behind.
+	GetAgents() ([]RPGAgent, int, error)
 	GetQuests(limit int) ([]RPGQuest, error)
 	GetStats() (*RPGStats, error)
 	GetAchievements(agentID string) ([]RPGAchievement, error)
@@ -52,7 +59,7 @@ func (h *Handler) handleAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agents, err := h.source.GetAgents()
+	agents, unreadableRows, err := h.source.GetAgents()
 	if err != nil {
 		log.Printf("Error getting inber agents: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -60,7 +67,31 @@ func (h *Handler) handleAgents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	setUnreadableRowsHeader(w, unreadableRows)
 	json.NewEncoder(w).Encode(agents)
+}
+
+// unreadableRowsHeader names the number of source rows a list response could not read.
+//
+// It is a header rather than a member of the body because /api/inber/agents answers a bare
+// JSON array. Turning that into an object would be a wire change on a route the frontend
+// already reads, which is a decision rather than a repair; a header is additive, so a caller
+// that wants the array is unaffected and a caller that wants to know whether the array is the
+// whole answer now has somewhere to look. /api/inber/stats answers an object already, so it
+// carries the same number as the unreadable_agent_rows member instead.
+const unreadableRowsHeader = "X-Unreadable-Rows"
+
+// setUnreadableRowsHeader reports how many rows a list response lost.
+//
+// It is written on every response INCLUDING zero, deliberately. An absent header would mean two
+// different things -- "nothing was lost" and "this build does not report" -- and a reader that
+// cannot tell those apart is back where this repair started. Present-and-zero is a claim;
+// absent is a build that makes no claim.
+func setUnreadableRowsHeader(w http.ResponseWriter, unreadableRows int) {
+	w.Header().Set(unreadableRowsHeader, strconv.Itoa(unreadableRows))
+	if unreadableRows > 0 {
+		log.Printf("inber agents: %d row(s) could not be read and are missing from this response", unreadableRows)
+	}
 }
 
 func (h *Handler) handleQuests(w http.ResponseWriter, r *http.Request) {

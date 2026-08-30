@@ -158,7 +158,9 @@ func (qg *QuestGiver) AnalyzeTask(taskName, taskDescription string) *TaskAnalysi
 // FindBestAgent evaluates all available agents and finds the best match for a task
 func (qg *QuestGiver) FindBestAgent(analysis *TaskAnalysis) (*AgentCapability, error) {
 	// Get agents from inber source
-	agents, err := qg.inberSource.GetAgents()
+	// Count discarded: GetAgents logs each drop at its site, and the best-match search reports
+	// no total. An unreadable row means one fewer candidate, not a wrong published number.
+	agents, _, err := qg.inberSource.GetAgents()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agents: %w", err)
 	}

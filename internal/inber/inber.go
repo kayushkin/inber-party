@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"os"
@@ -96,6 +97,19 @@ type RPGStats struct {
 	AverageAgentLevel float64 `json:"average_agent_level"`
 	TotalSessions     int     `json:"total_sessions"`
 	Uptime            string  `json:"uptime,omitempty"`
+
+	// UnreadableAgentRows is how many database rows GetAgents could not read.
+	//
+	// It is a field in the body rather than a response header -- the channel 4e930d8 used at
+	// the daily-quest list endpoint -- because /api/inber/stats already answers a JSON object,
+	// so naming one more member is additive and needs no decision, where turning a bare array
+	// into an object would have been a wire change. It is NOT `omitempty`: absent would then
+	// mean both "nothing was lost" and "this build does not report", and a reader who cannot
+	// separate those is back where this repair started. Present-and-zero is a claim.
+	//
+	// It qualifies total_agents and average_agent_level, both of which are computed from a
+	// slice this many rows short of the database.
+	UnreadableAgentRows int `json:"unreadable_agent_rows"`
 }
 
 // QuestHistoryEntry is a lightweight quest record for chart data.
@@ -323,9 +337,22 @@ func (s *Store) fetchRegistry() []inberRegistryAgent {
 	return agents
 }
 
-// GetAgents returns all known agents mapped to RPG characters.
-func (s *Store) GetAgents() ([]RPGAgent, error) {
+// GetAgents returns all known agents mapped to RPG characters, and the number of database
+// rows it could not read.
+//
+// The count is returned rather than folded away because the slice's LENGTH is published as
+// fact twice over: GetStats reports len(agents) as total_agents and divides the summed levels
+// by it to produce average_agent_level. A row that could not be read leaves both the numerator
+// and the denominator, so the average is silently taken over the readable subset and nothing
+// on screen changes shape -- the number is simply a different number. A shortened list is at
+// least visible; a moved average is not.
+//
+// It records the drop and leaves the count alone, which is the shape a5ecb55 and 4e930d8
+// established in this repo for the same defect at other sites. Correcting len(agents) would
+// invent an agent, and reporting nothing is what this repairs.
+func (s *Store) GetAgents() ([]RPGAgent, int, error) {
 	agentMap := make(map[string]*RPGAgent)
+	unreadableRows := 0
 
 	// Build orchestrator map from registry
 	orchestratorMap := make(map[string]string)
@@ -353,7 +380,7 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 			GROUP BY s.agent
 		`)
 		if err != nil {
-			return nil, fmt.Errorf("query gateway agents: %w", err)
+			return nil, 0, fmt.Errorf("query gateway agents: %w", err)
 		}
 		defer rows.Close()
 
@@ -371,6 +398,8 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 			)
 			if err := rows.Scan(&agentName, &sessionCount, &requestCount, &totalTokens, &totalCost,
 				&completed, &errors, &running, &lastActive); err != nil {
+				unreadableRows++
+				log.Printf("inber agents: gateway row %d could not be read and is missing from the agent list: %v", unreadableRows, err)
 				continue
 			}
 
@@ -413,6 +442,13 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 				LastActive:   la,
 			}
 		}
+		// The iteration error is RETURNED, not counted. When rows.Err is non-nil the driver
+		// stopped wherever it failed, so the rows after that point were never offered and any
+		// count of them would be invented. Before this check a partial map went on to be
+		// published as total_agents and as the average's denominator with a nil error.
+		if err := rows.Err(); err != nil {
+			return nil, 0, fmt.Errorf("iterate gateway agents: %w", err)
+		}
 	}
 
 	// Supplement from sessions DB (has turn-level detail and model info)
@@ -445,6 +481,8 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 				)
 				if err := rows.Scan(&agentName, &sessions, &tokens, &cost, &toolCalls,
 					&completed, &interrupted, &lastActive); err != nil {
+					unreadableRows++
+					log.Printf("inber agents: sessions row %d could not be read and is missing from the agent list: %v", unreadableRows, err)
 					continue
 				}
 
@@ -511,6 +549,11 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 					agentMap[agentName] = a
 				}
 			}
+			// Returned for the same reason as the gateway arm above: a driver that stopped
+			// mid-iteration cannot say how many rows it did not offer.
+			if err := rows.Err(); err != nil {
+				return nil, 0, fmt.Errorf("iterate sessions agents: %w", err)
+			}
 		}
 	}
 
@@ -569,7 +612,7 @@ func (s *Store) GetAgents() ([]RPGAgent, error) {
 		a.HeldItems = getHeldItemsForAgent(analysis)
 		result = append(result, *a)
 	}
-	return result, nil
+	return result, unreadableRows, nil
 }
 
 // GetQuests returns requests mapped to RPG quests.
@@ -711,7 +754,7 @@ func (s *Store) GetQuests(limit int) ([]RPGQuest, error) {
 
 // GetStats returns aggregate RPG stats.
 func (s *Store) GetStats() (*RPGStats, error) {
-	agents, err := s.GetAgents()
+	agents, unreadableRows, err := s.GetAgents()
 	if err != nil {
 		return nil, err
 	}
@@ -722,7 +765,8 @@ func (s *Store) GetStats() (*RPGStats, error) {
 	}
 
 	stats := &RPGStats{
-		TotalAgents: len(agents),
+		TotalAgents:         len(agents),
+		UnreadableAgentRows: unreadableRows,
 	}
 
 	totalLevel := 0
@@ -770,7 +814,7 @@ func (s *Store) GetStats() (*RPGStats, error) {
 func (s *Store) GetAchievements(agentID string) ([]RPGAchievement, error) {
 	var achievements []RPGAchievement
 
-	agents, err := s.GetAgents()
+	agents, _, err := s.GetAgents()
 	if err != nil {
 		return nil, err
 	}
@@ -2090,7 +2134,7 @@ func (s *Store) GetAgentJournal(agentID string, date string) (*RPGJournal, error
 	}
 
 	// Get agent information
-	agents, err := s.GetAgents()
+	agents, _, err := s.GetAgents()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agent info: %w", err)
 	}

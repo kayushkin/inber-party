@@ -111,8 +111,10 @@ func (m *QuestMonitor) updateCache() {
 	}
 	m.mutex.Unlock()
 	
-	// Update agents cache
-	agents, err := m.dataSource.GetAgents()
+	// Update agents cache. The unreadable-row count is discarded here rather than swallowed:
+	// GetAgents logs each drop at the site where the row was lost, and this consumer publishes
+	// no count or average derived from the slice's length, so it has nothing to qualify.
+	agents, _, err := m.dataSource.GetAgents()
 	if err != nil {
 		log.Printf("Quest Monitor: Error fetching agents: %v", err)
 		return
@@ -181,7 +183,8 @@ func (m *QuestMonitor) checkQuestChanges() {
 
 // checkAgentChanges detects and broadcasts agent status changes
 func (m *QuestMonitor) checkAgentChanges() {
-	agents, err := m.dataSource.GetAgents()
+	// Count discarded: this compares agents to their previous state and publishes no length.
+	agents, _, err := m.dataSource.GetAgents()
 	if err != nil {
 		return
 	}

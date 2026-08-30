@@ -146,7 +146,7 @@ func main() {
 	if inberSource == nil {
 		httpClient := inber.NewHTTPClient(inberURL)
 		// Quick check if the API is reachable
-		if _, err := httpClient.GetAgents(); err != nil {
+		if _, _, err := httpClient.GetAgents(); err != nil {
 			logger.Warn("Inber HTTP API unavailable", map[string]interface{}{
 				"url":   inberURL,
 				"error": err.Error(),
@@ -173,7 +173,9 @@ func main() {
 			ticker := time.NewTicker(30 * time.Second)
 			defer ticker.Stop()
 			for range ticker.C {
-				agents, err := inberSource.GetAgents()
+				// Count discarded: this broadcast carries the agent list AND the stats object,
+				// and the stats object already names unreadable_agent_rows for the same read.
+				agents, _, err := inberSource.GetAgents()
 				if err != nil {
 					continue
 				}
@@ -229,7 +231,7 @@ func main() {
 		inberStatus := "disconnected"
 		inberError := ""
 		if inberSource != nil {
-			if _, err := inberSource.GetAgents(); err != nil {
+			if _, _, err := inberSource.GetAgents(); err != nil {
 				inberStatus = "error" 
 				inberError = err.Error()
 			} else {
