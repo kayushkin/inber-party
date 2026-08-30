@@ -226,10 +226,34 @@ func (dqm *DailyQuestManager) GetQuestTemplates() []QuestTemplate {
 	}
 }
 
-// GenerateDailyQuests creates new daily quests for all active agents
-func (dqm *DailyQuestManager) GenerateDailyQuests() error {
+// GenerationReport is what a run of GenerateDailyQuests did, including what it could not do.
+//
+// UnreadableAgentRows is the field this type exists for. The quest and agent counts alone
+// cannot distinguish a run that saw every agent from a run that lost some, because a lost
+// agent lowers both. A caller that reports success without reading this field is reporting
+// the reduced population as the whole one.
+type GenerationReport struct {
+	// QuestsCreated is the number of daily quests written.
+	QuestsCreated int
+	// AgentsQuested is the number of agents those quests were generated for. It counts
+	// agents that were read, not agents that exist.
+	AgentsQuested int
+	// UnreadableAgentRows is the number of agent rows the database returned that could not
+	// be scanned. Each one is an agent that silently got no daily quest today, and nothing
+	// revisits it.
+	UnreadableAgentRows int
+}
+
+// ReadEveryAgent reports whether the run saw every agent row the database returned.
+func (r GenerationReport) ReadEveryAgent() bool { return r.UnreadableAgentRows == 0 }
+
+// GenerateDailyQuests creates new daily quests for all active agents, and reports how many
+// agent rows it could not read. See GenerationReport.
+func (dqm *DailyQuestManager) GenerateDailyQuests() (GenerationReport, error) {
+	var report GenerationReport
+
 	if dqm.db == nil {
-		return fmt.Errorf("database not available")
+		return report, fmt.Errorf("database not available")
 	}
 
 	log.Printf("Generating daily quests...")
@@ -241,14 +265,16 @@ func (dqm *DailyQuestManager) GenerateDailyQuests() error {
 	}
 	
 	// Get all active agents
-	agents, err := dqm.getActiveAgents()
+	agents, unreadableRows, err := dqm.getActiveAgents()
 	if err != nil {
-		return fmt.Errorf("failed to get active agents: %w", err)
+		return report, fmt.Errorf("failed to get active agents: %w", err)
 	}
+	report.UnreadableAgentRows = unreadableRows
+	report.AgentsQuested = len(agents)
 	
 	if len(agents) == 0 {
-		log.Printf("No active agents found, skipping daily quest generation")
-		return nil
+		log.Printf("No active agents found, skipping daily quest generation (%d agent row(s) unreadable)", unreadableRows)
+		return report, nil
 	}
 	
 	templates := dqm.GetQuestTemplates()
@@ -279,8 +305,9 @@ func (dqm *DailyQuestManager) GenerateDailyQuests() error {
 		}
 	}
 	
-	log.Printf("Created %d daily quests for %d agents", questsCreated, len(agents))
-	return nil
+	report.QuestsCreated = questsCreated
+	log.Printf("Created %d daily quests for %d agents (%d agent row(s) unreadable)", questsCreated, len(agents), unreadableRows)
+	return report, nil
 }
 
 // generateQuestForAgent generates a random appropriate quest for a specific agent
@@ -438,30 +465,70 @@ func (dqm *DailyQuestManager) CleanupExpiredQuests() error {
 	return nil
 }
 
-// getActiveAgents returns all agents that should receive daily quests
-func (dqm *DailyQuestManager) getActiveAgents() ([]db.Agent, error) {
-	rows, err := dqm.db.Query(`
+// activeAgentsQuery is the statement getActiveAgents runs. It is a constant so a test can
+// read the column list back and check its own fixture table declares the same columns in
+// the same order. The scan below is positional, so a fixture that disagrees would exercise
+// a different query than the one that ships, and would do it silently.
+const activeAgentsQuery = `
 		SELECT id, name, title, class, level, xp, energy, status, avatar_emoji, created_at, updated_at
 		FROM agents
 		WHERE status != 'disabled'
 		ORDER BY level DESC
-	`)
+	`
+
+// getActiveAgents returns all agents that should receive daily quests, and separately the
+// number of agent rows it could not read.
+//
+// The second return value is the point of this signature. A row whose columns will not scan
+// into db.Agent is skipped — six of the eleven selected columns (level, xp, energy, status,
+// created_at, updated_at) carry DEFAULTs but are not declared NOT NULL, so the schema permits
+// a NULL the scan cannot take. Before, such a row was logged and then vanished: the caller
+// received a shorter slice and reported its length as the number of agents that exist, so an
+// agent that could not be read was indistinguishable from an agent that was not there. The
+// count is returned so the caller can say how many it lost instead of quietly losing them.
+//
+// An error from row iteration itself is returned, not counted. How many rows it cost is not
+// knowable — the driver stops the scan wherever it failed — so a count would be a guess, and
+// a short list presented as complete is the very thing this function exists to stop.
+func (dqm *DailyQuestManager) getActiveAgents() (agents []db.Agent, unreadableRows int, err error) {
+	rows, err := dqm.db.Query(activeAgentsQuery)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query agents: %w", err)
+		return nil, 0, fmt.Errorf("failed to query agents: %w", err)
 	}
 	defer rows.Close()
-	
-	var agents []db.Agent
+
+	return scanAgentRows(rows)
+}
+
+// agentRowCursor is the part of *sql.Rows that scanAgentRows uses. It is an interface so a
+// test can drive all three outcomes of the loop — a row that scans, a row that does not, and
+// a failure of the iteration itself — without needing a database that can be made to produce
+// each one on demand. The iteration failure in particular has no reliable trigger through a
+// real driver, and an error path with no arm is an error path nobody has run.
+type agentRowCursor interface {
+	Next() bool
+	Scan(dest ...any) error
+	Err() error
+}
+
+// scanAgentRows reads agent rows off a cursor, returning the agents it could read and a count
+// of the rows it could not. See getActiveAgents for why the count is returned rather than
+// folded into the length of the slice.
+func scanAgentRows(rows agentRowCursor) (agents []db.Agent, unreadableRows int, err error) {
 	for rows.Next() {
 		var agent db.Agent
 		if err := rows.Scan(&agent.ID, &agent.Name, &agent.Title, &agent.Class, &agent.Level, &agent.XP, &agent.Energy, &agent.Status, &agent.AvatarEmoji, &agent.CreatedAt, &agent.UpdatedAt); err != nil {
+			unreadableRows++
 			log.Printf("Error scanning agent: %v", err)
 			continue
 		}
 		agents = append(agents, agent)
 	}
-	
-	return agents, nil
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("failed to read agent rows: %w", err)
+	}
+
+	return agents, unreadableRows, nil
 }
 
 // GetQuestStats returns statistics about daily quests
@@ -530,8 +597,11 @@ func (dqm *DailyQuestManager) ScheduleDailyQuestGeneration() {
 			time.Sleep(duration)
 			
 			// Generate daily quests
-			if err := dqm.GenerateDailyQuests(); err != nil {
+			report, err := dqm.GenerateDailyQuests()
+			if err != nil {
 				log.Printf("Error generating daily quests: %v", err)
+			} else if !report.ReadEveryAgent() {
+				log.Printf("WARNING: %d agent row(s) were unreadable and got no daily quest; the %d-agent count above is the population that could be read, not the population that exists", report.UnreadableAgentRows, report.AgentsQuested)
 			}
 			
 			// Wait a bit to avoid rapid re-execution

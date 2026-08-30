@@ -1394,7 +1394,7 @@ func (s *Server) handleGenerateDailyQuests(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	
-	err := s.DailyQuestMgr.GenerateDailyQuests()
+	report, err := s.DailyQuestMgr.GenerateDailyQuests()
 	if err != nil {
 		log.Printf("Error generating daily quests: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1406,8 +1406,22 @@ func (s *Server) handleGenerateDailyQuests(w http.ResponseWriter, r *http.Reques
 		"message": "New daily quests have been generated!",
 	}})
 	
+	// The response carries the unreadable-row count rather than only the log, because a run
+	// that lost agent rows still generated quests and still returns 200. Reporting a bare
+	// "success" here would tell the caller the reduced population was the whole one.
+	message := "Daily quests generated successfully"
+	if !report.ReadEveryAgent() {
+		message = fmt.Sprintf("Daily quests generated, but %d agent row(s) could not be read and got no quest", report.UnreadableAgentRows)
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Daily quests generated successfully"})
+	json.NewEncoder(w).Encode(map[string]any{
+		"status":                "success",
+		"message":               message,
+		"quests_created":        report.QuestsCreated,
+		"agents_quested":        report.AgentsQuested,
+		"unreadable_agent_rows": report.UnreadableAgentRows,
+	})
 }
 
 func (s *Server) handleDailyQuestStats(w http.ResponseWriter, r *http.Request) {
