@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-inber-party is a retired operator-facing RPG dashboard. It still runs at `party.kayushkin.com`, but only maintenance and shutdown work belong here. Do not add features, new integrations, or new consumers; put new work in the active replacement service.
+inber-party is retired and stopped. On 2026-10-23 `repo:agent-party` replaced it at `party.kayushkin.com`; its unit is disabled and healthcheck no longer watches it. Its 25 unmerged test and fix branches are pushed to GitHub and kept, unmerged. Do not restart it or add to it; new work goes in agent-party.
 
 # How it works
 
@@ -14,11 +14,11 @@ The Go server provides the REST and WebSocket APIs and serves the React build fr
 
 ## Live service
 
-`inber-party.service` is an enabled user unit. It runs `~/bin/inber-party` on `:8180`; nginx exposes it as `party.kayushkin.com`. The unit template is `deploy/inber-party.service`, and `/health` is the readiness endpoint.
+`inber-party.service` is disabled and stopped. `:8180` and `party.kayushkin.com` now belong to `agent-party.service`. The unit template `deploy/inber-party.service` remains only as a record.
 
 ## The working directory is part of production
 
-The unit uses `WorkingDirectory=~/repos/inber-party`, and the server opens `frontend/dist` by relative path. Keep the main clone on the default branch. Moving the working directory can leave `/health` green while every frontend asset returns 404.
+Moot since the service stopped: it opened `frontend/dist` by relative path from `WorkingDirectory=~/repos/inber-party`. agent-party embeds its page instead.
 
 # Working in this repo
 
